@@ -362,6 +362,8 @@ pub enum MenuAction {
     ChangeTheme(PanoramaTheme),
     /// Signed in (`Some`) or out (`None`) from the account screen.
     Account(Option<pomme_auth::AuthAccount>),
+    /// The user left the account screen without signing in.
+    CancelPending,
     /// Open the singleplayer world in this save folder.
     PlayWorld {
         folder: String,

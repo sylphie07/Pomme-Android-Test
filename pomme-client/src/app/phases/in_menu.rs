@@ -17,7 +17,11 @@ pub enum MenuUpdateResult {
 /// Holds a gameplay request until the launch policy's account requirement is met.
 fn authorize_gameplay(core: &mut AppCore, pending: PendingGameAction) -> bool {
     if core.menu.account_gated() {
-        if core.deferred_game_action.is_none() {
+        if core.deferred_game_action.is_some() {
+            tracing::warn!(
+                "Rejected a gameplay request because another request is already waiting for account authorization"
+            );
+        } else {
             core.deferred_game_action = Some(pending);
         }
         core.menu.open_account(&core.input.key_bindings);
@@ -36,7 +40,6 @@ fn start_pending(core: &mut AppCore, pending: PendingGameAction) -> MenuUpdateRe
             protocol,
         } => connect_remote(core, server, username, protocol),
         PendingGameAction::PlayWorld { folder } => open_world(core, &folder),
-        PendingGameAction::QuickPlay(play) => quick_play(core, play),
     }
 }
 
@@ -276,8 +279,9 @@ pub fn update_menu(
                 core.menu.forget_account(&core.user.uuid);
                 core.deferred_game_action = None;
             }
+            let signed_in = account.is_some();
             apply_account(core, gfx, account);
-            if account.is_some()
+            if signed_in
                 && let Some(pending) = core.deferred_game_action.take()
             {
                 return start_pending(core, pending);

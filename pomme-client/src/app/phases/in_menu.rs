@@ -1,6 +1,6 @@
-use crate::app::{PendingGameAction, QuickPlay};
 use crate::app::core::AppCore;
 use crate::app::phases::{Gfx, Panorama};
+use crate::app::{PendingGameAction, QuickPlay};
 use crate::net::connection::{ConnectArgs, Transport};
 use crate::singleplayer::{self, World};
 use crate::ui::menu::{MenuAction, PanoramaTheme};
@@ -14,7 +14,8 @@ pub enum MenuUpdateResult {
     Quit,
 }
 
-/// Holds a gameplay request until the launch policy's account requirement is met.
+/// Holds a gameplay request until the launch policy's account requirement is
+/// met.
 fn authorize_gameplay(core: &mut AppCore, pending: PendingGameAction) -> bool {
     if core.menu.account_gated() {
         if core.deferred_game_action.is_some() {
@@ -43,7 +44,8 @@ fn start_pending(core: &mut AppCore, pending: PendingGameAction) -> MenuUpdateRe
     }
 }
 
-/// Creates a remote connection only after the launch policy authorizes gameplay.
+/// Creates a remote connection only after the launch policy authorizes
+/// gameplay.
 fn connect_remote(
     core: &mut AppCore,
     server: String,
@@ -123,11 +125,7 @@ pub fn quick_play(core: &mut AppCore, play: QuickPlay) -> MenuUpdateResult {
     }
 }
 
-fn apply_account(
-    core: &mut AppCore,
-    gfx: &mut Gfx,
-    account: Option<pomme_auth::AuthAccount>,
-) {
+fn apply_account(core: &mut AppCore, gfx: &mut Gfx, account: Option<pomme_auth::AuthAccount>) {
     core.user = match &account {
         Some(account) => crate::user::UserData::from_account(account),
         None => crate::user::UserData::from_args(Some(core.user.username.clone()), None, None),
@@ -138,7 +136,8 @@ fn apply_account(
         &core.input.key_bindings,
     );
     if core.user.has_profile {
-        gfx.renderer.load_player_skin(&core.user.uuid, &core.tokio_rt);
+        gfx.renderer
+            .load_player_skin(&core.user.uuid, &core.tokio_rt);
     }
     core.menu
         .set_player_face(core.user.has_profile.then_some(&core.user.uuid));
@@ -163,7 +162,7 @@ pub fn update_menu(
     panorama: &mut Panorama,
 ) -> MenuUpdateResult {
     if let Some(account) = core.menu.take_restored_account() {
-        apply_account(core, gfx, account);
+        apply_account(core, gfx, Some(account));
         if let Some(pending) = core.deferred_game_action.take() {
             return start_pending(core, pending);
         }
@@ -281,9 +280,7 @@ pub fn update_menu(
             }
             let signed_in = account.is_some();
             apply_account(core, gfx, account);
-            if signed_in
-                && let Some(pending) = core.deferred_game_action.take()
-            {
+            if signed_in && let Some(pending) = core.deferred_game_action.take() {
                 return start_pending(core, pending);
             }
         }

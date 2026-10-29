@@ -112,12 +112,10 @@ pub fn open_world(core: &mut AppCore, folder: &str) -> MenuUpdateResult {
 /// Starts `--quick-access-multiplayer` or `--quick-access-singleplayer`.
 pub fn quick_play(core: &mut AppCore, play: QuickPlay) -> MenuUpdateResult {
     match play {
-        QuickPlay::Multiplayer(server) => connect_remote(
-            core,
-            server,
-            core.user.username.clone(),
-            None,
-        ),
+        QuickPlay::Multiplayer(server) => {
+            let username = core.user.username.clone();
+            connect_remote(core, server, username, None)
+        }
         QuickPlay::Singleplayer(folder) => open_world(core, &folder),
     }
 }

@@ -8,9 +8,9 @@
 > retained.
 
 
-An early port: the client builds as an arm64 APK, signs in with a Microsoft
-account, downloads the game's assets on first launch (about 500 MB) and plays
-with touch controls.
+An early Android port: the client builds as an arm64 APK, supports Microsoft
+account sign-in, downloads the game's assets on first launch (about 500 MB),
+and plays with touch controls.
 
 ## Setup (macOS)
 

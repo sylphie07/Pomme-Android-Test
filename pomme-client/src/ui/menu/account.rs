@@ -37,8 +37,9 @@ impl MainMenu {
         let store = Arc::clone(&self.account_store);
         self.run_sign_in(async move {
             pomme_auth::device_code_sign_in(crate::net::http::client(), &*store, |code| {
+                let mut state = state.write();
                 if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
-                    *state.write() = SignIn::Code(code.clone());
+                    *state = SignIn::Code(code.clone());
                 }
             })
             .await
@@ -72,8 +73,9 @@ impl MainMenu {
         *state.write() = SignIn::Restoring;
         self.sign_in_task = Some(self.rt.spawn(async move {
             let restored = crate::account::restore(&*store).await;
+            let mut state = state.write();
             if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
-                *state.write() = match restored {
+                *state = match restored {
                     Some(account) => SignIn::Done(account),
                     None => SignIn::Idle,
                 };
@@ -107,8 +109,9 @@ impl MainMenu {
         *state.write() = SignIn::Requesting;
         self.sign_in_task = Some(self.rt.spawn(async move {
             let result = sign_in.await;
+            let mut state = state.write();
             if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
-                *state.write() = match result {
+                *state = match result {
                     Ok(Some(account)) => SignIn::Done(account),
                     Ok(None) => SignIn::Idle,
                     Err(reason) => SignIn::Failed(reason),

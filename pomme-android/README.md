@@ -1,5 +1,13 @@
 # Android
 
+> **UNOFFICIAL ANDROID BUILD**
+>
+> This is an unofficial community build of Pomme for Android. It is not affiliated
+> with, sponsored by, or endorsed by the original Pomme developers. The original
+> Pomme name, branding, copyright notices, licenses, and required credits are
+> retained.
+
+
 An early port: the client builds as an arm64 APK, signs in with a Microsoft
 account, downloads the game's assets on first launch (about 500 MB) and plays
 with touch controls.
@@ -46,11 +54,13 @@ on) live in the app's internal storage, reached with
 
 ## Signing in
 
-With no account flags in `launch.txt` (drop `--username`), the app opens on
-a sign-in screen: it shows a code to enter at microsoft.com/link, on the
-phone (Open Link opens it in a Custom Tab) or any other device. The account
-is saved in the app's storage and restored on the next launch. With
-`--username`, as above, it plays offline as that name instead.
+With no account flags in `launch.txt` (drop `--username`), the main menu
+is available without signing in. A saved Microsoft account is restored in
+the background when available. Sign in from the Account screen when gameplay
+requires an authenticated account; the screen shows a code to enter at
+microsoft.com/link, on the phone (Open Link opens it in a Custom Tab) or any
+other device. The account is saved in the app's storage for later restoration.
+With `--username`, as above, a development build can play offline as that name.
 
 ## Controls
 
@@ -62,7 +72,7 @@ keyboard opens while a text field has focus, and Back works as Escape.
 
 ## Limitations
 
-- No singleplayer: the embedded server is off on Android.
+- Singleplayer is enabled in the Android Cargo feature configuration; runtime behavior has not been verified for this branch.
 - The keyboard can cover the field being typed in: NativeActivity doesn't
   resize the window for it.
 - The emulator's Vulkan is translated to the Mac's GPU, so rendering bugs

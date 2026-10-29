@@ -120,7 +120,9 @@ impl MainMenu {
         let leave = "Back";
         if input.escape {
             self.close_account(key_bindings);
-            return empty_result();
+            let mut result = empty_result();
+            result.action = MenuAction::CancelPending;
+            return result;
         }
         if matches!(*self.sign_in.read(), SignIn::Done(_)) {
             let SignIn::Done(account) = std::mem::take(&mut *self.sign_in.write()) else {
@@ -251,7 +253,10 @@ impl MainMenu {
             }
             Some("Sign Out") => action = MenuAction::Account(None),
             Some("Cancel") => self.cancel_sign_in(),
-            Some("Back") => self.close_account(key_bindings),
+            Some("Back") => {
+                self.close_account(key_bindings);
+                action = MenuAction::CancelPending;
+            }
             Some("Quit") => action = MenuAction::Quit,
             _ => {}
         }

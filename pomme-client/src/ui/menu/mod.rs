@@ -1041,7 +1041,8 @@ impl MainMenu {
         self.account_required && self.access_token.is_none()
     }
 
-    /// Requires a valid signed-in account for gameplay without blocking menu navigation.
+    /// Requires a valid signed-in account for gameplay without blocking menu
+    /// navigation.
     pub(crate) fn require_account(&mut self, _key_bindings: &KeyBindings) {
         self.account_required = true;
     }

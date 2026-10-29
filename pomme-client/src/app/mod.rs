@@ -174,6 +174,19 @@ pub enum QuickPlay {
     Singleplayer(String),
 }
 
+/// A gameplay request held until the launch policy's account check succeeds.
+pub enum PendingGameAction {
+    Connect {
+        server: String,
+        username: String,
+        protocol: Option<i32>,
+    },
+    PlayWorld {
+        folder: String,
+    },
+    QuickPlay(QuickPlay),
+}
+
 /// Connects with `connect_args`; `world` is the integrated server for a
 /// singleplayer launch.
 fn start_connecting(
@@ -298,7 +311,7 @@ impl App {
             // The quick play failed to open or connect, or is held for a
             // sign-in that has nothing to restore.
             (ChunkBenchLaunch::Waiting(_), AppPhase::InMenu { .. })
-                if self.core.deferred_quick_play.is_none()
+                if self.core.deferred_game_action.is_none()
                     || self.core.menu.no_account_to_restore() =>
             {
                 ChunkBenchLaunch::Ended(1)
@@ -367,9 +380,8 @@ impl App {
         self.install = install::Install::new(&self.core, true);
     }
 
-    /// No launcher passed an account; see `MainMenu::require_account`.
-    /// Holds the menu, and any quick play, until an account is signed in,
-    /// restoring the stored one in the background meanwhile.
+    /// Enforces the release gameplay account policy while leaving the menu accessible.
+    /// A saved account is restored asynchronously in the background.
     pub fn require_account(&mut self) {
         self.core
             .menu
@@ -549,10 +561,6 @@ impl ApplicationHandler for App {
                 };
                 let panorama = Panorama::new();
                 let launch = match quick_play {
-                    Some(play) if self.core.menu.account_gated() => {
-                        self.core.deferred_quick_play = Some(play);
-                        MenuUpdateResult::None
-                    }
                     Some(play) => in_menu::quick_play(&mut self.core, play),
                     None => MenuUpdateResult::None,
                 };

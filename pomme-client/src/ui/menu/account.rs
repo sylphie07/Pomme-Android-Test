@@ -363,23 +363,27 @@ mod tests {
     }
 
     #[test]
-    fn a_required_account_holds_the_menu_until_sign_in() {
+    fn a_required_account_does_not_block_menu_navigation() {
         let mut key_bindings = KeyBindings::default();
         let mut menu = test_menu("pomme-account-gate-test", &mut key_bindings);
         menu.require_account(&key_bindings);
-        let escape = MenuInput {
-            escape: true,
-            ..Default::default()
-        };
-        menu.build(W, H, &escape, &mut key_bindings, text_width);
-        let gate = menu.build(W, H, &MenuInput::default(), &mut key_bindings, text_width);
-        assert!(texts(&gate).contains(&"Pomme needs a Minecraft account."));
-        assert!(texts(&gate).contains(&"Quit"));
-        assert!(!texts(&gate).contains(&"Back"));
 
-        menu.set_account("Tester".into(), Some("token".into()), &key_bindings);
-        menu.set_screen(Screen::Main, &key_bindings);
-        menu.set_account("Tester".into(), None, &key_bindings);
+        assert!(menu.account_gated());
+        assert!(matches!(menu.screen, Screen::Main));
+
+        // A gameplay account requirement must not force the user into the
+        // account screen or replace the main menu.
+        let main = menu.build(W, H, &MenuInput::default(), &mut key_bindings, text_width);
+        assert!(matches!(menu.screen, Screen::Main));
+        assert!(!texts(&main).contains(&"Pomme needs a Minecraft account."));
+
+        // The account screen remains available, and still explains the
+        // requirement and offers the normal Microsoft sign-in action.
+        menu.open_account(&key_bindings);
+        let account = menu.build(W, H, &MenuInput::default(), &mut key_bindings, text_width);
         assert!(matches!(menu.screen, Screen::Account));
+        assert!(texts(&account).contains(&"Pomme needs a Minecraft account."));
+        assert!(texts(&account).contains(&"Sign In"));
+        assert!(texts(&account).contains(&"Back"));
     }
 }

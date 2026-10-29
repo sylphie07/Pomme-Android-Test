@@ -1036,13 +1036,9 @@ impl MainMenu {
         self.account_required && self.access_token.is_none()
     }
 
-    /// Puts the menu behind sign-in: with no account, it opens on the
-    /// account screen and only Sign In or Quit leave it.
-    pub(crate) fn require_account(&mut self, key_bindings: &KeyBindings) {
+    /// Requires a valid signed-in account for gameplay without blocking menu navigation.
+    pub(crate) fn require_account(&mut self, _key_bindings: &KeyBindings) {
         self.account_required = true;
-        if self.account_gated() {
-            self.set_screen(Screen::Account, key_bindings);
-        }
     }
 
     /// A form's text field has keyboard focus.

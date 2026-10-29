@@ -12,6 +12,7 @@ pub(super) enum SignIn {
     #[default]
     Idle,
     Requesting,
+    Restoring,
     Code(pomme_auth::DeviceCode),
     Failed(String),
     Done(pomme_auth::AuthAccount),

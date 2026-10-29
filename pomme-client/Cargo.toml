@@ -86,7 +86,7 @@ azalea-inventory = "0.16"
 uuid = { version = "1", features = ["v4"] }
 md-5 = "0.11"
 crossbeam-channel = "0.5"
-png = "0.17"
+png = "0.18"
 toml = { version = "1", optional = true }
 image = "0.25"
 fontdue = "0.9.3"

@@ -5673,7 +5673,7 @@ dependencies = [
  "open",
  "paranoid-android",
  "parking_lot",
- "png 0.17.16",
+ "png 0.18.1",
  "pomme-auth",
  "pomme-dirs",
  "pomme-gpu-allocator",

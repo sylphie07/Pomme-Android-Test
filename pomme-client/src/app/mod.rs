@@ -379,8 +379,9 @@ impl App {
         self.install = install::Install::new(&self.core, true);
     }
 
-    /// Enforces the release gameplay account policy while leaving the menu accessible.
-    /// A saved account is restored asynchronously in the background.
+    /// Enforces the release gameplay account policy while leaving the menu
+    /// accessible. A saved account is restored asynchronously in the
+    /// background.
     pub fn require_account(&mut self) {
         self.core
             .menu

@@ -25,15 +25,25 @@ impl MainMenu {
     }
 
     fn start_sign_in(&mut self) {
+        let generation = self
+            .auth_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+            + 1;
+        if let Some(task) = self.sign_in_task.take() {
+            task.abort();
+        }
         let state = Arc::clone(&self.sign_in);
+        let auth_generation = Arc::clone(&self.auth_generation);
         let store = Arc::clone(&self.account_store);
         self.run_sign_in(async move {
             pomme_auth::device_code_sign_in(crate::net::http::client(), &*store, |code| {
-                *state.write() = SignIn::Code(code.clone());
+                if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
+                    *state.write() = SignIn::Code(code.clone());
+                }
             })
             .await
             .map(Some)
-        });
+        }, generation);
     }
 
     /// Still signed out, with no sign-in under way: the stored account is
@@ -45,14 +55,29 @@ impl MainMenu {
     /// Signs in as the stored account without asking; with none, the
     /// screen offers Sign In.
     pub(crate) fn restore_account(&mut self) {
+        // Do not start a second restore or replace an interactive sign-in/result.
+        if !matches!(*self.sign_in.read(), SignIn::Idle | SignIn::Failed(_)) {
+            return;
+        }
+        let generation = self
+            .auth_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+            + 1;
+        if let Some(task) = self.sign_in_task.take() {
+            task.abort();
+        }
         let state = Arc::clone(&self.sign_in);
+        let auth_generation = Arc::clone(&self.auth_generation);
         let store = Arc::clone(&self.account_store);
         *state.write() = SignIn::Restoring;
         self.sign_in_task = Some(self.rt.spawn(async move {
-            *state.write() = match crate::account::restore(&*store).await {
-                Some(account) => SignIn::Done(account),
-                None => SignIn::Idle,
-            };
+            let restored = crate::account::restore(&*store).await;
+            if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
+                *state.write() = match restored {
+                    Some(account) => SignIn::Done(account),
+                    None => SignIn::Idle,
+                };
+            }
         }));
     }
 
@@ -75,15 +100,20 @@ impl MainMenu {
     fn run_sign_in(
         &mut self,
         sign_in: impl Future<Output = Result<Option<pomme_auth::AuthAccount>, String>> + Send + 'static,
+        generation: u64,
     ) {
         let state = Arc::clone(&self.sign_in);
+        let auth_generation = Arc::clone(&self.auth_generation);
         *state.write() = SignIn::Requesting;
         self.sign_in_task = Some(self.rt.spawn(async move {
-            *state.write() = match sign_in.await {
-                Ok(Some(account)) => SignIn::Done(account),
-                Ok(None) => SignIn::Idle,
-                Err(reason) => SignIn::Failed(reason),
-            };
+            let result = sign_in.await;
+            if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
+                *state.write() = match result {
+                    Ok(Some(account)) => SignIn::Done(account),
+                    Ok(None) => SignIn::Idle,
+                    Err(reason) => SignIn::Failed(reason),
+                };
+            }
         }));
     }
 
@@ -103,6 +133,8 @@ impl MainMenu {
         if matches!(*self.sign_in.read(), SignIn::Restoring | SignIn::Done(_)) {
             return;
         }
+        self.auth_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         if let Some(task) = self.sign_in_task.take() {
             task.abort();
         }

@@ -287,7 +287,10 @@ impl MainMenu {
                 }
             }
             Some("Sign Out") => action = MenuAction::Account(None),
-            Some("Cancel") => self.cancel_sign_in(),
+            Some("Cancel") => {
+                self.cancel_sign_in();
+                action = MenuAction::CancelPending;
+            }
             Some("Back") => {
                 self.close_account(key_bindings);
                 action = MenuAction::CancelPending;

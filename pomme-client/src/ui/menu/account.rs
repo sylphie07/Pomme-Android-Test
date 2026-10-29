@@ -35,16 +35,19 @@ impl MainMenu {
         let state = Arc::clone(&self.sign_in);
         let auth_generation = Arc::clone(&self.auth_generation);
         let store = Arc::clone(&self.account_store);
-        self.run_sign_in(async move {
-            pomme_auth::device_code_sign_in(crate::net::http::client(), &*store, |code| {
-                let mut state = state.write();
-                if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
-                    *state = SignIn::Code(code.clone());
-                }
-            })
-            .await
-            .map(Some)
-        }, generation);
+        self.run_sign_in(
+            async move {
+                pomme_auth::device_code_sign_in(crate::net::http::client(), &*store, |code| {
+                    let mut state = state.write();
+                    if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
+                        *state = SignIn::Code(code.clone());
+                    }
+                })
+                .await
+                .map(Some)
+            },
+            generation,
+        );
     }
 
     /// Still signed out, with no sign-in under way: the stored account is
@@ -83,7 +86,8 @@ impl MainMenu {
         }));
     }
 
-    /// Takes a completed background restore while the user is browsing the menu.
+    /// Takes a completed background restore while the user is browsing the
+    /// menu.
     pub(crate) fn take_restored_account(&mut self) -> Option<pomme_auth::AuthAccount> {
         if matches!(&self.screen, Screen::Account) {
             return None;
@@ -193,9 +197,11 @@ impl MainMenu {
                 (None, SignIn::Requesting) => {
                     (vec!["Contacting Microsoft...".into()], None, ["", "Cancel"])
                 }
-                (None, SignIn::Restoring) => {
-                    (vec!["Restoring saved Microsoft account...".into()], None, ["", "Back"])
-                }
+                (None, SignIn::Restoring) => (
+                    vec!["Restoring saved Microsoft account...".into()],
+                    None,
+                    ["", "Back"],
+                ),
                 (None, SignIn::Code(code)) => (
                     vec![format!(
                         "Go to {} and enter this code:",

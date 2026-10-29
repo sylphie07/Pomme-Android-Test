@@ -100,7 +100,7 @@ impl MainMenu {
 
     fn cancel_sign_in(&mut self) {
         // A saved-account restore continues if the user leaves this screen.
-        if matches!(*self.sign_in.read(), SignIn::Restoring) {
+        if matches!(*self.sign_in.read(), SignIn::Restoring | SignIn::Done(_)) {
             return;
         }
         if let Some(task) = self.sign_in_task.take() {

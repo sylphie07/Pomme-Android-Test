@@ -860,7 +860,7 @@ pub struct AppCore {
     /// When the window lost OS focus, for pause-on-lost-focus (vanilla
     /// `pauseIfInactive`); `None` while focused.
     pub unfocused_since: Option<Instant>,
-    /// A quick play held back until the required sign-in is done.
+    /// A gameplay request held until the required sign-in is complete.
     pub deferred_game_action: Option<crate::app::PendingGameAction>,
     /// Vanilla `options.pauseOnLostFocus`.
     pub pause_on_lost_focus: bool,

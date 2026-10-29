@@ -18,8 +18,8 @@ pub(super) enum SignIn {
 }
 
 impl MainMenu {
-    pub(super) fn open_account(&mut self, key_bindings: &KeyBindings) {
-        self.cancel_sign_in();
+    pub(crate) fn open_account(&mut self, key_bindings: &KeyBindings) {
+        // Keep a background restore alive when the user opens the account screen.
         self.set_screen(Screen::Account, key_bindings);
     }
 
@@ -44,8 +44,31 @@ impl MainMenu {
     /// Signs in as the stored account without asking; with none, the
     /// screen offers Sign In.
     pub(crate) fn restore_account(&mut self) {
+        let state = Arc::clone(&self.sign_in);
         let store = Arc::clone(&self.account_store);
-        self.run_sign_in(async move { Ok(crate::account::restore(&*store).await) });
+        *state.write() = SignIn::Restoring;
+        self.sign_in_task = Some(self.rt.spawn(async move {
+            *state.write() = match crate::account::restore(&*store).await {
+                Some(account) => SignIn::Done(account),
+                None => SignIn::Idle,
+            };
+        }));
+    }
+
+    /// Takes a completed background restore while the user is browsing the menu.
+    pub(crate) fn take_restored_account(&mut self) -> Option<pomme_auth::AuthAccount> {
+        if matches!(&self.screen, Screen::Account) {
+            return None;
+        }
+        let mut state = self.sign_in.write();
+        if !matches!(*state, SignIn::Done(_)) {
+            return None;
+        }
+        let SignIn::Done(account) = std::mem::take(&mut *state) else {
+            unreachable!()
+        };
+        self.sign_in_task = None;
+        Some(account)
     }
 
     fn run_sign_in(
@@ -75,6 +98,10 @@ impl MainMenu {
     }
 
     fn cancel_sign_in(&mut self) {
+        // A saved-account restore continues if the user leaves this screen.
+        if matches!(*self.sign_in.read(), SignIn::Restoring) {
+            return;
+        }
         if let Some(task) = self.sign_in_task.take() {
             task.abort();
         }
@@ -89,8 +116,8 @@ impl MainMenu {
         key_bindings: &KeyBindings,
     ) -> MainMenuResult {
         let gated = self.account_gated();
-        let leave = if gated { "Quit" } else { "Back" };
-        if input.escape && !gated {
+        let leave = "Back";
+        if input.escape {
             self.close_account(key_bindings);
             return empty_result();
         }
@@ -127,6 +154,9 @@ impl MainMenu {
                 ),
                 (None, SignIn::Requesting) => {
                     (vec!["Contacting Microsoft...".into()], None, ["", "Cancel"])
+                }
+                (None, SignIn::Restoring) => {
+                    (vec!["Restoring saved Microsoft account...".into()], None, ["", "Back"])
                 }
                 (None, SignIn::Code(code)) => (
                     vec![format!(

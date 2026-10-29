@@ -184,7 +184,6 @@ pub enum PendingGameAction {
     PlayWorld {
         folder: String,
     },
-    QuickPlay(QuickPlay),
 }
 
 /// Connects with `connect_args`; `world` is the integrated server for a

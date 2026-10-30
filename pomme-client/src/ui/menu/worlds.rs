@@ -1003,18 +1003,18 @@ impl MainMenu {
     /// sidecar has been written successfully. Capture the folder before the
     /// summary is consumed so duplicate-name suffixes are preserved exactly.
     fn persist_created_world(
-    world_list: &mut crate::ui::world_list::WorldList,
-    summary: WorldSummary,
-) -> MenuAction {
-    let folder = summary.folder.clone();
-    match world_list.create(summary) {
-        Ok(_) => MenuAction::PlayWorld { folder },
-        Err(error) => {
-            tracing::error!("Failed to create world: {error}");
-            MenuAction::None
+        world_list: &mut crate::ui::world_list::WorldList,
+        summary: WorldSummary,
+    ) -> MenuAction {
+        let folder = summary.folder.clone();
+        match world_list.create(summary) {
+            Ok(_) => MenuAction::PlayWorld { folder },
+            Err(error) => {
+                tracing::error!("Failed to create world: {error}");
+                MenuAction::None
+            }
         }
     }
-}
 
     /// Vanilla recomputes this per keystroke; per frame would stat the disk for
     /// an answer that only changes when the name does.
@@ -1344,7 +1344,7 @@ mod create_world_tests {
         let folder = worlds.available_folder_name("New World");
         assert_eq!(folder, "New World (1)");
 
-        let action = persist_created_world(&mut worlds, summary(&folder));
+        let action = MainMenu::persist_created_world(&mut worlds, summary(&folder));
         assert!(matches!(
             action,
             MenuAction::PlayWorld { ref folder } if folder == "New World (1)"
@@ -1358,7 +1358,7 @@ mod create_world_tests {
         let saves = TempPath::new("failure");
         std::fs::write(&saves.0, "not a directory").unwrap();
         let mut worlds = crate::ui::world_list::WorldList::scan(&saves.0);
-        let action = persist_created_world(&mut worlds, summary("New World"));
+        let action = MainMenu::persist_created_world(&mut worlds, summary("New World"));
 
         assert!(matches!(action, MenuAction::None));
         assert!(worlds.worlds.is_empty());

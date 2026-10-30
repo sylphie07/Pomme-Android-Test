@@ -278,9 +278,18 @@ mod integration_tests {
             }
         }
 
-        assert!(connected, "the client should complete the login/configuration handshake");
-        assert!(player_login, "the client should receive the integrated world's player login");
-        assert!(received_chunk, "the client should receive real world chunk data");
+        assert!(
+            connected,
+            "the client should complete the login/configuration handshake"
+        );
+        assert!(
+            player_login,
+            "the client should receive the integrated world's player login"
+        );
+        assert!(
+            received_chunk,
+            "the client should receive real world chunk data"
+        );
 
         drop(connection);
         world.begin_close();
@@ -289,7 +298,10 @@ mod integration_tests {
         while !world.is_closed() && Instant::now() < close_deadline {
             std::thread::sleep(Duration::from_millis(10));
         }
-        assert!(world.is_closed(), "SteelMC should save and stop after the client leaves");
+        assert!(
+            world.is_closed(),
+            "SteelMC should save and stop after the client leaves"
+        );
         drop(world);
     }
 
@@ -300,10 +312,8 @@ mod integration_tests {
     #[test]
     #[ignore = "starts SteelMC, generates terrain, and joins through the real in-memory Java protocol"]
     fn integrated_client_can_enter_and_reenter_a_steel_world() {
-        let root = std::env::temp_dir().join(format!(
-            "pomme-client-steel-e2e-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("pomme-client-steel-e2e-{}", std::process::id()));
         let save = TempWorld(root.join("saves").join("steel-integration-test"));
         fs::create_dir_all(&save.0).expect("the test save directory should be creatable");
 

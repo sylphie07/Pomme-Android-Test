@@ -166,7 +166,7 @@ ci-test:
 # SteelMC's crate, the client with it, and the test that boots a real world.
 ci-singleplayer:
     @cargo clippy -p pomme-singleplayer --release --all-targets -- -D warnings
-    @cargo clippy --manifest-path third_party/SteelMC/Cargo.toml -p steel-login --all-targets -- -D warnings
+    @cargo clippy --manifest-path third_party/SteelMC/Cargo.toml --no-deps -p steel-login --all-targets -- -D warnings
     @cargo nextest run --manifest-path third_party/SteelMC/Cargo.toml -p steel-login --lib
     @cargo clippy -p pomme-client --release --all-targets --features {{ lint_features }} -- -D warnings
     @cargo nextest run -p pomme-singleplayer --run-ignored all

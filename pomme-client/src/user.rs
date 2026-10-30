@@ -103,7 +103,7 @@ impl LocalProfileStore {
                             )
                         })?;
 
-                    Self::restore_backup(path, &backup)?;
+                    Self::restore_backup(path, backup_json.as_bytes())?;
                     tracing::warn!(
                         "Recovered local profiles from backup; the invalid primary was preserved"
                     );
@@ -125,7 +125,7 @@ impl LocalProfileStore {
         if backup.exists() {
             let json = std::fs::read_to_string(&backup)?;
             let (profiles, selected_profile, migrated) = Self::decode_document(&json)?;
-            Self::restore_backup(path, &backup)?;
+            Self::restore_backup(path, json.as_bytes())?;
             let store = Self {
                 path: path.to_owned(),
                 profiles,
@@ -427,15 +427,18 @@ impl LocalProfileStore {
         write_result
     }
 
-    fn restore_backup(path: &Path, backup: &Path) -> std::io::Result<()> {
+    fn restore_backup(path: &Path, validated_backup: &[u8]) -> std::io::Result<()> {
+        use std::io::Write as _;
+
         let temporary = Self::unique_temp_path(path);
         let restore_result: std::io::Result<()> = (|| {
-            let mut source = std::fs::File::open(backup)?;
             let mut destination = std::fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
                 .open(&temporary)?;
-            std::io::copy(&mut source, &mut destination)?;
+            // Restore the exact bytes that were decoded and validated by the
+            // caller; do not reopen a backup that could change between checks.
+            destination.write_all(validated_backup)?;
             destination.sync_all()?;
 
             if path.exists() {

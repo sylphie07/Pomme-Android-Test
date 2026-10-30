@@ -152,19 +152,14 @@ fn apply_account(core: &mut AppCore, gfx: &mut Gfx, account: Option<pomme_auth::
         .as_ref()
         .map(|account| account.username.clone())
         .unwrap_or_else(|| core.user.username.clone());
-    let access_token = account
-        .as_ref()
-        .map(|account| account.access_token.clone());
+    let access_token = account.as_ref().map(|account| account.access_token.clone());
 
     // This mutates only the Microsoft session. The selected local profile,
     // local username and offline UUID remain unchanged.
     core.user.set_microsoft_account(account);
 
-    core.menu.set_account(
-        account_name,
-        access_token,
-        &core.input.key_bindings,
-    );
+    core.menu
+        .set_account(account_name, access_token, &core.input.key_bindings);
     if let Some(uuid) = account_uuid {
         gfx.renderer.load_player_skin(&uuid, &core.tokio_rt);
         core.menu.set_player_face(Some(&uuid));

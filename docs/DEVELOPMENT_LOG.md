@@ -163,3 +163,44 @@ Refresh repository-backed continuity after the Phase 2.2-A report and record act
 
 ### Next action
 Use the new cross-chat recommendations as review prompts, not implementation authorization. Continue Phase 2.2-B only after the user explicitly approves implementation and the live branch/submodule state is rechecked.
+
+
+## 2026-10-30 — Session 005: Define dedicated programming-chat handoff workflow
+
+### Scope
+Review the repository reminders for parallel Pomme chats and make the handoff to the user's separate programming-only chat explicit. User specifically instructed that this session must not touch programming/source work.
+
+### Repository verification
+- Repository: `sylphie07/Pomme-Android-Test`.
+- Authorized branch: `unofficial-android-menu-access`.
+- Live branch HEAD at start: `bb28e3a4eeedfe5e94540b027024a4dc48014ef9`.
+- SteelMC gitlink at that HEAD: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+- `.gitmodules` points to `https://github.com/Steel-Foundation/SteelMC.git`.
+- Re-read `docs/CONTINUITY.md`, the complete Phase 2.2-A report, `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`, `docs/DEVELOPMENT_LOG.md`, `docs/PROJECT_CONTEXT.md`, and `docs/DECISIONS.md`.
+
+### Finding
+The existing cross-chat guide contained general rules and technical-area review prompts, but did not sufficiently formalize the user's dedicated programming chat as the single implementation owner or require every investigation chat to leave structured implementation handoffs.
+
+### Documentation changes
+- Expanded `docs/CHAT_HANDOFF_RECOMMENDATIONS.md` with:
+  - explicit separation between investigation chats and the dedicated programming chat;
+  - a rule that investigation chats leave recommendations and evidence rather than editing code;
+  - the programming chat's verification, authorization, implementation, testing, and reporting responsibilities;
+  - a required 11-part handoff template;
+  - current pending programming items for Phase 2.2-B and separate SteelMC advancement persistence.
+- Updated `docs/CONTINUITY.md` with the verified starting HEAD, SteelMC pin, new documentation commit, and scope boundary.
+
+### Verification
+- Documentation update commit for the cross-chat guide: `ab67016f7c7eaff56f4c62b39563d065d5e806c7`.
+- Continuity update is being recorded in this session; verify its resulting commit and file contents before treating this log entry as fully recorded.
+- No tests, builds, CI, or Android-device checks were run.
+
+### Explicitly not performed
+- No source-code, Rust, Gradle, build-workflow, or configuration changes.
+- No SteelMC source or submodule-pin changes.
+- No implementation, cherry-pick, merge, PR, APK generation, or publication.
+- No changes to worlds, profiles, or player data.
+- Phase 2.2-B remains unauthorized.
+
+### Next action
+All investigative chats should use the new handoff template and send pending programming work to the dedicated programming chat. That chat must independently verify state and obtain/confirm user authorization before implementing each task.

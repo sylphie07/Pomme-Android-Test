@@ -988,7 +988,7 @@ mod tests {
             "format_version": 1,
             "profiles": [{
                 "id": profile_id,
-                "username": "ExperimentalPlayer",
+                "username": "ExpPlayer",
                 "player_uuid": experimental_uuid
             }],
             "selected_profile": profile_id
@@ -999,7 +999,7 @@ mod tests {
         assert_eq!(migrated.selected().id, profile_id);
         assert_eq!(
             migrated.selected().player_uuid,
-            UserData::offline_uuid("ExperimentalPlayer")
+            UserData::offline_uuid("ExpPlayer")
         );
         assert_ne!(migrated.selected().player_uuid, experimental_uuid);
 
@@ -1008,7 +1008,7 @@ mod tests {
         assert_eq!(persisted["format_version"], LOCAL_PROFILE_FORMAT_VERSION);
         assert_eq!(
             persisted["profiles"][0]["player_uuid"],
-            UserData::offline_uuid("ExperimentalPlayer").to_string()
+            UserData::offline_uuid("ExpPlayer").to_string()
         );
         std::fs::remove_dir_all(dir).unwrap();
     }

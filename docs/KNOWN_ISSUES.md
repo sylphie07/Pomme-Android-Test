@@ -1,138 +1,18 @@
-# Pomme Android — Known Issues and Open Questions
+# Pomme Android — Public Known Issues
 
 Last updated: 2026-10-30
 
-## KI-001 — Menu/gameplay authentication separation
-- Source review at the current branch shows a centralized `authorize_gameplay()` gate in `pomme-client/src/app/phases/in_menu.rs`.
-- `MenuAction::Connect`, `MenuAction::PlayWorld`, `open_world()`, and both QuickPlay modes route through the gate. Startup QuickPlay calls `in_menu::quick_play()` after setup.
-- `UserData::allows_singleplayer()` permits local play without Microsoft authorization; `allows_multiplayer()` requires a verified, unexpired session with a non-empty token and valid account UUID.
-- Menu navigation itself is not globally blocked by the account gate.
-- Status: implementation is present by static source inspection. End-to-end behavior, cancellation races, and exactly-once pending-action resumption still need automated verification.
+This list contains user-visible issues only. It is not a complete internal engineering tracker.
 
-## KI-002 — Android singleplayer discrepancy
-- The Android dependency enables the `singleplayer` Cargo feature in `pomme-android/Cargo.toml`.
-- `pomme-client/src/singleplayer.rs` contains an ignored integration test that opens a real embedded SteelMC world, joins through the in-memory protocol, leaves, and re-enters the same save in one process.
-- CI's `singleplayer` job invokes `just ci-singleplayer`, but the relevant run for the B1–B4 source revision was cancelled before the test completed.
-- The user previously reported a successful world launch on their own Android device; this does not establish compatibility across devices/builds.
-- Status: unresolved as a general Android issue. No current device logs or reproducible failure from another device were available in this investigation.
+## World creation flow
+**Observed:** After creating a new local world, the app returns to the world-selection list.
 
-## KI-003 — Phase 2.2-B1–B4 CI verification incomplete
-- Parent-source run `41008828793` (run #58): `ci-fmt` failed because rustfmt differences remained in `pomme-client/src/user.rs`; the other substantive jobs were cancelled or skipped. This run targeted the parent source revision, not the final B1–B4 source commit.
-- Final-source run `41008897990` (run #59), associated with source commit `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`: cancelled. The connector returned no job records for this run, so no successful validation can be inferred.
-- Newer run `41009018315` (run #63), on the revision before the latest profile fix: `ci-fmt` failed with rustfmt diffs in `pomme-client/src/user.rs`; `test` and `singleplayer` were cancelled after a newer commit superseded it. Do not use this run to validate the latest profile fix.
-- Latest run `41009217544` (run #70), for commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`, was in progress at the latest poll. `test`, `singleplayer`, Android, iOS, lint, and fmt jobs had started; no final conclusions were available yet.
-- Run `41008473575` (run #56) targeted the earlier `fd945ed...` revision, before the B1–B4 source commits. Android Clippy, format, lint, iOS Clippy, and PR-template jobs passed; `test` and `singleplayer` were cancelled and aggregate `ci` failed. It does not validate B1–B4.
-- Latest CI run `41009337238` targets the PR merge ref with source head `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc`; it was pending at the last check. No complete CI pass is established yet.
+**Expected:** The app should open the newly created world immediately, as users expect from a typical Minecraft world-creation flow.
 
-## Reporting format
-For each issue, record:
-- reproduction conditions;
-- exact branch and commit;
-- relevant source paths/functions;
-- logs or CI links;
-- attempted fixes and outcomes;
-- current status and next diagnostic step.
+**Status:** Reported by the project owner on an Android device. A correction still needs to be implemented and verified.
 
+## Device compatibility
+Android devices vary significantly in performance, graphics drivers, and available memory. Compatibility and performance should be evaluated across multiple devices before making broad claims.
 
-## KI-004 — Persistent player UUID is stored but not yet used by the live game identity
-- Scope: Phase 2.2-B1–B4.
-- Source fact: `LocalProfile.player_uuid` is now persisted and migrated, but `UserData::from_local_profile()` still derives the runtime UUID from the username.
-- Impact: this implementation alone does not yet preserve the player's runtime UUID across a username change in SteelMC.
-- Required follow-up: trusted per-connection identity in SteelMC (Phase 2.2-C) and Pomme integration (Phase 2.2-D), with generic offline Hello UUIDs remaining untrusted.
-- Status: known and intentionally not addressed by B1–B4.
-
-## KI-005 — Phase 2.2-B1–B4 automated verification pending
-- The profile-store tests have been added but were not run locally in this session.
-- CI runs for superseded source commits were cancelled; no complete successful run has yet been established for the latest source.
-- Latest source commit: `c0576191407a1ad53db77c0635c7b0820669e547`.
-- Required: inspect the latest PR CI run and its fmt, lint, unit-test, Android, and singleplayer jobs. Then perform Android/device acceptance when a reproducible APK is separately authorized.
-- Status: pending; do not treat written tests as passed.
-
-## KI-006 — New-profile UUID transition compatibility
-- Previous risk: experimental format 1 stored random `player_uuid` values while the runtime still used `offline_uuid(username)`.
-- Correction: commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce` now creates new profiles with the historical offline UUID and migrates experimental format 1 to format 2 using that same UUID.
-- Backup recovery now restores the exact validated byte snapshot in commit `c0576191407a1ad53db77c0635c7b0820669e547`.
-- Runtime still derives UUID from username until C/D. Before wiring `player_uuid` into SteelMC, re-verify this invariant and test inventory, position, Ender Chest, stats, and all UUID-keyed records.
-- Status: compatibility correction applied in source; CI verification pending.
-
-## KI-007 — Local profile management UI is not integrated
-- `LocalProfileStore` is loaded at startup and its storage API includes `profiles()`, `create_profile()`, and `select_profile()`.
-- These APIs and `UserData::set_local_profile()` are marked `dead_code`/reserved for a future selection flow. No player-facing profile picker or create/switch flow was found in the inspected menu code.
-- Status: profile persistence foundation exists; multi-profile user experience remains incomplete.
-
-## KI-008 — Gameplay authorization and deferred QuickPlay lack focused regression tests
-- `pomme-client/src/app/phases/in_menu.rs` contains `authorize_gameplay()`, `start_pending()`, `connect_remote()`, `open_world()`, and `quick_play()`, but no local test module was found in that file.
-- `account.rs` has only limited UI tests; no focused coverage was found for restore-vs-interactive-sign-in races, cancel/back while restoring, QuickPlay resumption, or exactly-once launch.
-- Required tests: signed-out menu navigation; offline singleplayer; signed-out remote rejection; valid/expired session; startup QuickPlay multiplayer/singleplayer; restore success/failure; cancel/back clearing the pending action; one and only one resumed launch.
-- Status: static routing looks centralized; behavior is not fully regression-tested.
-
-## KI-009 — Microsoft token lifecycle and Android credential storage
-- `pomme-client/src/account.rs` documents a TODO to refresh again when a long session outlives the day-long Minecraft token.
-- The Android `SecretStore` is a JSON file in app-private storage (`accounts.json`); the code contains a TODO to wrap it with Android Keystore.
-- Status: known follow-up. Do not weaken account ownership/authentication checks or change the authentication flow as part of profile work.
-
-## KI-010 — Android APK workflow does not automatically build this feature branch
-- `.github/workflows/android-apk.yml` triggers on `push` to `master` for selected paths and `workflow_dispatch`; it has no `pull_request` trigger for `unofficial-android-menu-access`.
-- The current investigation found no APK artifact/run proving the current feature-branch source builds into an installable APK.
-- Status: distribution/device verification pending. Any workflow change or APK publication needs its own authorization.
-
-## KI-011 — SteelMC advancement persistence remains separate
-- At the recorded SteelMC pin `e655880a7b1487b2444c70013c14ee86c69d53b3`, `Player.advancements` is initialized in memory and marked `TODO save the advancement`; the inspected player-data persistence path does not serialize it.
-- Status: separate SteelMC handoff. Do not bundle it into Phase 2.2-C/D or change the submodule without authorization.
-
-
-## KI-012 — Existing-world per-world inventory isolation (device check)
-- User report dated 2026-10-30: on the current APK, each world retains its own independent inventory.
-- Status: **user-tested / passed for per-world inventory separation** on the tested APK. This is device feedback, not an independently reproduced test in this chat.
-- Limits: the report does not separately confirm player position, stats, Ender Chest, every other player-data field, or a clean save/close/reopen cycle. Keep those checks open under Phase 2.2-E.
-- Regression requirement: after the world-creation auto-launch fix, verify that creating/entering a new world does not disturb the independent inventory of any existing world.
-
-
-## KI-013 — Remaining player-data acceptance checks (Phase 2.2-E)
-- User-tested / passed on the current APK: each world retains its independent inventory (Session 016); re-entering a world restores the exact previous player location; after death, the expected carried-item loss occurs and the player respawns at the world spawn (Session 017).
-- These are user-reported Android device results, not independently reproduced tests or CI assertions.
-- Statistics are now user-tested / passed (Session 019).
-- Ender Chest is user-tested / passed (Session 018).
-- XP collection, expected XP loss on death, and progression are user-tested / passed (Session 019).
-- Still unconfirmed: a complete force-stop/restart save lifecycle and any player-data fields not explicitly covered by the user's checks.
-- Required approach: non-destructive checks only. Preserve existing worlds, profiles, UUIDs, and player-data files; do not ask the user to delete/reset data.
-- Regression requirement after the world-creation auto-launch fix: preserve per-world inventory separation, position continuity, death/respawn behavior, Ender Chest, statistics, and XP/progression.
-- Status: Phase 2.2-E substantially validated on the user's device; full close/restart lifecycle remains open.
-
-
-## KI-014 — Upstream Minecraft Rust hostile-mob implementation gap (out of Pomme scope)
-- User reports that passive animals (cows, pigs, sheep) appear, but hostile mobs do not.
-- The user clarifies that the APK is based on a Minecraft Rust version that still lacks substantial gameplay implementations.
-- This is an upstream gameplay implementation limitation/observation, not a current Pomme programming task or a demonstrated Pomme world-save/player-data defect.
-- Status: user-reported; no independent source-level diagnosis was performed. Keep out of Pomme persistence work unless a separate reproducible Pomme-specific cause is found.
-
-## Phase 2.2-E acceptance update
-- Ender Chest behavior is now **user-tested / passed** on the current APK (Session 018).
-- Combined with prior device reports, passed checks are per-world inventory isolation, position continuity on world re-entry, death/item-loss/spawn-respawn behavior, and Ender Chest behavior.
-- Statistics persistence and a complete force-stop/restart save lifecycle remain unconfirmed.
-
-
-## Phase 2.2-E acceptance update — Session 019
-- Statistics: **user-tested / passed**.
-- XP collection, expected XP loss on death, and progression: **user-tested / passed**.
-- Combined passed checks: per-world inventory isolation, position continuity, death/item-loss/spawn-respawn, Ender Chest, statistics, and XP/progression.
-- Remaining lifecycle check: complete force-stop/restart persistence, plus any untested player-data fields.
-- Hostile mobs are tracked separately as an upstream Minecraft Rust gameplay implementation limitation (KI-014), not a Pomme defect.
-
-
-
-## KI-015 — Create-world action did not launch the newly created save
-- Reproduction: tap Create New World; the save was persisted but the menu returned to the world list instead of entering it.
-- Source cause: `MainMenu::create_world()` persisted the summary and unconditionally switched to `Screen::WorldList`, without emitting `MenuAction::PlayWorld`.
-- Correction applied on `unofficial-android-menu-access`, source HEAD `546ec38f7d07d1784a0951cbfbb437088ffedf01`, in `pomme-client/src/ui/menu/worlds.rs`: successful persistence returns `MenuAction::PlayWorld` with the exact generated folder; failed persistence returns `MenuAction::None` and does not launch.
-- Regression tests added for successful create, duplicate folder suffix, and persistence failure. Test execution is pending CI.
-- Existing central `open_world()` path remains unchanged, including Singleplayer authorization and embedded-server startup.
-- Status: **implemented; automated verification and Android device acceptance pending**.
-- Do not confuse with Minecraft Rust hostile-mob implementation limitations (KI-014), which are outside this Pomme task.
-
-
-### KI-015 verification update — 2026-10-30
-- First CI attempt #134 failed only the formatting job on the added tests; rustfmt corrections were applied in source commit `d928b424ef60551483b6ac8fcbf2fd6d92a15ff6`.
-- Latest CI #138 / run `41126804805`: fmt, Android/iOS Clippy, platform lint, launcher macOS/Windows, launcher frontend, and PR-template checks passed at the latest poll. Rust tests, singleplayer, launcher Ubuntu, and aggregate CI were still running.
-- APK workflow run `41126798107`: OpenAL succeeded; Rust Android library compilation was in progress. No APK artifact yet.
-- Status remains: **implemented; partial automated checks passed; full CI, APK build/artifact, and device acceptance pending**.
+## Reporting
+When reporting a user-facing issue, include the app version, Android version, device model, steps to reproduce, and relevant non-sensitive logs. Do not post passwords, tokens, private account information, or personal data.

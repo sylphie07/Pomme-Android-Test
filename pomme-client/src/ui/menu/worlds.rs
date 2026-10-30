@@ -625,6 +625,7 @@ impl MainMenu {
 
         let mut elements = vec![MenuElement::BlurBackground];
         let mut any_hovered = false;
+        let mut action = MenuAction::None;
         let inert = |elements: &mut Vec<MenuElement>,
                      any_hovered: &mut bool,
                      x: f32,
@@ -897,7 +898,7 @@ impl MainMenu {
             true,
         ) && clicked
         {
-            self.create_world(key_bindings);
+            action = self.create_world();
         }
         if push_button(
             &mut elements,
@@ -917,7 +918,7 @@ impl MainMenu {
 
         MainMenuResult {
             elements,
-            action: MenuAction::None,
+            action,
             cursor_pointer: any_hovered,
             clicked_button: clicked && any_hovered,
         }
@@ -980,7 +981,7 @@ impl MainMenu {
         self.set_screen(back, key_bindings);
     }
 
-    fn create_world(&mut self, key_bindings: &KeyBindings) {
+    fn create_world(&mut self) -> MenuAction {
         let name = self.world_name.value().trim();
         let (game_mode, hardcore) = self.create.mode.stored();
         let summary = crate::ui::world_list::WorldSummary {
@@ -995,11 +996,25 @@ impl MainMenu {
             version: self.version.clone(),
             extra: Default::default(),
         };
-        if let Err(e) = self.world_list.create(summary) {
-            tracing::error!("Failed to create world: {e}");
-        }
-        self.set_screen(Screen::WorldList, key_bindings);
+        persist_created_world(&mut self.world_list, summary)
     }
+
+/// Persist a newly configured save and request launch only after the
+/// sidecar has been written successfully. Capture the folder before the
+/// summary is consumed so duplicate-name suffixes are preserved exactly.
+fn persist_created_world(
+    world_list: &mut crate::ui::world_list::WorldList,
+    summary: WorldSummary,
+) -> MenuAction {
+    let folder = summary.folder.clone();
+    match world_list.create(summary) {
+        Ok(_) => MenuAction::PlayWorld { folder },
+        Err(error) => {
+            tracing::error!("Failed to create world: {error}");
+            MenuAction::None
+        }
+    }
+}
 
     /// Vanilla recomputes this per keystroke; per frame would stat the disk for
     /// an answer that only changes when the name does.
@@ -1255,5 +1270,98 @@ impl MainMenu {
             Screen::EditWorld(f) | Screen::ConfirmDeleteWorld(f) => Some(f.clone()),
             _ => None,
         }
+    }
+}
+
+
+#[cfg(test)]
+mod create_world_tests {
+    use super::*;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempPath(PathBuf);
+
+    impl TempPath {
+        fn new(label: &str) -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "pomme-create-world-{label}-{}",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            Self(path)
+        }
+    }
+
+    impl Drop for TempPath {
+        fn drop(&mut self) {
+            if self.0.is_dir() {
+                let _ = std::fs::remove_dir_all(&self.0);
+            } else {
+                let _ = std::fs::remove_file(&self.0);
+            }
+        }
+    }
+
+    fn summary(folder: &str) -> WorldSummary {
+        WorldSummary {
+            name: "New World".to_owned(),
+            folder: folder.to_owned(),
+            last_played: 0,
+            game_mode: GameMode::Survival,
+            hardcore: false,
+            allow_commands: false,
+            difficulty: Difficulty::Normal,
+            seed: String::new(),
+            version: "26.2".to_owned(),
+            extra: Default::default(),
+        }
+    }
+
+    #[test]
+    fn successful_creation_requests_the_exact_saved_folder() {
+        let saves = TempPath::new("success");
+        std::fs::create_dir_all(&saves.0).unwrap();
+        let mut worlds = crate::ui::world_list::WorldList::scan(&saves.0);
+        let action = persist_created_world(&mut worlds, summary("New World"));
+
+        assert!(matches!(
+            action,
+            MenuAction::PlayWorld { ref folder } if folder == "New World"
+        ));
+        assert!(worlds.get("New World").is_some());
+        assert!(saves.0.join("New World/pomme_level.json").is_file());
+    }
+
+    #[test]
+    fn duplicate_names_launch_the_generated_suffixed_folder() {
+        let saves = TempPath::new("duplicate");
+        std::fs::create_dir_all(&saves.0).unwrap();
+        std::fs::create_dir_all(saves.0.join("New World")).unwrap();
+        let mut worlds = crate::ui::world_list::WorldList::scan(&saves.0);
+        let folder = worlds.available_folder_name("New World");
+        assert_eq!(folder, "New World (1)");
+
+        let action = persist_created_world(&mut worlds, summary(&folder));
+        assert!(matches!(
+            action,
+            MenuAction::PlayWorld { ref folder } if folder == "New World (1)"
+        ));
+        assert!(worlds.get("New World (1)").is_some());
+        assert!(saves.0.join("New World (1)/pomme_level.json").is_file());
+    }
+
+    #[test]
+    fn failed_persistence_does_not_request_world_launch() {
+        let saves = TempPath::new("failure");
+        std::fs::write(&saves.0, "not a directory").unwrap();
+        let mut worlds = crate::ui::world_list::WorldList::scan(&saves.0);
+        let action = persist_created_world(&mut worlds, summary("New World"));
+
+        assert!(matches!(action, MenuAction::None));
+        assert!(worlds.worlds.is_empty());
+        assert_eq!(std::fs::read_to_string(&saves.0).unwrap(), "not a directory");
     }
 }

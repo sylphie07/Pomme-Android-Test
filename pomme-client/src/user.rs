@@ -587,13 +587,13 @@ mod tests {
     fn local_profiles_create_persist_reload_and_select() {
         let dir = std::env::temp_dir().join(format!("pomme-local-profiles-{}", std::process::id()));
         let path = dir.join("profiles.json");
-        let mut store = LocalProfileStore::load_or_create(&path);
+        let mut store = LocalProfileStore::load_or_create(&path).unwrap();
         let first = store.selected().clone();
         let second = store.create_profile("Alex_2").unwrap();
         assert_eq!(store.profiles().len(), 2);
 
         store.select_profile(second.id).unwrap();
-        let reloaded = LocalProfileStore::load_or_create(&path);
+        let reloaded = LocalProfileStore::load_or_create(&path).unwrap();
         assert_eq!(reloaded.profiles().len(), 2);
         assert_eq!(reloaded.selected(), &second);
         assert_ne!(first.id, second.id);

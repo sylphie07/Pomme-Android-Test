@@ -47,6 +47,7 @@ fn authorize_gameplay(
         core.deferred_game_action = Some(pending);
     }
     core.menu.require_account(&core.input.key_bindings);
+    core.menu.restore_account();
     core.menu.open_account(&core.input.key_bindings);
     false
 }

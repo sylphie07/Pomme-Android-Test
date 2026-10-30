@@ -352,7 +352,7 @@ mod tests {
             username: "RestoredPlayer".into(),
             uuid: "b50ad385-829d-3141-a216-7e7d7539ba7f".into(),
             access_token: "stored-valid-token".into(),
-            expires_at: unix_now() + 3600,
+            expires_at: super::unix_now() + 3600,
         };
         store.write(
             "minecraft-accounts",

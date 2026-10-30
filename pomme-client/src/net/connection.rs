@@ -140,6 +140,7 @@ pub async fn connect_to_server(
         skin_options,
     } = args;
 
+    let expects_trusted_local_identity = matches!(&transport, Transport::Memory { .. });
     let (mut conn, wire) = match transport {
         Transport::Remote { server, protocol } => {
             let server_addr: ServerAddr = server
@@ -187,6 +188,11 @@ pub async fn connect_to_server(
     }
 
     let profile_id = login_sequence(&mut conn, &uuid, access_token.as_deref()).await?;
+    if expects_trusted_local_identity && profile_id != uuid {
+        return Err(ConnectionError::Auth(format!(
+            "integrated server returned player UUID {profile_id}, expected persisted local UUID {uuid}"
+        )));
+    }
 
     // 1.20.1 and older have no configuration phase: the server enters play as
     // soon as it has sent the profile, and the registries ride in the game

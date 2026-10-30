@@ -660,3 +660,29 @@ No merge of PR #11, no changes to `master`, no APK build/publication, and no des
 
 ### Next step
 - Keep the auto-launch repair as the immediate programming task. Preserve this successful per-world inventory result as a regression acceptance criterion. After the code fix, rebuild only with the applicable authorization and verify that creating a world enters it automatically while existing worlds still retain separate inventories.
+
+
+## 2026-10-30 — Session 017: User-device confirmation of position and death/respawn behavior
+
+### User-reported Android acceptance
+- The user tested the current APK and confirmed that re-entering a world places the player at the exact location where they left it.
+- The user also confirmed the expected death flow: the player loses the applicable carried items and respawns at the world spawn.
+- Record these as **user-tested / passed** for position persistence across world reload and the reported death/respawn behavior on the tested APK.
+- This is user-reported device evidence, not an independently reproduced test or CI result. The report does not separately identify statistics fields, Ender Chest behavior, or a complete app-force-stop/restart cycle; do not claim those are verified.
+
+### Phase 2.2-E impact
+- Per-world inventory isolation: previously user-tested / passed (Session 016).
+- Position on world re-entry: user-tested / passed (this session).
+- Death item-loss and spawn respawn behavior: user-tested / passed (this session).
+- Statistics persistence and Ender Chest continuity remain unconfirmed. Keep the remaining checks non-destructive and preserve all worlds/player data.
+
+### Repository preflight and scope
+- Repository: sylphie07/Pomme-Android-Test.
+- Authorized branch: unofficial-android-menu-access.
+- PR #11 is open and unmerged, targeting master. Live PR head at preflight: 4fd37ba485adbeef54759841854bc6c0498b97ad.
+- Re-read docs/CONTINUITY.md, docs/DEVELOPMENT_LOG.md, and docs/KNOWN_ISSUES.md before this documentation update.
+- Documentation-only change. No source, workflow, SteelMC gitlink, world/profile/player data, APK, master, or PR merge changes.
+- No automated tests or new CI run were performed by this documentation update.
+
+### Next step
+- Continue with the separately diagnosed world-creation auto-launch fix. Preserve inventory isolation, position continuity, and death/respawn behavior as device regression criteria. Statistics and Ender Chest remain to be checked if the user can do so safely without deleting or resetting data.

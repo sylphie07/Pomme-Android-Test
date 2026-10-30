@@ -187,10 +187,10 @@ impl UserData {
         }
     }
 
-    /// Release builds start from the persisted local identity for menu
-    /// navigation, but still require a restored Microsoft account before
-    /// either gameplay mode. Development builds may use the local identity
-    /// for singleplayer; multiplayer always requires a verified session.
+    /// Release builds start from the persisted local identity and restore any
+    /// saved Microsoft account in the background. The integrated server is
+    /// offline-mode, so local singleplayer never requires Java authorization;
+    /// remote multiplayer always requires a verified session.
     pub fn for_launch(
         username: Option<String>,
         uuid: Option<String>,
@@ -259,8 +259,10 @@ impl UserData {
         expires_at > unix_now() && self.access_token.is_some()
     }
 
-    pub fn allows_singleplayer(&self, release: bool) -> bool {
-        !release || self.is_java_authorized()
+    pub fn allows_singleplayer(&self, _release: bool) -> bool {
+        // The embedded SteelMC server is intentionally offline-mode. A local
+        // identity is sufficient here in every build configuration.
+        true
     }
 
     pub fn allows_multiplayer(&self) -> bool {
@@ -317,7 +319,7 @@ mod tests {
         assert!(!user.has_profile);
         assert_eq!(user.authenticated_access_token(), None);
         assert!(user.allows_singleplayer(false));
-        assert!(!user.allows_singleplayer(true));
+        assert!(user.allows_singleplayer(true));
         assert!(!user.allows_multiplayer());
     }
 
@@ -398,7 +400,7 @@ mod tests {
             expires_at: 1,
         };
         let user = UserData::from_account(&account, super::LocalProfile::new("LocalPlayer"));
-        assert!(!user.allows_singleplayer(true));
+        assert!(user.allows_singleplayer(true));
         assert!(!user.allows_multiplayer());
         assert_eq!(user.authenticated_access_token(), None);
     }

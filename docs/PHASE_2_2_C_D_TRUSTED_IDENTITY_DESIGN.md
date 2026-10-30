@@ -103,3 +103,14 @@ The trust boundary is the internal Rust API between Pomme and its embedded Steel
 ## Implementation gate
 
 Do not edit `third_party/SteelMC`, change its gitlink, change the Pomme connection code, or implement C/D from this proposal until the user explicitly authorizes that phase. First close B1–B4 CI validation and review its full source diff.
+
+
+## Authorization and implementation status — 2026-10-30
+
+The user explicitly authorized implementation of Phase 2.2-C and 2.2-D, including necessary SteelMC submodule changes, after B1–B4 CI completed successfully. This supersedes the earlier implementation-gate paragraph above insofar as it says explicit authorization is still pending.
+
+The authorization does **not** include merging PR #11, modifying `master`, publishing/distributing an APK, or implementing unrelated workstreams. The programmer must perform the preflight and follow `docs/PHASE_2_2_CD_PROGRAMMER_HANDOFF.md`.
+
+B1–B4 CI checkpoint: run `41012173438` (#94), associated with PR #11 HEAD `dedebc588065782768665d80b9fc3f6ca3281044`, completed successfully for tests, singleplayer, Android, iOS, fmt, Ubuntu/macOS/Windows lint, PR template, changes, and aggregate CI. Launcher jobs were skipped. This is automated CI evidence, not Android device acceptance.
+
+The previously recorded SteelMC pin `e655880a7b1487b2444c70013c14ee86c69d53b3` is a historical checkpoint only; programmer must verify the live gitlink and pinned source before edits.

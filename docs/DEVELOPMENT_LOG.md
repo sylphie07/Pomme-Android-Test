@@ -763,3 +763,13 @@ No merge of PR #11, no changes to `master`, no APK build/publication, and no des
 - Preserve all existing user worlds, profiles, and player data. Do not ask the user to reset or delete data.
 - After CI and APK workflow finish, inspect their final job outcomes and artifact. Then user-device acceptance should verify: create world enters it immediately; duplicate names launch the new folder; existing worlds remain intact and retain independent inventory, position, death/respawn, Ender Chest, stats and XP/progression behavior.
 - PR #11 remains open/unmerged. No release or merge performed.
+
+
+## Session 020 verification follow-up — 2026-10-30
+
+- CI run #134 / `41126486791` failed its `fmt` job because rustfmt requested: remove an extra blank line before the test module, move `use super::*` after standard-library imports, and wrap one assertion across lines.
+- Applied exactly those formatting corrections in `pomme-client/src/ui/menu/worlds.rs`, source commit `d928b424ef60551483b6ac8fcbf2fd6d92a15ff6`.
+- CI run #138 / `41126804805` targets this final source head. Confirmed successful jobs at this poll: `fmt`, Android Clippy, iOS Clippy, Ubuntu/macOS/Windows lint, launcher macOS/Windows, launcher frontend, and PR template. `test`, `singleplayer`, launcher Ubuntu and aggregate `ci` remained in progress; no final green CI result yet.
+- Android APK workflow run `41126798107` targets the same source head. OpenAL completed successfully; the Rust Android library build was still running. APK assembly/upload not yet complete.
+- No local Rust tests/build or device test was performed. Do not report the new regression tests as passed until CI finishes.
+- Current source branch and PR #11 head: `d928b424ef60551483b6ac8fcbf2fd6d92a15ff6`; PR open/unmerged. No merge or master modification.

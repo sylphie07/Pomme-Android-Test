@@ -18,7 +18,7 @@ use steel_core::config::{
 };
 use steel_core::permission::{PermissionGroupManager, PermissionGroupsConfig};
 use steel_core::server::Server;
-use steel_login::{JavaTcpClient, ServerConnectionSession};
+use steel_login::{JavaTcpClient, ServerConnectionSession, TrustedLocalPlayer};
 /// The protocol the integrated server speaks.
 pub use steel_registry::packets::CURRENT_MC_PROTOCOL as PROTOCOL;
 use steel_utils::Identifier;
@@ -52,6 +52,10 @@ pub struct LaunchOptions {
     pub difficulty: Difficulty,
     /// Cheats. Puts the player in the op group rather than setting a flag.
     pub allow_commands: bool,
+    /// Persisted local profile name used by the embedded server login.
+    pub player_username: String,
+    /// Exact persisted local player UUID; never taken from the Java Hello packet.
+    pub player_uuid: uuid::Uuid,
     pub transport: ServerTransport,
 }
 
@@ -226,7 +230,9 @@ async fn serve(
     });
 
     let tasks = TaskTracker::new();
-    let (client, outgoing, incoming) = JavaTcpClient::from_transport(
+    let trusted_local_player =
+        TrustedLocalPlayer::new(options.player_username.clone(), options.player_uuid);
+    let (client, outgoing, incoming) = JavaTcpClient::from_transport_with_trusted_local_player(
         options.transport.read,
         options.transport.write,
         CLIENT_ADDRESS,
@@ -234,6 +240,7 @@ async fn serve(
         cancel.child_token(),
         Arc::clone(&server),
         Arc::new(ServerConnectionSession::default()),
+        trusted_local_player,
         tasks.clone(),
     );
     let client = Arc::new(client);
@@ -377,6 +384,8 @@ mod tests {
             game_mode: GameType::Creative,
             difficulty: Difficulty::Peaceful,
             allow_commands: true,
+            player_username: "PommeTest".to_owned(),
+            player_uuid: uuid::Uuid::from_u128(0x123456789abcdef0123456789abcdef0),
             // Nothing joins, so the server reads end of file and writes nowhere.
             transport: ServerTransport {
                 read: Box::new(tokio::io::empty()),

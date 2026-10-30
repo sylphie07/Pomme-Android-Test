@@ -573,3 +573,25 @@ The user clarified the intended behavior: local singleplayer must work without s
 
 ### Scope boundaries
 No merge of PR #11, no changes to `master`, no APK build/publication, and no destructive world/profile/player-data operation.
+
+
+## 2026-10-30 — Session 014: Fix Release singleplayer login gate
+
+### Scope and preflight
+- Repository: `sylphie07/Pomme-Android-Test`.
+- Authorized branch: `unofficial-android-menu-access`; `master` was not targeted.
+- Re-read `pomme-client/src/user.rs`, `docs/CONTINUITY.md`, and this development log before editing.
+- The Release branch of `UserData::for_launch()` returned `true` as its second tuple value even though the local integrated server is offline-mode and `allows_singleplayer()` already permits local play. This incorrectly marked sign-in as required at startup.
+
+### Changes applied
+- `pomme-client/src/user.rs`: Release now returns `false` for the login-required flag while continuing to initialize from the persisted local profile.
+- Updated the Release regression test to assert that login is not required, the exact local profile is retained, singleplayer is allowed, no Microsoft authorization is fabricated, and multiplayer remains denied without a verified Microsoft session.
+- No SteelMC code/gitlink, world/profile files, account store, authentication verification, or remote multiplayer gate was changed.
+
+### Verification status
+- Source edits were submitted to the authorized GitHub branch; commit SHA is recorded in the continuity note after the source write.
+- The regression test is updated but has **not** yet been executed in this session. No CI pass, APK build, or Android-device result is claimed.
+- No merge, release, APK generation, or change to `master` was performed.
+
+### Next step
+- Run the focused Rust test and the repository CI on this source commit. After automated checks pass, build/install a new APK only under separate authorization and repeat the signed-out singleplayer device test.

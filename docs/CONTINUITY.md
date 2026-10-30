@@ -443,3 +443,16 @@ Correct the Release startup policy so a persisted local profile can enter local 
 - Still unconfirmed: statistics persistence, all other player-data fields, and a complete force-stop/restart save lifecycle. Preserve all existing data and use non-destructive checks only.
 - No source, SteelMC pin, APK, workflow, worlds, profiles, or player data changed in this update; no new automated test or CI result is claimed.
 - Continue with the known world-creation auto-launch repair. Treat inventory, position, death/respawn, and Ender Chest behavior as regression acceptance criteria. Hostile mob implementation should remain a separate Minecraft Rust gameplay task unless investigation identifies a Pomme-specific cause.
+
+
+## User-device validation update — 2026-10-30 (statistics, XP and progression)
+
+- The user confirms that statistics work correctly on the tested APK.
+- XP and progression behavior are also confirmed: XP is gained when collected, the expected XP is lost on death, and progression works correctly.
+- Mark statistics and XP/progression as **user-tested / passed** based on the user's device report; this is not an independently reproduced automated test.
+- Phase 2.2-E user-tested / passed: per-world inventory isolation; position continuity on world re-entry; reported death/item-loss/spawn-respawn behavior; Ender Chest; statistics; XP collection/loss and progression.
+- Still outstanding: a complete non-destructive force-stop/restart save lifecycle and any player-data fields not explicitly covered by the user's checks.
+- Scope clarification: hostile mobs not appearing is outside the current Pomme task. The user explains that the APK's underlying Minecraft Rust version is still missing substantial gameplay implementations. Treat this as an upstream gameplay implementation limitation, not a Pomme persistence defect. No independent Rust diagnosis was performed.
+- PR #11 preflight: open/unmerged, base `master`, authorized branch `unofficial-android-menu-access`, head before this docs update `a566f1ec613e82afa479eeadfbca3a78262ad27d`.
+- Documentation-only update; no source, Rust/SteelMC pin, APK, workflow, world/profile/player data, master, or merge changes. No tests or CI run claimed.
+- Next Pomme task: implement and verify the create-world → existing `MenuAction::PlayWorld` handoff. Preserve all passed device checks as regression criteria.

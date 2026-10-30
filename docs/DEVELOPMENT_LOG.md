@@ -708,3 +708,24 @@ No merge of PR #11, no changes to `master`, no APK build/publication, and no des
 - This entry records user-reported Android behavior only; no independent runtime reproduction, source inspection of Minecraft Rust mob systems, automated test, or CI run was performed here.
 - No Rust source, SteelMC gitlink, workflow, APK, world/profile/player data, master branch, or PR merge was changed.
 - Next programming priority remains the separately diagnosed world-creation auto-launch fix. Keep the verified persistence behaviors as regression criteria.
+
+
+## 2026-10-30 — Session 019: User confirmation of statistics, XP and progression
+
+### User-reported Android acceptance
+- The user clarifies that statistics are working correctly on the tested APK.
+- XP behavior and progression are also confirmed: collecting XP grants it to the player, death causes the expected XP loss, and progression behaves correctly.
+- Record statistics and XP/progression behavior as **user-tested / passed**, based on the user's device report. Do not infer additional untested statistic categories or claim an independently reproduced test.
+
+### Scope clarification — Minecraft Rust entities
+- The absence of hostile mobs is not part of the current Pomme programming task. The user clarifies that the APK is based on a Minecraft Rust version that still lacks substantial gameplay implementations.
+- Keep hostile-mob availability as an upstream Minecraft Rust gameplay limitation/observation, not a Pomme defect or Phase 2.2-E persistence failure. No Rust source diagnosis or change was performed.
+
+### Phase 2.2-E impact
+- User-tested / passed: per-world inventory isolation; position continuity on world re-entry; death/item-loss/spawn-respawn behavior; Ender Chest; statistics; XP collection/loss and progression.
+- Still outstanding: a complete non-destructive force-stop/restart save lifecycle and any player-data fields not explicitly covered by the user's tests.
+- Next Pomme programming task remains the separately diagnosed create-world auto-launch repair.
+
+### Repository and scope
+- Preflight: PR #11 remains open and unmerged, targeting master; authorized branch is `unofficial-android-menu-access`; live PR head before this documentation update was `a566f1ec613e82afa479eeadfbca3a78262ad27d`.
+- Documentation-only update. No source, Minecraft Rust/SteelMC code or pin, APK, workflow, worlds, profiles, player data, master, or merge was changed. No automated test or CI result is claimed.

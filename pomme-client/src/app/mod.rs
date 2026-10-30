@@ -1015,9 +1015,7 @@ impl ApplicationHandler for App {
                 // crafting screens must preserve pointer drags for item stacks.
                 let scrollable = match self.phase.get() {
                     AppPhase::InMenu { .. } | AppPhase::Connecting { .. } => true,
-                    AppPhase::InGame { game, .. } => {
-                        game.options_from_game || game.dialog_open()
-                    }
+                    AppPhase::InGame { game, .. } => game.options_from_game || game.dialog_open(),
                     _ => false,
                 };
                 if let Some(gfx) = self.phase.gfx_mut() {
@@ -1028,9 +1026,14 @@ impl ApplicationHandler for App {
                         height,
                         gs: self.core.menu.gui_scale(width, height),
                     };
-                    self.core
-                        .input
-                        .on_touch(&touch, gameplay, scrollable, &layout);
+                    self.core.input.on_touch(
+                        &touch,
+                        input::touch::TouchContext {
+                            gameplay,
+                            scrollable,
+                        },
+                        &layout,
+                    );
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {

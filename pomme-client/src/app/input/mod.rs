@@ -10,7 +10,7 @@ use gilrs::{Button, GamepadId, Gilrs};
 use winit::event::{ElementState, KeyEvent, Modifiers, MouseButton, Touch};
 use winit::keyboard::{Key, KeyCode, NamedKey, PhysicalKey};
 
-use self::touch::{TouchControls, TouchLayout, TouchOutput};
+use self::touch::{TouchContext, TouchControls, TouchLayout, TouchOutput};
 use crate::app::TICK_RATE_MS;
 use crate::app::phases::AppPhase;
 use crate::app::state_slot::StateSlot;
@@ -1017,8 +1017,7 @@ impl InputState {
     pub fn on_touch(
         &mut self,
         touch: &Touch,
-        gameplay: bool,
-        scrollable: bool,
+        context: TouchContext,
         layout: &TouchLayout,
     ) {
         let p = glam::vec2(touch.location.x as f32, touch.location.y as f32);
@@ -1026,8 +1025,7 @@ impl InputState {
             touch.id,
             touch.phase,
             p,
-            gameplay,
-            scrollable,
+            context,
             layout,
             std::time::Instant::now(),
         );

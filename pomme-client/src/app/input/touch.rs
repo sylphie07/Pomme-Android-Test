@@ -644,7 +644,7 @@ mod tests {
             [TouchOutput::PointerDown, TouchOutput::PointerMove(moved)]
         );
         assert_eq!(
-            c.on_touch(1, TouchPhase::Ended, moved, false, &LAYOUT, t),
+            c.on_touch(1, TouchPhase::Ended, moved, false, true, &LAYOUT, t),
             [TouchOutput::PointerUp]
         );
     }

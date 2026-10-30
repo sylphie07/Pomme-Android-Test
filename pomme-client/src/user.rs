@@ -103,6 +103,16 @@ impl LocalProfileStore {
         let has_format_version = raw
             .as_object()
             .is_some_and(|object| object.contains_key("format_version"));
+        let has_player_uuid_field = raw
+            .get("profiles")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|profiles| {
+                profiles.iter().any(|profile| {
+                    profile
+                        .as_object()
+                        .is_some_and(|object| object.contains_key("player_uuid"))
+                })
+            });
         let document: LocalProfileDocument =
             serde_json::from_value(raw).map_err(std::io::Error::other)?;
 
@@ -114,7 +124,7 @@ impl LocalProfileStore {
                         "local profile format_version must be a supported integer",
                     ));
                 }
-                if document.profiles.iter().any(|profile| profile.player_uuid.is_some()) {
+                if has_player_uuid_field {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidData,
                         "local profile document mixes legacy and versioned identity fields",

@@ -228,7 +228,7 @@ Unit tests, integration tests, CI, and real Android-device tests must be reporte
 - Profiles renamed before this migration may need manual/historical identity recovery.
 - Older app versions may not preserve a UUID across a later rename.
 - The integrated identity API must be inaccessible to ordinary remote connections.
-- Advancement progress was inspected but no persistence field/serialization path was found in the inspected `PersistentPlayerData`/storage flow. Treat advancement persistence as **not verified**, not as definitively absent.
+- **Advancement persistence limitation confirmed at the inspected SteelMC pin:** `steel-core/src/player/mod.rs` contains `Player.advancements: SyncMutex<PlayerAdvancement>`, initializes it with `PlayerAdvancement::default()`, and includes the explicit comment `// TODO save the advancement`. No advancement field/serialization path was found in the inspected `PersistentPlayerData`/player-storage flow. Advancements therefore do not persist in this inspected revision. This is a separate SteelMC limitation; a stable player UUID alone will not fix it. Any future advancement-persistence work needs its own design, storage compatibility review, and tests.
 - The report did not run builds, tests, CI, or Android runtime checks.
 
 ## 12. Recommended implementation order (not authorized)
@@ -255,3 +255,10 @@ Advancement to each phase requires review of prior results and explicit user aut
 - No world/player data was touched.
 - No merge, PR, master change, or APK was performed.
 - Implementation remains unauthorized; stop and wait for the user.
+
+
+## 14. Clarification recorded on 2026-10-30 — advancement persistence
+
+The earlier wording in Section 11 understated the evidence. At SteelMC gitlink `e655880a7b1487b2444c70013c14ee86c69d53b3`, `steel-core/src/player/mod.rs` contains the `Player.advancements` field, initializes it with `PlayerAdvancement::default()`, and marks it with `// TODO save the advancement`. The inspected `PersistentPlayerData` and file-storage path do not serialize this field. Therefore advancement progress is **not persisted by this inspected revision**. This is a pre-existing SteelMC limitation, independent of Pomme's proposed persistent player UUID. Do not claim advancement retention as an acceptance result until SteelMC persistence is separately implemented and tested.
+
+No tests or builds were run for this clarification.

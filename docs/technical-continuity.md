@@ -5,7 +5,7 @@
 - Rama de trabajo: `phase-2.2-b-persistent-local-profile`
 - Rama base de Fase 2.2-B: `unofficial-android-menu-access`
 - HEAD base: `c730ae9e1334646f507f9f068e8774e8950a18a8`
-- Último commit registrado al actualizar este documento: `c06d07e508772342707dd38c391ed47365a30bcb`
+- Último commit registrado al actualizar este documento: `071880da8042c028b9728d4db371150644840c9d`
 - Estado: implementación de Fase 2.2-B en progreso; validación local/CI todavía no ejecutada.
 - No se ha abierto PR, no se ha hecho merge, no se ha modificado `master`, no se ha generado APK.
 
@@ -40,6 +40,8 @@ Añadir una identidad persistente de jugador independiente del identificador de 
 - Rechazo de `player_uuid: null` en documentos antiguos.
 - Rechazo de identidades históricas duplicadas.
 - Persistencia del UUID tras recargar un documento versionado.
+- Segundo arranque después de migrar un documento legacy, sin cambiar el UUID.
+- Recuperación desde un backup válido cuando falta el archivo principal.
 - Identidad offline inicial de perfiles nuevos.
 
 ## Limitaciones y riesgos abiertos

@@ -306,3 +306,35 @@ Continue the investigations left by the other Pomme chats, reconcile them agains
 3. Only after approval, plan C/D trusted integrated identity using the exact stored UUID and tests for all UUID-keyed player data.
 4. Keep profile picker UI, auth token lifecycle/Keystore, Android device discrepancy, and advancement persistence as separate tasks.
 5. Do not merge, update SteelMC, publish, or generate an APK without explicit authorization.
+
+
+## 2026-10-30 — Session 007: Resolve new-profile UUID compatibility before C/D
+
+### Trigger
+A parallel investigation chat identified that the experimental B1–B4 implementation created random `player_uuid` values for new profiles while the runtime still used `offline_uuid(username)`. Wiring those random values into SteelMC later could make existing player records appear missing.
+
+### Changes applied
+- `LocalProfile::new()` now initializes `player_uuid` with the same historical offline UUID the runtime currently uses. The independent profile-record `id` remains a random UUID.
+- `create_profile()` rejects a player-UUID collision instead of silently assigning a different UUID that would split an existing identity.
+- JSON format advanced from version 1 to version 2.
+- Experimental format-1 documents migrate their previously unused random `player_uuid` to `offline_uuid(username)`. This is safe for the inspected experimental implementation because its runtime continued using the name-derived UUID; the stored random field was not yet consumed by SteelMC.
+- Added a regression test that checks format-1 migration preserves profile ID and selected-profile ID while replacing the unused random UUID with the historical runtime UUID.
+- Applied rustfmt layout corrections after CI logs showed formatting differences in the earlier B1–B4 code.
+
+### Files changed
+- `pomme-client/src/user.rs` only.
+
+### Commits
+- `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce` — UUID compatibility and format-1 migration.
+- `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc` — rustfmt layout cleanup.
+
+### Verification
+- GitHub source commit and branch ref verified.
+- SteelMC gitlink remained `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+- Previous CI run `41009018315` was cancelled after newer commits superseded it. Its formatting output exposed concrete rustfmt changes; those were applied manually.
+- Current CI run `41009337238` targets the PR merge ref with PR head `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc`; it was pending at the last check.
+- No local `cargo fmt`, `cargo test`, Android build, or device test was run.
+
+### Remaining boundary
+- Runtime UUID still comes from username in `UserData::from_local_profile()`; the new field is not yet passed to SteelMC.
+- C/D/E remain separate work. No SteelMC source/pin changes, world-file changes, merge, master modification, or APK publication occurred.

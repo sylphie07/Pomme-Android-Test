@@ -153,3 +153,15 @@ The programmer must follow `docs/PHASE_2_2_CD_PROGRAMMER_HANDOFF.md`, freshly ve
 9. **Acceptance criteria / regression tests:** (a) create a new world with an empty saves directory and verify the returned action targets its exact folder; (b) create a world when other saves already exist and verify it targets the new folder, not the first/most-recent world; (c) duplicate world names use the generated suffixed folder and launch that folder; (d) persistence failure emits no PlayWorld action and preserves the user's existing worlds; (e) manual world selection and QuickPlay still launch normally; (f) signed-out Release Singleplayer enters the newly created world without opening the account screen; (g) remote multiplayer still requires verified Microsoft authorization. Add focused unit tests around the create action/result, plus Android device verification after CI.
 10. **Dependencies / order:** Implement on `unofficial-android-menu-access` only after the programming chat re-verifies the live branch/HEAD and reads current continuity. Run formatting, focused Rust tests, and full CI before producing a new APK. APK generation/install requires its separate authorization and must not be forced by modifying `master`.
 11. **Not changed / not tested:** This investigation made no source-code, workflow, SteelMC, world, profile, or APK changes. No local tests/builds were run. The observed runtime behavior was reported by the user; no independent device reproduction was performed by this chat.
+
+
+
+## Programming update — create-world auto-launch fix now authorized and applied (2026-10-30)
+
+- The user has explicitly authorized the programming chat to implement the create-world auto-launch correction and prepare a new APK. This supersedes the older investigation-only authorization text in the earlier handoff entry.
+- Applied change on `unofficial-android-menu-access`, source HEAD `546ec38f7d07d1784a0951cbfbb437088ffedf01`, file `pomme-client/src/ui/menu/worlds.rs`.
+- Successful save now returns `MenuAction::PlayWorld` with the exact persisted folder identifier. Failed save returns no gameplay action and keeps the create screen open.
+- Added regression tests for successful create, generated duplicate-name suffix, and failed persistence.
+- Existing `open_world()` path remains the only launch route; no auth bypass or remote multiplayer change.
+- CI #134 / run `41126486791` was pending. Android APK build run `41126478882` was in progress for the same head. Neither is considered passed/available until final results are inspected.
+- Do not merge PR #11 or modify `master`. Preserve all worlds/profile data and prior Phase 2.2-E device-verified behavior.

@@ -1,7 +1,7 @@
 # Phase 2.2-A — Persistent Player Identity per Local Profile
 
 Last updated: 2026-10-30
-Status: **Investigation and design completed — implementation NOT authorized**
+Status: **Phase 2.2-A investigation/design completed. A later user authorization for Phase 2.2-B1–B4 is recorded in Section 15; C/D/E remain outside that authorization.**
 
 ## 1. Scope and safety boundary
 

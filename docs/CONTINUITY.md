@@ -456,3 +456,18 @@ Correct the Release startup policy so a persisted local profile can enter local 
 - PR #11 preflight: open/unmerged, base `master`, authorized branch `unofficial-android-menu-access`, head before this docs update `a566f1ec613e82afa479eeadfbca3a78262ad27d`.
 - Documentation-only update; no source, Rust/SteelMC pin, APK, workflow, world/profile/player data, master, or merge changes. No tests or CI run claimed.
 - Next Pomme task: implement and verify the create-world → existing `MenuAction::PlayWorld` handoff. Preserve all passed device checks as regression criteria.
+
+
+
+## Current handoff override — Session 020 (2026-10-30)
+
+- This section supersedes earlier stale phase summaries and the older create-world handoff wording that said implementation was investigation-only. The user has now explicitly authorized the Pomme create-world correction and preparation of a new APK.
+- Repository: `sylphie07/Pomme-Android-Test`; authorized branch: `unofficial-android-menu-access`; source HEAD: `546ec38f7d07d1784a0951cbfbb437088ffedf01`; PR #11 remains open/unmerged and targets `master`.
+- Applied source change in `pomme-client/src/ui/menu/worlds.rs`: successful creation now returns `MenuAction::PlayWorld` using the exact persisted save-folder name. The normal `update_menu()` → `open_world()` route remains responsible for Singleplayer authorization, resolving the world and starting the embedded server.
+- Failed persistence returns `MenuAction::None`, logs the error, and leaves the user on the create-world screen; no launch is attempted.
+- Added focused tests for successful creation, duplicate-name folder suffix selection, and failed persistence not requesting launch. Tests are written but not yet confirmed executed.
+- CI run #134 / ID `41126486791` targets source HEAD `546ec38f7d07d1784a0951cbfbb437088ffedf01`; it was pending at this update. Do not claim it passed until all required jobs and aggregate `ci` complete successfully.
+- Android APK workflow run ID `41126478882` was observed building the same source HEAD; it was in progress at this update. Artifact availability and successful APK build are not yet confirmed.
+- No local tests/build or device test has been performed by this chat. No user data, worlds, profiles, UUIDs, SteelMC pin, `master`, or PR merge was changed.
+- Phase 2.2-E device checks user-tested / passed: per-world inventory, position continuity, death/respawn, Ender Chest, statistics, and XP/progression. A complete force-stop/restart lifecycle remains outstanding. Missing hostile mobs remain an upstream Minecraft Rust gameplay limitation outside this Pomme task.
+- Next: inspect CI #134 and APK run #41126478882, correct any failures, verify the final APK artifact, then have the user install/test it without deleting existing data. Preserve all passed gameplay checks as regression criteria.

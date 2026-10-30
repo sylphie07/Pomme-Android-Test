@@ -212,3 +212,12 @@ The user authorized code edits to integrate the other chats' findings. The exper
 - The only completed CI result on the preceding source HEAD `f7ae3ce885b4e0e3d1c50f866201351d9549ef68` is failure `41009743471`; it exposed and motivated the source fixes.
 - Runs `41010632204` and `41010632271` were auxiliary `pull_request_target` conflict/label workflows, not Rust CI. They must not be counted as source validation.
 - No completed Rust CI run for the corrected source HEAD has been confirmed yet. Continue checking for a `pull_request` run; if no run was triggered, use an authorized GitHub Actions rerun/dispatch path or ask the user to trigger the CI workflow from GitHub. Do not call B1–B4 verified until the required `ci` job and its dependent code jobs pass.
+
+
+### Session 009 follow-up — second CI formatter pass
+- Rerun attempt 2 of workflow `41010633965` reached `ci-fmt` and exposed two additional rustfmt layout requirements: the headless profile-store expression and the nested test-module import ordering.
+- Applied the exact formatter output:
+  - `1d7256ec025dd184f9a910aad724d9468341191d` — format the headless load/error expression.
+  - `406a3d63db222f897338047dae40419baed18db1` — order test imports as rustfmt requires.
+- The workflow attempt was superseded by these source commits; it is not a passing validation. The latest source tree must receive a complete CI run after the final branch updates.
+- No behavior change beyond the already documented fail-closed headless handling; no SteelMC change.

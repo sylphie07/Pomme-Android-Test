@@ -78,13 +78,23 @@ pub fn run(
     );
     let chat_options = ChatOptions::default();
     let skin_options = SkinOptions::default();
+    let (username, uuid, access_token) = match &transport {
+        Transport::Remote { .. } => {
+            let Some((username, uuid, token)) = user.multiplayer_identity() else {
+                tracing::error!("Headless multiplayer requires a valid Microsoft Java session");
+                return 1;
+            };
+            (username.to_owned(), uuid, Some(token.to_owned()))
+        }
+        Transport::Memory { .. } => (user.username.clone(), user.uuid, None),
+    };
     let connection = spawn_connection(
         rt,
         ConnectArgs {
             transport,
-            username: user.username.clone(),
-            uuid: user.uuid,
-            access_token: user.authenticated_access_token().map(str::to_owned),
+            username,
+            uuid,
+            access_token,
             view_distance: rd as u8,
             chat_options,
             skin_options,

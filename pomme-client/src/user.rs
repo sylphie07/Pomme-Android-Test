@@ -143,13 +143,25 @@ pub enum JavaAuthorization {
     Verified { expires_at: u64 },
 }
 
+/// Microsoft credentials and their authorization state are kept separately
+/// from the selected local player profile.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MicrosoftSession {
+    pub account: pomme_auth::AuthAccount,
+    pub authorization: JavaAuthorization,
+}
+
 pub struct UserData {
+    /// Active local player identity. Microsoft sign-in never changes these.
     pub username: String,
     pub uuid: uuid::Uuid,
-    pub access_token: Option<String>,
-    /// True only when a real profile UUID was supplied or restored.
-    pub has_profile: bool,
     pub local_profile: LocalProfile,
+    /// Independent Microsoft session used only for remote authorization.
+    pub microsoft_session: Option<MicrosoftSession>,
+    /// Compatibility mirror for the account menu; never authorizes by itself.
+    pub access_token: Option<String>,
+    /// Whether the Microsoft account has a parseable Minecraft profile UUID.
+    pub has_profile: bool,
     pub identity_source: IdentitySource,
     pub java_authorization: JavaAuthorization,
 }
@@ -168,7 +180,7 @@ impl UserData {
     fn from_launch_args(
         username: String,
         uuid: Option<String>,
-        access_token: Option<String>,
+        _access_token: Option<String>,
         local_profile: LocalProfile,
     ) -> Self {
         let uuid = uuid.and_then(|value| uuid::Uuid::parse_str(&value).ok());
@@ -177,12 +189,13 @@ impl UserData {
         Self {
             username,
             uuid,
-            access_token,
+            access_token: None,
             has_profile,
             local_profile,
+            microsoft_session: None,
             identity_source: IdentitySource::LauncherArguments,
             // Launcher arguments are identity inputs, not proof that the
-            // account owns Java Edition. Release builds never trust them.
+            // account owns Java Edition. They never create a Microsoft session.
             java_authorization: JavaAuthorization::Unverified,
         }
     }
@@ -224,39 +237,88 @@ impl UserData {
             access_token: None,
             has_profile: false,
             local_profile: profile,
+            microsoft_session: None,
             identity_source: IdentitySource::LocalProfile,
             java_authorization: JavaAuthorization::Unverified,
         }
     }
 
     pub fn from_account(account: &pomme_auth::AuthAccount, local_profile: LocalProfile) -> Self {
-        let profile_uuid = uuid::Uuid::parse_str(&account.uuid).ok();
-        let has_profile = profile_uuid.is_some();
-        Self {
-            username: account.username.clone(),
-            uuid: profile_uuid.unwrap_or_else(|| Self::offline_uuid(&account.username)),
-            access_token: Some(account.access_token.clone()),
-            has_profile,
-            local_profile,
-            identity_source: IdentitySource::MicrosoftAccount,
-            java_authorization: if has_profile {
-                JavaAuthorization::Verified {
-                    expires_at: account.expires_at,
-                }
-            } else {
-                JavaAuthorization::Unverified
-            },
+        let mut user = Self::from_local_profile(local_profile);
+        user.set_microsoft_account(Some(account.clone()));
+        user
+    }
+
+    /// Update only the Microsoft session; local profile, username and offline
+    /// UUID remain stable across sign-in, sign-out and account switching.
+    pub fn set_microsoft_account(&mut self, account: Option<pomme_auth::AuthAccount>) {
+        match account {
+            Some(account) => {
+                let has_profile = uuid::Uuid::parse_str(&account.uuid).is_ok();
+                let authorization = if has_profile {
+                    JavaAuthorization::Verified {
+                        expires_at: account.expires_at,
+                    }
+                } else {
+                    JavaAuthorization::Unverified
+                };
+                self.access_token = Some(account.access_token.clone());
+                self.has_profile = has_profile;
+                self.identity_source = IdentitySource::MicrosoftAccount;
+                self.java_authorization = authorization;
+                self.microsoft_session = Some(MicrosoftSession {
+                    account,
+                    authorization,
+                });
+            }
+            None => {
+                self.microsoft_session = None;
+                self.access_token = None;
+                self.has_profile = false;
+                self.identity_source = IdentitySource::LocalProfile;
+                self.java_authorization = JavaAuthorization::Unverified;
+            }
         }
     }
 
-    pub fn is_java_authorized(&self) -> bool {
-        if self.identity_source != IdentitySource::MicrosoftAccount || !self.has_profile {
-            return false;
+    /// Change the selected local player without discarding the Microsoft
+    /// session. UUID policy is unchanged in this phase.
+    pub fn set_local_profile(&mut self, profile: LocalProfile) {
+        self.username = profile.username.clone();
+        self.uuid = Self::offline_uuid(&self.username);
+        self.local_profile = profile;
+    }
+
+    pub fn microsoft_profile_uuid(&self) -> Option<uuid::Uuid> {
+        self.microsoft_session
+            .as_ref()
+            .and_then(|session| uuid::Uuid::parse_str(&session.account.uuid).ok())
+    }
+
+    /// The account identity used for multiplayer; never use local profile
+    /// identity or launcher arguments as a substitute.
+    pub fn multiplayer_identity(&self) -> Option<(&str, uuid::Uuid, &str)> {
+        if !self.is_java_authorized() {
+            return None;
         }
-        let JavaAuthorization::Verified { expires_at } = self.java_authorization else {
+        let session = self.microsoft_session.as_ref()?;
+        Some((
+            session.account.username.as_str(),
+            uuid::Uuid::parse_str(&session.account.uuid).ok()?,
+            session.account.access_token.as_str(),
+        ))
+    }
+
+    pub fn is_java_authorized(&self) -> bool {
+        let Some(session) = self.microsoft_session.as_ref() else {
             return false;
         };
-        expires_at > unix_now() && self.access_token.is_some()
+        let JavaAuthorization::Verified { expires_at } = session.authorization else {
+            return false;
+        };
+        expires_at > unix_now()
+            && !session.account.access_token.is_empty()
+            && uuid::Uuid::parse_str(&session.account.uuid).is_ok()
     }
 
     pub fn allows_singleplayer(&self, _release: bool) -> bool {
@@ -272,9 +334,7 @@ impl UserData {
     /// Only a verified, unexpired Minecraft session may be sent to a remote
     /// server. A local/offline profile can never supply multiplayer auth.
     pub fn authenticated_access_token(&self) -> Option<&str> {
-        self.is_java_authorized()
-            .then_some(self.access_token.as_deref())
-            .flatten()
+        self.multiplayer_identity().map(|(_, _, token)| token)
     }
 
     fn offline_uuid(username: &str) -> uuid::Uuid {
@@ -292,7 +352,7 @@ fn unix_now() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{JavaAuthorization, LocalProfileStore, UserData};
+    use super::{JavaAuthorization, LocalProfile, LocalProfileStore, UserData};
 
     #[test]
     fn local_profiles_create_persist_reload_and_select() {
@@ -310,6 +370,76 @@ mod tests {
         assert_ne!(first.id, second.id);
 
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn microsoft_sign_in_sign_out_and_account_switch_preserve_local_profile() {
+        let profile = LocalProfile::new("PersistentLocal");
+        let mut user = UserData::from_local_profile(profile.clone());
+        let local_username = user.username.clone();
+        let local_uuid = user.uuid;
+
+        let account = |username: &str, uuid: &str, token: &str| pomme_auth::AuthAccount {
+            username: username.into(),
+            uuid: uuid.into(),
+            access_token: token.into(),
+            expires_at: super::unix_now() + 3600,
+        };
+
+        user.set_microsoft_account(Some(account(
+            "MicrosoftOne",
+            "b50ad385-829d-3141-a216-7e7d7539ba7f",
+            "token-one",
+        )));
+        assert_eq!(user.local_profile, profile);
+        assert_eq!(user.username, local_username);
+        assert_eq!(user.uuid, local_uuid);
+        assert_eq!(
+            user.multiplayer_identity().map(|(name, _, _)| name),
+            Some("MicrosoftOne")
+        );
+
+        user.set_microsoft_account(Some(account(
+            "MicrosoftTwo",
+            "36532b5e-c442-3dbb-a24c-c7e55d0f979a",
+            "token-two",
+        )));
+        assert_eq!(user.username, local_username);
+        assert_eq!(user.uuid, local_uuid);
+        assert_eq!(
+            user.multiplayer_identity().map(|(name, _, _)| name),
+            Some("MicrosoftTwo")
+        );
+
+        user.set_microsoft_account(None);
+        assert_eq!(user.local_profile, profile);
+        assert_eq!(user.username, local_username);
+        assert_eq!(user.uuid, local_uuid);
+        assert_eq!(user.multiplayer_identity(), None);
+        assert!(user.allows_singleplayer(true));
+        assert!(!user.allows_multiplayer());
+    }
+
+    #[test]
+    fn changing_local_profile_keeps_microsoft_session() {
+        let first = LocalProfile::new("FirstLocal");
+        let second = LocalProfile::new("SecondLocal");
+        let account = pomme_auth::AuthAccount {
+            username: "OnlinePlayer".into(),
+            uuid: "b50ad385-829d-3141-a216-7e7d7539ba7f".into(),
+            access_token: "valid-session".into(),
+            expires_at: super::unix_now() + 3600,
+        };
+        let mut user = UserData::from_account(&account, first);
+        user.set_local_profile(second.clone());
+
+        assert_eq!(user.local_profile, second);
+        assert_eq!(user.username, "SecondLocal");
+        assert_eq!(
+            user.multiplayer_identity().map(|(name, _, _)| name),
+            Some("OnlinePlayer")
+        );
+        assert!(user.allows_multiplayer());
     }
 
     #[test]

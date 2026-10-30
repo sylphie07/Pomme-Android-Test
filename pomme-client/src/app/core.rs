@@ -838,6 +838,7 @@ impl RepeatStepper {
 }
 
 pub struct AppCore {
+    /// Holds the local player identity and the independent optional Microsoft session.
     pub user: UserData,
     pub presence: Option<DiscordPresence>,
     pub display_mode: DisplayMode,

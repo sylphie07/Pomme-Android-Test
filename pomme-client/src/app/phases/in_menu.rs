@@ -20,10 +20,9 @@ enum GameplayMode {
     Multiplayer,
 }
 
-/// Identity and permission are deliberately separate: a local profile may
-/// identify a development singleplayer session, but never authorizes a remote
-/// multiplayer session. Release builds require a verified Java account for
-/// both modes.
+/// Identity and permission are separate: the local profile identifies the
+/// integrated singleplayer player, while a verified Microsoft session is
+/// required only for remote multiplayer.
 fn authorize_gameplay(core: &mut AppCore, pending: PendingGameAction, mode: GameplayMode) -> bool {
     let allowed = match mode {
         GameplayMode::Singleplayer => core.user.allows_singleplayer(cfg!(not(debug_assertions))),
@@ -134,7 +133,11 @@ pub fn open_world(core: &mut AppCore, folder: &str) -> MenuUpdateResult {
 pub fn quick_play(core: &mut AppCore, play: QuickPlay) -> MenuUpdateResult {
     match play {
         QuickPlay::Multiplayer(server) => {
-            let username = core.user.username.clone();
+            let username = core
+                .user
+                .multiplayer_identity()
+                .map(|(name, _, _)| name.to_owned())
+                .unwrap_or_else(|| core.user.username.clone());
             connect_remote(core, server, username, None)
         }
         QuickPlay::Singleplayer(folder) => open_world(core, &folder),
@@ -142,30 +145,54 @@ pub fn quick_play(core: &mut AppCore, play: QuickPlay) -> MenuUpdateResult {
 }
 
 fn apply_account(core: &mut AppCore, gfx: &mut Gfx, account: Option<pomme_auth::AuthAccount>) {
-    let local_profile = core.user.local_profile.clone();
-    core.user = match &account {
-        Some(account) => crate::user::UserData::from_account(account, local_profile),
-        None => crate::user::UserData::from_local_profile(local_profile),
-    };
+    let account_uuid = account
+        .as_ref()
+        .and_then(|account| uuid::Uuid::parse_str(&account.uuid).ok());
+    let account_name = account
+        .as_ref()
+        .map(|account| account.username.clone())
+        .unwrap_or_else(|| core.user.username.clone());
+    let access_token = account
+        .as_ref()
+        .map(|account| account.access_token.clone());
+
+    // This mutates only the Microsoft session. The selected local profile,
+    // local username and offline UUID remain unchanged.
+    core.user.set_microsoft_account(account);
+
     core.menu.set_account(
-        core.user.username.clone(),
-        core.user.access_token.clone(),
+        account_name,
+        access_token,
         &core.input.key_bindings,
     );
-    if core.user.has_profile {
-        gfx.renderer
-            .load_player_skin(&core.user.uuid, &core.tokio_rt);
+    if let Some(uuid) = account_uuid {
+        gfx.renderer.load_player_skin(&uuid, &core.tokio_rt);
+        core.menu.set_player_face(Some(&uuid));
+    } else {
+        core.menu.set_player_face(None);
     }
-    core.menu
-        .set_player_face(core.user.has_profile.then_some(&core.user.uuid));
 }
 
 pub fn connect_args(core: &AppCore, transport: Transport, username: String) -> ConnectArgs {
+    let (username, uuid, access_token) = match &transport {
+        Transport::Remote { .. } => {
+            let (account_name, account_uuid, token) = core
+                .user
+                .multiplayer_identity()
+                .expect("remote connection requires a valid Microsoft Java session");
+            (
+                account_name.to_owned(),
+                account_uuid,
+                Some(token.to_owned()),
+            )
+        }
+        Transport::Memory { .. } => (username, core.user.uuid, None),
+    };
     ConnectArgs {
         transport,
         username,
-        uuid: core.user.uuid,
-        access_token: core.user.authenticated_access_token().map(str::to_owned),
+        uuid,
+        access_token,
         view_distance: core.view_distance(),
         chat_options: core.menu.chat_options,
         skin_options: core.menu.skin_options(),
@@ -292,7 +319,9 @@ pub fn update_menu(
         }
         MenuAction::Account(account) => {
             if account.is_none() {
-                core.menu.forget_account(&core.user.uuid);
+                if let Some(account_uuid) = core.user.microsoft_profile_uuid() {
+                    core.menu.forget_account(&account_uuid);
+                }
                 core.deferred_game_action = None;
             }
             let signed_in = account.is_some();

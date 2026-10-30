@@ -139,3 +139,16 @@ The user's latest explicit instruction authorizes the dedicated programming chat
 B1–B4 CI run `41012173438` (#94) completed successfully for test, singleplayer, Android, iOS, fmt, Ubuntu/macOS/Windows lint, and aggregate CI. Launcher jobs were skipped. This does not constitute Android device acceptance.
 
 The programmer must follow `docs/PHASE_2_2_CD_PROGRAMMER_HANDOFF.md`, freshly verify branch/HEAD/PR and actual SteelMC gitlink, and preserve all security and data-continuity invariants. PR #11 must remain open and unmerged; `master` and APK publication are out of scope.
+
+
+## Additional investigation handoff — legacy world identity recovery (priority: critical before distributing C/D builds)
+
+- Read `docs/LEGACY_WORLD_IDENTITY_MIGRATION.md` before changing first-run profile creation or the trusted identity path.
+- The current no-profile startup path persists a `Player` placeholder before it checks existing worlds. Do not treat this as harmless on upgrades.
+- Old SteelMC worlds may contain `global/known_players.dat` mapping offline UUIDs to last-known names, plus UUID-keyed player data under `<domain>/players/data/<uuid>`. This index existed at the historical SteelMC pin, but is bounded/expiring and must be corroborated.
+- Implement read-only discovery before placeholder creation. Use a Steel-owned decoder/API; do not duplicate the binary file format in Pomme.
+- Only auto-migrate when evidence identifies one unambiguous historical identity. For multiple identities/worlds or missing metadata, require explicit recovery and preserve the current profile/worlds.
+- Account-store usernames and launcher arguments are candidate hints only; require a matching player-data UUID. Never substitute the Microsoft UUID for the historical offline UUID.
+- Do not overwrite an already-persisted `Player` profile automatically; older format-2 documents do not encode whether that placeholder was generated or user-confirmed.
+- Also address KI-013: local-profile runtime UUID mirrors must use exact `LocalProfile.player_uuid`, not recompute from the display name.
+- This is an investigation handoff, not additional implementation authorization. Coordinate with the dedicated programmer and keep any parallel implementation isolated.

@@ -227,7 +227,7 @@ mod integration_tests {
     }
 
     fn enter_and_leave(rt: &tokio::runtime::Runtime, dir: &Path) {
-        let (world, end) = super::open(&summary(), dir, 2)
+        let (mut world, end) = super::open(&summary(), dir, 2)
             .expect("SteelMC should accept the integrated world launch");
 
         // SteelMC's embedded listener is deliberately offline-mode. The

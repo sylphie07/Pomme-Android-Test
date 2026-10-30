@@ -2,25 +2,25 @@
 
 Last updated: 2026-10-30
 
-## KI-001 — Authentication currently coupled to menu access (scope to verify)
-- Desired behavior: menu browsing should work while signed out.
-- Open question: where are authentication checks currently enforced, and which checks are required only for gameplay?
-- Required investigation: trace all gameplay entry paths, not just the menu button handler.
-- Status: open; exact current behavior must be verified against the branch source.
+## KI-001 — Menu/gameplay authentication separation
+- Source review at the current branch shows a centralized `authorize_gameplay()` gate in `pomme-client/src/app/phases/in_menu.rs`.
+- `MenuAction::Connect`, `MenuAction::PlayWorld`, `open_world()`, and both QuickPlay modes route through the gate. Startup QuickPlay calls `in_menu::quick_play()` after setup.
+- `UserData::allows_singleplayer()` permits local play without Microsoft authorization; `allows_multiplayer()` requires a verified, unexpired session with a non-empty token and valid account UUID.
+- Menu navigation itself is not globally blocked by the account gate.
+- Status: implementation is present by static source inspection. End-to-end behavior, cancellation races, and exactly-once pending-action resumption still need automated verification.
 
 ## KI-002 — Android singleplayer discrepancy
-- Context: the user previously succeeded in creating/entering a world with an APK built from a branch, while other users reportedly continued to encounter world-creation failures.
-- Open questions:
-  - Is the discrepancy caused by different commits/build configurations?
-  - Does the failure occur during menu routing, local server startup, runtime/dependency setup, or world initialization?
-  - Are there device- or Android-version-specific differences?
-- Status: open; user report is historical and not a universal fix confirmation.
+- The Android dependency enables the `singleplayer` Cargo feature in `pomme-android/Cargo.toml`.
+- `pomme-client/src/singleplayer.rs` contains an ignored integration test that opens a real embedded SteelMC world, joins through the in-memory protocol, leaves, and re-enters the same save in one process.
+- CI's `singleplayer` job invokes `just ci-singleplayer`, but the relevant run for the B1–B4 source revision was cancelled before the test completed.
+- The user previously reported a successful world launch on their own Android device; this does not establish compatibility across devices/builds.
+- Status: unresolved as a general Android issue. No current device logs or reproducible failure from another device were available in this investigation.
 
-## KI-003 — CI run #39 status requires refresh
-- Run: https://github.com/sylphie07/Pomme-Android-Test/actions/runs/40985480909
-- Previous chat state: reported as still executing.
-- Required check: inspect global conclusion and the `singleplayer`, `android`, and `test` jobs.
-- Status: stale / unverified. Do not report as currently running or completed without a live check.
+## KI-003 — Phase 2.2-B1–B4 CI verification incomplete
+- Parent-source run `41008828793` (run #58): `ci-fmt` failed because rustfmt differences remained in `pomme-client/src/user.rs`; the other substantive jobs were cancelled or skipped. This run targeted the parent source revision, not the final B1–B4 source commit.
+- Final-source run `41008897990` (run #59), associated with source commit `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`: cancelled. The connector returned no job records for this run, so no successful validation can be inferred.
+- Run `41008473575` (run #56) targeted the earlier `fd945ed...` revision, before the B1–B4 source commits. Android Clippy, format, lint, iOS Clippy, and PR-template jobs passed; `test` and `singleplayer` were cancelled and aggregate `ci` failed. It does not validate B1–B4.
+- Status: no complete CI pass is established for B1–B4. The dedicated programming chat should rerun CI against the latest source HEAD and inspect all jobs/logs.
 
 ## Reporting format
 For each issue, record:
@@ -44,3 +44,36 @@ For each issue, record:
 - CI run `41008897990` targeted source HEAD `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` and was pending at the last check.
 - Required: inspect final CI jobs and logs, fix failures, then run Android/device acceptance when a reproducible APK is separately authorized.
 - Status: pending.
+
+
+## KI-006 — New-profile UUID transition can orphan pre-C/D player data
+- Source fact: `LocalProfile::new()` creates a random `player_uuid`, while `UserData::from_local_profile()` and `set_local_profile()` still use `offline_uuid(username)` for the runtime player UUID.
+- Consequence: a world created before Phase 2.2-C/D is keyed by the name-derived UUID. Simply switching the runtime to the stored random UUID later can make the old player data appear missing.
+- Legacy migration assigns `offline_uuid(username_currently_stored)`, but newly created/default profiles do not follow that rule.
+- Required before C/D: define a non-destructive transition for profiles created during B1–B4 (or change the new-profile identity policy with an explicit compatibility plan). Test inventory, position, Ender Chest, stats, and all UUID-keyed records before/after transition. Do not just wire `player_uuid` into the connection.
+- Status: confirmed compatibility risk; implementation intentionally not attempted in this investigation.
+
+## KI-007 — Local profile management UI is not integrated
+- `LocalProfileStore` is loaded at startup and its storage API includes `profiles()`, `create_profile()`, and `select_profile()`.
+- These APIs and `UserData::set_local_profile()` are marked `dead_code`/reserved for a future selection flow. No player-facing profile picker or create/switch flow was found in the inspected menu code.
+- Status: profile persistence foundation exists; multi-profile user experience remains incomplete.
+
+## KI-008 — Gameplay authorization and deferred QuickPlay lack focused regression tests
+- `pomme-client/src/app/phases/in_menu.rs` contains `authorize_gameplay()`, `start_pending()`, `connect_remote()`, `open_world()`, and `quick_play()`, but no local test module was found in that file.
+- `account.rs` has only limited UI tests; no focused coverage was found for restore-vs-interactive-sign-in races, cancel/back while restoring, QuickPlay resumption, or exactly-once launch.
+- Required tests: signed-out menu navigation; offline singleplayer; signed-out remote rejection; valid/expired session; startup QuickPlay multiplayer/singleplayer; restore success/failure; cancel/back clearing the pending action; one and only one resumed launch.
+- Status: static routing looks centralized; behavior is not fully regression-tested.
+
+## KI-009 — Microsoft token lifecycle and Android credential storage
+- `pomme-client/src/account.rs` documents a TODO to refresh again when a long session outlives the day-long Minecraft token.
+- The Android `SecretStore` is a JSON file in app-private storage (`accounts.json`); the code contains a TODO to wrap it with Android Keystore.
+- Status: known follow-up. Do not weaken account ownership/authentication checks or change the authentication flow as part of profile work.
+
+## KI-010 — Android APK workflow does not automatically build this feature branch
+- `.github/workflows/android-apk.yml` triggers on `push` to `master` for selected paths and `workflow_dispatch`; it has no `pull_request` trigger for `unofficial-android-menu-access`.
+- The current investigation found no APK artifact/run proving the current feature-branch source builds into an installable APK.
+- Status: distribution/device verification pending. Any workflow change or APK publication needs its own authorization.
+
+## KI-011 — SteelMC advancement persistence remains separate
+- At the recorded SteelMC pin `e655880a7b1487b2444c70013c14ee86c69d53b3`, `Player.advancements` is initialized in memory and marked `TODO save the advancement`; the inspected player-data persistence path does not serialize it.
+- Status: separate SteelMC handoff. Do not bundle it into Phase 2.2-C/D or change the submodule without authorization.

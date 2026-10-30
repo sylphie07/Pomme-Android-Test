@@ -1073,6 +1073,7 @@ impl InputState {
                 }
                 TouchOutput::Hotbar(slot) => self.select_hotbar(slot),
                 TouchOutput::PointerMove(p) => self.on_cursor_moved(p.x, p.y),
+                TouchOutput::Scroll(delta) => self.on_menu_scroll_xy(0.0, delta),
             }
         }
     }

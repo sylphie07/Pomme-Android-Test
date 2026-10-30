@@ -24,6 +24,10 @@ const LOOK_SCALE: f32 = 2.5;
 /// The share of the screen width, from the left, where a press is the stick.
 const STICK_ZONE: f32 = 0.4;
 pub const BUTTON_RADIUS: f32 = 14.0;
+/// Vertical movement needed before a menu touch becomes a scroll gesture.
+const MENU_SCROLL_SLOP: f32 = 8.0;
+/// Convert finger pixels to the menu's wheel-like scroll units.
+const MENU_SCROLL_PIXELS_PER_UNIT: f32 = 20.0;
 
 /// Where the controls sit on a `width` x `height` screen at GUI scale `gs`.
 #[derive(Clone, Copy)]
@@ -107,6 +111,8 @@ pub enum TouchOutput {
     Tap(Action),
     Hotbar(u8),
     PointerMove(Vec2),
+    /// Vertical menu scroll in wheel-like units.
+    Scroll(f32),
     PointerDown,
     PointerUp,
 }
@@ -126,7 +132,11 @@ enum Role {
         destroying: bool,
     },
     Jump,
-    Pointer,
+    Pointer {
+        start: Vec2,
+        last: Vec2,
+        scrolling: bool,
+    },
     /// A tap already handled on press; ignored until it lifts.
     Spent,
 }
@@ -174,7 +184,11 @@ impl TouchControls {
     ) -> Vec<TouchOutput> {
         let (role, out) = if !gameplay {
             (
-                Role::Pointer,
+                Role::Pointer {
+                    start: p,
+                    last: p,
+                    scrolling: false,
+                },
                 vec![TouchOutput::PointerMove(p), TouchOutput::PointerDown],
             )
         } else if let Some(button) = layout.button_at(p) {
@@ -225,7 +239,37 @@ impl TouchControls {
                 }
                 vec![TouchOutput::Look(delta)]
             }
-            Some(Role::Pointer) => vec![TouchOutput::PointerMove(p)],
+            Some(Role::Pointer {
+                start,
+                last,
+                scrolling,
+            }) => {
+                let delta = p - *last;
+                let total = p - *start;
+                *last = p;
+                if !*scrolling
+                    && total.y.abs() > MENU_SCROLL_SLOP * layout.gs
+                    && total.y.abs() > total.x.abs() * 1.25
+                {
+                    *scrolling = true;
+                    vec![
+                        TouchOutput::PointerUp,
+                        TouchOutput::PointerMove(p),
+                        TouchOutput::Scroll(
+                            total.y / (MENU_SCROLL_PIXELS_PER_UNIT * layout.gs),
+                        ),
+                    ]
+                } else if *scrolling {
+                    vec![
+                        TouchOutput::PointerMove(p),
+                        TouchOutput::Scroll(
+                            delta.y / (MENU_SCROLL_PIXELS_PER_UNIT * layout.gs),
+                        ),
+                    ]
+                } else {
+                    vec![TouchOutput::PointerMove(p)]
+                }
+            }
             _ => Vec::new(),
         }
     }
@@ -245,7 +289,8 @@ impl TouchControls {
             {
                 vec![TouchOutput::Use]
             }
-            Some(Role::Pointer) => vec![TouchOutput::PointerUp],
+            Some(Role::Pointer { scrolling: false, .. }) => vec![TouchOutput::PointerUp],
+            Some(Role::Pointer { scrolling: true, .. }) => Vec::new(),
             _ => Vec::new(),
         }
     }
@@ -480,6 +525,54 @@ mod tests {
         );
         assert_eq!(
             c.on_touch(1, TouchPhase::Ended, p, false, &LAYOUT, t),
+            [TouchOutput::PointerUp]
+        );
+    }
+
+    #[test]
+    fn vertical_menu_drag_becomes_scroll_and_releases_the_pointer() {
+        let (mut c, t) = (TouchControls::default(), Instant::now());
+        let start = Vec2::new(500.0, 400.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Started, start, false, &LAYOUT, t),
+            [TouchOutput::PointerMove(start), TouchOutput::PointerDown]
+        );
+
+        let moved = start + Vec2::new(3.0, -80.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Moved, moved, false, &LAYOUT, t),
+            [
+                TouchOutput::PointerUp,
+                TouchOutput::PointerMove(moved),
+                TouchOutput::Scroll(-2.0),
+            ]
+        );
+
+        let moved_again = moved + Vec2::new(0.0, -40.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Moved, moved_again, false, &LAYOUT, t),
+            [
+                TouchOutput::PointerMove(moved_again),
+                TouchOutput::Scroll(-1.0),
+            ]
+        );
+        assert!(c
+            .on_touch(1, TouchPhase::Ended, moved_again, false, &LAYOUT, t)
+            .is_empty());
+    }
+
+    #[test]
+    fn horizontal_menu_drag_remains_a_pointer_drag() {
+        let (mut c, t) = (TouchControls::default(), Instant::now());
+        let start = Vec2::new(500.0, 400.0);
+        c.on_touch(1, TouchPhase::Started, start, false, &LAYOUT, t);
+        let moved = start + Vec2::new(80.0, 5.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Moved, moved, false, &LAYOUT, t),
+            [TouchOutput::PointerMove(moved)]
+        );
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Ended, moved, false, &LAYOUT, t),
             [TouchOutput::PointerUp]
         );
     }

@@ -45,7 +45,7 @@ Recommended review:
 Recommended review:
 - Phase 2.2-B1–B4 was explicitly authorized and has been implemented in source; do not repeat that work or treat it as fully verified until CI passes.
 - Phase 2.2-C/D/E remain separate downstream phases and are not authorized by the B1–B4 decision.
-- Before C/D, resolve the new-profile UUID compatibility issue: newly created profiles currently store a random `player_uuid`, while live world sessions still use `offline_uuid(username)`. Preserve player data during the transition.
+- New-profile UUID compatibility was corrected in source commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`: new profiles store the historical offline UUID, and experimental format 1 migrates to format 2 using that same UUID. Verify CI before treating the correction as accepted.
 - Preserve `LocalProfile.id` as the profile-record ID. A new `player_uuid` must have its own lifecycle.
 - For valid legacy profiles, the candidate migration is the offline UUID of the currently stored username; preserve the profile ID and selected-profile ID. Handle renamed-before-migration profiles as a recovery case, not a guess.
 - Validate duplicate profile IDs, player UUIDs, and case-insensitive names without silently reassigning identities or merging data.

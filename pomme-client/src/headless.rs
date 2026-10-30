@@ -84,7 +84,7 @@ pub fn run(
         rt,
         ConnectArgs {
             transport,
-            username: user.username,
+            username: user.username.clone(),
             uuid: user.uuid,
             access_token: user.authenticated_access_token().map(str::to_owned),
             view_distance: rd as u8,

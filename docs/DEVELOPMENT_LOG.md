@@ -259,3 +259,50 @@ All investigative chats should use the new handoff template and send pending pro
 - Consider concurrent multi-process access/locking as a separate follow-up; this implementation does not claim cross-process locking.
 - Do not connect `player_uuid` to the embedded connection until the trusted per-connection design in C/D is reviewed.
 - No claim is made about advancement persistence; SteelMC's existing TODO remains separate.
+
+
+## 2026-10-30 — Session 007: Audit parallel-chat handoffs and verify Phase 2.2-B follow-up
+
+### Scope
+Continue the investigations left by the other Pomme chats, reconcile them against current source, and hand pending work to the dedicated programming chat. No source-code implementation was performed by this investigation chat.
+
+### Repository verification
+- Repository: `sylphie07/Pomme-Android-Test`.
+- Branch: `unofficial-android-menu-access`.
+- Branch HEAD before this log update: `b6ac729ab9e9f02e8ca0693c0d8d281b8042b0f7`.
+- Latest source implementation commit inspected: `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce` — `fix(profile): preserve runtime UUIDs for new and experimental profiles`.
+- Source files inspected include `pomme-client/src/user.rs`, `pomme-client/src/lib.rs`, `pomme-client/src/app/phases/in_menu.rs`, `pomme-client/src/ui/menu/account.rs`, `pomme-client/src/singleplayer.rs`, `pomme-client/src/account.rs`, `pomme-auth/src/lib.rs`, Android Cargo configuration, and CI/APK workflow files.
+- SteelMC pin remains documented as `e655880a7b1487b2444c70013c14ee86c69d53b3`; no SteelMC source or pin was changed. The current compare showed no submodule path change since the previous audited point.
+- PR #11 remained open; no review comments or approvals were found.
+
+### Findings
+- Menu navigation is not globally blocked by authentication. `authorize_gameplay()` centralizes the observed `Connect`, `PlayWorld`, `open_world()`, and QuickPlay gates. Local singleplayer is permitted without Microsoft authentication; remote multiplayer requires a verified, unexpired session.
+- Startup QuickPlay routes through `in_menu::quick_play()` after setup. Focused tests for restore/cancel races and exactly-once pending-action resumption are still missing from `in_menu.rs`.
+- B1–B4 profile-store safety implementation exists, including versioned JSON, legacy migration, duplicate validation, backup recovery, quarantine, and regression tests.
+- A new-profile UUID continuity risk was found and then addressed by the programmer chat in commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`: new profiles now use the historical offline UUID, the document format advances to version 2, experimental format-1 random UUIDs migrate back to the runtime UUID, and duplicate historical UUID creation is rejected. This is applied in source but not yet CI-verified.
+- Runtime `UserData::from_local_profile()` still derives the active UUID from the username. Trusted identity delivery to SteelMC remains Phase 2.2-C/D; those phases must consume the exact stored historical UUID and prove data continuity.
+- Profile management UI is not integrated; list/create/select APIs and `set_local_profile()` remain unused/reserved.
+- Token refresh during a long-running session and Android Keystore protection remain TODOs.
+- Android singleplayer feature is enabled and an ignored embedded-world enter/re-enter test exists, but no Android-device acceptance result was obtained. The APK workflow does not automatically build this feature branch on PRs.
+- Advancement persistence remains a separate SteelMC limitation.
+
+### CI inspection
+- Run `41009018315` (run #63) on the pre-UUID-fix source failed `ci-fmt`; its test/singleplayer work was superseded/cancelled.
+- Latest relevant run `41009217544` (run #70) targets source commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`.
+- At the latest poll, run #70 had `test` and `singleplayer` cancelled; Android, `fmt`, and Ubuntu/macOS lint were still in progress; iOS and Windows lint were cancelled. No complete successful CI result is established.
+- No local `cargo test`, `cargo fmt`, Android build, or Android device test was run by this investigation chat.
+
+### Documentation changes
+- Updated `docs/KNOWN_ISSUES.md` with current source status, CI results, UUID compatibility resolution, profile UI gap, missing auth tests, token/Keystore TODOs, APK workflow scope, and advancement persistence.
+- Updated `docs/CHAT_HANDOFF_RECOMMENDATIONS.md` with prioritized tasks for the dedicated programming chat and the corrected B1–B4/C/D boundary.
+- Updated `docs/DECISIONS.md` and `docs/PROJECT_CONTEXT.md` to match current implementation and profile format version 2.
+- Updated `docs/CONTINUITY.md` with this audit, source commit, current CI state, and next safe actions.
+- Documentation commits from this audit: `d54f2c704d94c114c58b1a4f90a3d1f30d17c98a`, `8f18d48d8a4a2e4108325b91cecb17e3f21928dd`, `6238ec2df2d4cfef0264041409c9784a54efb1ac`, `309a583548095faf1870a3a6c07563e2e08f16b5`, `cfbf5cb0fd92fe660ac8aefb86945e745763d381`, `b1c6e1cdca7061bc51ea0ee63836e088d05da9a5`, `b55664d23fa77bb6830bb47e221be3a91e761c73`, `03a067a940064a43a8497da21441976531317671`, `df0305e3d9d10b1efcbf7f993b792ca40924bbab`, and `b6ac729ab9e9f02e8ca0693c0d8d281b8042b0f7`.
+- No application source, build configuration, workflows, SteelMC, worlds, profiles, player data, APKs, or `master` were changed by this chat.
+
+### Next actions
+1. Dedicated programming chat: obtain a complete CI run on the latest source; fix remaining formatting/test/build failures and inspect all logs.
+2. Review B1–B4 source diff and tests after CI; do not treat tests written as tests passed.
+3. Only after approval, plan C/D trusted integrated identity using the exact stored UUID and tests for all UUID-keyed player data.
+4. Keep profile picker UI, auth token lifecycle/Keystore, Android device discrepancy, and advancement persistence as separate tasks.
+5. Do not merge, update SteelMC, publish, or generate an APK without explicit authorization.

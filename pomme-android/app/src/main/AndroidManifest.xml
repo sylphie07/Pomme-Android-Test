@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- No Java code: NativeActivity loads libpomme_android.so (`just android-build`). -->
+<!-- PommeActivity hides system bars; NativeActivity loads libpomme_android.so. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-feature
         android:name="android.hardware.vulkan.version"

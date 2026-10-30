@@ -633,3 +633,30 @@ No merge of PR #11, no changes to `master`, no APK build/publication, and no des
 ### Scope
 - Documentation/handoff only. No source code, workflow, SteelMC, world/profile data, APK, or `master` changes.
 - No source implementation was performed; the dedicated programming chat remains implementation owner.
+
+
+## 2026-10-30 — Session 016: User-device confirmation of per-world inventory isolation
+
+### User-reported Android acceptance
+- The user tested the current APK that still exhibits the separate world-creation auto-launch issue.
+- The user explicitly confirms that each existing world retains its own independent inventory.
+- This is positive device-level evidence that inventories are not being shared or cross-contaminated between worlds in the tested APK.
+- Scope of the evidence: per-world inventory separation only. The user did not report checking player position, stats, Ender Chest, all other player-data fields, or a complete close/reopen/save cycle in this message; do not claim those are verified.
+
+### Impact on Phase 2.2-E
+- Mark existing-world inventory isolation as **user-tested / passed for the tested APK**.
+- Phase 2.2-E remains partially open for broader save continuity checks (position, stats, Ender Chest and clean save/close/reopen), without deleting or migrating user data.
+- The world-creation auto-launch defect remains separate and unresolved in source: the newly created world is saved, but the UI returns to the world list instead of automatically entering it.
+
+### Repository / CI checkpoint
+- Repository: sylphie07/Pomme-Android-Test; authorized branch: unofficial-android-menu-access.
+- PR #11 remains open and unmerged; master remains unchanged.
+- Current PR head observed: 03d17d2d7f7baba484b125b6102c4b195e707750.
+- CI run #126 (41108688700) for the observed PR head completed successfully, including Android, tests, singleplayer, fmt, lint, and aggregate CI.
+- CI success is automated validation and is distinct from the user's APK/device test. Do not infer that CI specifically covers the unimplemented world auto-launch change.
+
+### Scope of this session
+- Documentation-only update recording the user's device result. No source code, SteelMC pin, world/profile data, APK, merge, or master change was made.
+
+### Next step
+- Keep the auto-launch repair as the immediate programming task. Preserve this successful per-world inventory result as a regression acceptance criterion. After the code fix, rebuild only with the applicable authorization and verify that creating a world enters it automatically while existing worlds still retain separate inventories.

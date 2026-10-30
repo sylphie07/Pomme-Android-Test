@@ -69,7 +69,7 @@ pub fn run(
     dirs: &DataDirs,
     rt: &tokio::runtime::Runtime,
 ) -> i32 {
-    let (transport, mut world) = match open(play, dirs, rd) {
+    let (transport, mut world) = match open(play, dirs, rd, &user) {
         Ok(opened) => opened,
         Err(reason) => {
             tracing::error!("{reason}");
@@ -90,7 +90,11 @@ pub fn run(
             };
             (username.to_owned(), uuid, Some(token.to_owned()))
         }
-        Transport::Memory { .. } => (user.username.clone(), user.uuid, None),
+        Transport::Memory { .. } => (
+            user.local_profile.username.clone(),
+            user.local_profile.player_uuid,
+            None,
+        ),
     };
     let connection = spawn_connection(
         rt,
@@ -135,7 +139,12 @@ pub fn run(
     code
 }
 
-fn open(play: QuickPlay, dirs: &DataDirs, rd: u32) -> Result<(Transport, Option<World>), String> {
+fn open(
+    play: QuickPlay,
+    dirs: &DataDirs,
+    rd: u32,
+    user: &UserData,
+) -> Result<(Transport, Option<World>), String> {
     match play {
         QuickPlay::Multiplayer(server) => Ok((
             Transport::Remote {
@@ -150,8 +159,13 @@ fn open(play: QuickPlay, dirs: &DataDirs, rd: u32) -> Result<(Transport, Option<
             let summary = worlds
                 .get(&folder)
                 .ok_or_else(|| format!("No world in {}", saves_dir.join(&folder).display()))?;
-            let (world, end) =
-                crate::singleplayer::open(summary, &saves_dir.join(&folder), rd as u8)?;
+            let (world, end) = crate::singleplayer::open(
+                summary,
+                &saves_dir.join(&folder),
+                rd as u8,
+                user.local_profile.username.clone(),
+                user.local_profile.player_uuid,
+            )?;
             Ok((
                 Transport::Memory {
                     end,

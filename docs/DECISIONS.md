@@ -9,18 +9,18 @@
 ## D-002 — Separate menu access from gameplay authentication
 - Date: 2026-10-30
 - Decision / target behavior: signing in should not be required merely to navigate the menu; authentication checks must remain on gameplay paths that require them.
-- Status: target requirement, not yet a verified implementation.
+- Status: source implementation is present: menu browsing is not globally gated, local singleplayer is permitted without Microsoft authorization, and remote multiplayer is gated by a verified/unexpired session. Automated end-to-end verification remains incomplete.
 - Reason: avoid blocking menu access while preserving necessary protections for actual play.
 
 ## D-003 — Audit every gameplay entry route
 - Date: 2026-10-30
 - Decision: do not patch only one visible button. Trace `MenuAction::Connect`, `MenuAction::PlayWorld`, `open_world()`, and quick-start/startup arguments, then centralize checks only after understanding the call graph.
-- Status: investigation requirement.
+- Status: source review completed for the main menu actions and startup QuickPlay path; focused regression tests remain outstanding.
 
 ## D-004 — Treat Android singleplayer as a separate verification target
 - Date: 2026-10-30
 - Decision: a successful world launch on the user's device is useful evidence but does not prove the issue is resolved for all Android builds/devices.
-- Status: investigation requirement.
+- Status: a real embedded-world enter/re-enter integration test exists, but CI did not complete it for the B1–B4 source revision and Android-device validation remains outstanding.
 
 ## D-005 — Evidence labels are mandatory
 - Date: 2026-10-30
@@ -35,7 +35,7 @@
 
 ## D-007 — Separate profile-record ID from persistent player identity
 - Date: 2026-10-30
-- Decision status: design direction under investigation; not yet approved for implementation.
+- Decision status: implemented in Phase 2.2-B1–B4; runtime use of `player_uuid` remains deferred to C/D.
 - Preserve `LocalProfile.id` as the identity of the profile record.
 - Investigate a separate persistent `player_uuid` for the player's identity in the embedded server.
 - Reason: changing a profile's visible username must not silently change the identity used to locate persistent player data.
@@ -43,7 +43,7 @@
 
 ## D-008 — Preserve historical identity for existing local profiles
 - Date: 2026-10-30
-- Decision status: candidate migration rule pending source verification and user approval.
+- Decision status: implemented for valid legacy documents. New profiles currently receive random UUIDs, so compatibility with worlds created before C/D must be resolved before wiring the field into live gameplay.
 - Candidate: initialize a missing `player_uuid` from the offline UUID derived from that profile's current stored username; do not regenerate `LocalProfile.id`.
 - Reason: preserve existing SteelMC player-data keys rather than forcing a broad storage migration.
 - Open questions: malformed/incomplete profile records, duplicate names/UUIDs, interrupted writes, and exact serialization compatibility.

@@ -3,79 +3,79 @@
 Last updated: 2026-10-30
 
 ## Current phase
-**Phase 2.2-A — Persistent player identity design completed.**
 
-Status: investigation and design report recorded in [PHASE_2_2_A_PERSISTENT_PLAYER_IDENTITY.md](PHASE_2_2_A_PERSISTENT_PLAYER_IDENTITY.md). **Phase 2.2-B implementation is not authorized.** The current approved action is documentation maintenance only.
+**Phase 2.2-B1–B4 — profile-store safety and persistent local identity implementation.**
 
-## Current objective
-Give each local profile a stable player identity that survives username changes, while preserving existing singleplayer player data and keeping local identity separate from Microsoft/Java authentication.
+<badge> </badge>
+Implementation was explicitly authorized by the user on 2026-10-30. Source changes have been committed to the authorized branch. CI/device verification is pending; do not call this phase complete yet.
 
-## Repository state and revision notes
+## Repository state
+
 - Repository: `sylphie07/Pomme-Android-Test`
 - Authorized branch: `unofficial-android-menu-access`
-- Live branch HEAD verified at the start of this documentation-only session: `bb28e3a4eeedfe5e94540b027024a4dc48014ef9`.
-- This session added a documentation-only handoff commit `ab67016f7c7eaff56f4c62b39563d065d5e806c7` defining the dedicated programming chat workflow. The branch now advances to that documentation commit; **every new session must re-check the live HEAD before editing**.
-- The intervening commits `920f75d0cbda76f01132d4f85a70b63af2aa612f` and `2c9e953b7d09ab846a865b4e40b6eb61831fa786` update documentation/handoff and the Phase 2.2-A report. Commit `0902bb4571bc9210eaffdfc1d8a688d6e5e0b417` appends the investigation to the development log.
-- The earlier `4c1073a5af9f77b0b8f8c6723598496c1bde7a71` is historical, not the latest known documentation revision.
-- SteelMC gitlink verified in the live tree at starting HEAD `bb28e3a4eeedfe5e94540b027024a4dc48014ef9`: `e655880a7b1487b2444c70013c14ee86c69d53b3`. The documentation-only commit does not alter the submodule.
-- SteelMC submodule URL: `https://github.com/Steel-Foundation/SteelMC.git`.
-- `master` was not modified by this documentation session.
-- GitHub connector access does not reveal an Android/Termux uncommitted worktree; do not claim local worktree cleanliness without checking it on-device.
+- Branch HEAD at the start of the implementation session: `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`
+- Source commits:
+  - `4bd084c8a9fca176da2545b800a8a2eb24c7b3e9` — profile model, validation, recovery, and tests.
+  - `334f5f958bf99a61bc3d67bcc48036b88122c41f` — fail safely during app startup if profile storage cannot be loaded.
+  - `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` — cleanup of recovery test assertions.
+- The current live branch HEAD must be rechecked before the next edit because documentation commits follow these source commits.
+- SteelMC gitlink: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+- `.gitmodules`: `https://github.com/Steel-Foundation/SteelMC.git`.
+- No SteelMC update was made.
+- `master` was not modified. No merge, release, or APK was performed.
+- GitHub cannot establish whether the user's local Termux worktree has uncommitted changes; check it separately on-device.
 
-## Phase 2.2-A findings — essential context
-1. Proposed model: `LocalProfile { id: Uuid, username: String, player_uuid: Uuid }`.
-2. `id` remains the profile-record ID. Never repurpose it.
-3. Current local player UUID is derived from the username.
-4. SteelMC offline `handle_hello()` ignores the client-provided UUID as an identity authority and derives offline UUID from the requested name. Sending a stable UUID in Hello alone will not work.
-5. Recommended architecture: trusted internal per-connection identity supplied only through Pomme's embedded/in-process connection constructor. Do not trust arbitrary Hello UUIDs; do not put player identity into a shared listener-scoped `ServerConnectionSession`.
-6. Legacy migration candidate: `player_uuid = offlineUUID(username_currently_stored)`, preserving `LocalProfile.id` and selected-profile ID. If this UUID is preserved, existing SteelMC UUID-keyed storage paths remain unchanged.
-7. Current profile-store error handling can replace corrupt/invalid profile JSON with a new default profile. Fix data-preservation behavior before migration.
-8. Detect duplicate names and UUIDs non-destructively. Same-name profiles currently share the name-derived UUID/data. Never silently split or reassign.
-9. Local identity must remain independent of Microsoft account sign-in/out and remote Java authentication.
-10. **Advancement persistence limitation:** at the inspected SteelMC pin, `steel-core/src/player/mod.rs` contains `Player.advancements` initialized to `PlayerAdvancement::default()` and an explicit `TODO save the advancement`. No advancement persistence was found in the inspected player-data storage path. Treat this as a confirmed limitation of the inspected revision, not as a completed feature. It requires separate SteelMC work and verification.
-11. No build, unit/integration tests, CI run, or Android-device checks were performed for the Phase 2.2-A design.
+## Implemented source changes
+
+### `pomme-client/src/user.rs`
+- Added `LocalProfile.player_uuid`, independent from `LocalProfile.id`.
+- Added JSON `format_version = 1`.
+- Legacy documents receive the historical offline UUID derived from their currently stored username. Profile IDs and selected-profile ID are preserved.
+- Reject malformed, incomplete, unsupported, duplicate-ID, duplicate-player-UUID, invalid-name, and case-insensitive duplicate-name records without silently reassigning identity.
+- Existing invalid primary JSON is no longer replaced with a fresh default profile.
+- A valid `.bak` may recover a corrupt or missing primary. A corrupt primary is retained under a unique `.corrupt-<uuid>` filename.
+- Future format versions return `ErrorKind::Unsupported` and are not downgraded from an older backup.
+- Before replacing the backup, the exact existing primary bytes are validated so a corrupted primary cannot overwrite the known-good backup.
+- Added regression tests for corrupt-primary recovery, preservation of the corrupt original, future-version downgrade prevention, and duplicate names, alongside the experimental tests.
+
+### `pomme-client/src/lib.rs`
+- `LocalProfileStore::load_or_create` now returns `Result`.
+- Startup logs the failure and exits rather than silently continuing with a newly generated profile if existing profile data is invalid or unrecoverable.
+
+## Identity boundary — important
+
+The new `player_uuid` is currently stored and migrated, but `UserData::from_local_profile()` still derives the runtime UUID from the username. This is deliberate: the trusted identity handoff into the embedded SteelMC connection is Phase 2.2-C/D, not completed by B1–B4.
+
+Do not claim that player UUID continuity is already active in live world sessions. Do not claim advancement persistence; the inspected SteelMC pin has a separate advancement-save TODO.
+
+## Verification state
+
+- GitHub source writes: confirmed by returned commit SHAs.
+- GitHub branch HEAD and SteelMC gitlink: verified after source commits.
+- CI for source HEAD `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`: run `41008897990` was pending when last checked.
+- Earlier CI run `41008828793` targeted parent source HEAD `334f5f958bf99a61bc3d67bcc48036b88122c41f` and was still in progress; it is not the final validation target.
+- No local `cargo test`, `cargo fmt`, Android build, or Android device test was run in this session.
+- No test is yet claimed as passed for these new changes.
+
+## Remaining work and boundaries
+
+1. Wait for CI on the final source revision; fix compile, formatting, lint, and test failures if any.
+2. Review the complete source diff after CI.
+3. Check all call sites and feature configurations for the changed `load_or_create` result type.
+4. B1–B4 are not complete until automated checks pass and compatibility concerns are addressed.
+5. Phase 2.2-C (trusted per-connection identity in SteelMC) and 2.2-D (Pomme plumbing into the integrated connection) remain separate downstream work. Do not alter the SteelMC gitlink without explicit scope and justification.
+6. Phase 2.2-E requires existing-world and Android-device validation. User must not be instructed to delete worlds or app data.
+7. SteelMC advancement persistence remains a separate issue.
 
 ## Required next-chat startup checklist
-1. Read `docs/PROJECT_CONTEXT.md`, this file, `docs/DEVELOPMENT_LOG.md`, `docs/DECISIONS.md`, `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`, and `docs/PHASE_2_2_A_PERSISTENT_PLAYER_IDENTITY.md`.
-2. Verify exact live branch HEAD and current SteelMC gitlink again.
-3. Inspect recent commits and confirm whether any source files changed since the Phase 2.2-A baseline.
-4. If using Termux, separately inspect local `git status`, branch, and uncommitted changes; GitHub cannot establish the local worktree state.
-5. Review the complete Phase 2.2-A report and cross-chat recommendations.
-6. Do not begin Phase 2.2-B until the user explicitly authorizes implementation.
-7. Preserve all worlds/player data; do not silently regenerate or migrate UUIDs.
 
-## Proposed next phases (not authorized)
-- **2.2-B1:** harden profile JSON loading/writing and recovery; preserve corrupt/unknown-version files.
-- **2.2-B2:** add separate persistent `player_uuid` to the profile model.
-- **2.2-B3:** implement versioned, idempotent legacy migration and duplicate handling.
-- **2.2-B4:** profile-store unit tests and corruption/recovery tests.
-- **2.2-C:** trusted integrated per-connection identity in SteelMC; generic offline Hello behavior unchanged.
-- **2.2-D:** Pomme plumbing from LocalProfile to integrated connection; Microsoft flow untouched.
-- **2.2-E:** existing-world persistence, collision/recovery, CI and Android validation.
-- Advancement persistence is a separate SteelMC concern; do not silently bundle it into the identity work.
+1. Read `docs/PROJECT_CONTEXT.md`, this file, `docs/DEVELOPMENT_LOG.md`, `docs/DECISIONS.md`, `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`, and the Phase 2.2-A report.
+2. Verify exact live branch HEAD, recent commits, and SteelMC gitlink again.
+3. Inspect the full diff and latest CI run for the actual branch HEAD.
+4. If working from Termux, inspect local branch, HEAD, and `git status` separately.
+5. Preserve all worlds, profiles, and player data. Never regenerate UUIDs to silence an error.
+6. Do not implement C/D/E, update SteelMC, merge, publish, or generate an APK without the relevant explicit authorization.
 
-## Mandatory constraints
-- Work only on `unofficial-android-menu-access`.
-- Never modify `master`.
-- No merge, PR, APK, release, or publication unless explicitly requested.
-- Keep local profile identity and Microsoft/Java authentication separate.
-- Never trust arbitrary UUIDs from generic offline Hello packets.
-- Never delete, rename, overwrite, or migrate world/player files without an explicit proven plan and authorization.
-- Distinguish source facts, user reports, hypotheses, proposals, applied changes, and tested results.
+## Session update — 2026-10-30
 
-## Handoff requirements
-Every future technical session must record exact branch/HEAD, submodule SHA, files inspected/changed, decisions, tests actually run and exact outcomes, unresolved risks, and next action.
-
-## Documentation-only update — 2026-10-30
-This update refreshes the handoff and points future chats to `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`. It records the advancement-persistence TODO and the known revision history. No application source, SteelMC submodule, worlds, or player data were changed by this update. No tests or builds were run.
-
-
-## Documentation-only handoff update — 2026-10-30
-- User clarified that a separate chat is dedicated exclusively to programming and fixing issues handed over by the other investigative chats.
-- Read the current cross-chat recommendations and confirmed that the dedicated programmer workflow was not explicit enough.
-- Added a dedicated-programming-chat section to `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`: investigator responsibilities, programmer responsibilities, required handoff template, and current pending identity/SteelMC items.
-- Live authorized branch HEAD at session start: `bb28e3a4eeedfe5e94540b027024a4dc48014ef9`.
-- SteelMC gitlink at that starting HEAD: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
-- Documentation commit: `ab67016f7c7eaff56f4c62b39563d065d5e806c7`.
-- No application source, build configuration, workflows, SteelMC contents/pin, branches other than the authorized branch, worlds, profiles, player data, or APKs were changed. No tests/builds/CI/device checks were run.
-- Phase 2.2-B remains implementation-unauthorized. Its findings are a handoff queue, not permission to code.
+The user authorized code edits to integrate the other chats' findings. The experimental branch was used as reference only; no cherry-pick or merge was performed. Source commits are listed above. Documentation is being synchronized with the actual implementation and verification status.

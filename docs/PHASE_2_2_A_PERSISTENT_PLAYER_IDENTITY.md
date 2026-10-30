@@ -262,3 +262,21 @@ Advancement to each phase requires review of prior results and explicit user aut
 The earlier wording in Section 11 understated the evidence. At SteelMC gitlink `e655880a7b1487b2444c70013c14ee86c69d53b3`, `steel-core/src/player/mod.rs` contains the `Player.advancements` field, initializes it with `PlayerAdvancement::default()`, and marks it with `// TODO save the advancement`. The inspected `PersistentPlayerData` and file-storage path do not serialize this field. Therefore advancement progress is **not persisted by this inspected revision**. This is a pre-existing SteelMC limitation, independent of Pomme's proposed persistent player UUID. Do not claim advancement retention as an acceptance result until SteelMC persistence is separately implemented and tested.
 
 No tests or builds were run for this clarification.
+
+
+## 15. Implementation follow-up — 2026-10-30
+
+The user subsequently authorized the dedicated programming chat to edit code and integrate the findings. This later authorization supersedes the original stop-and-wait boundary for **Phase 2.2-B1–B4 only**; it does not authorize C/D/E or SteelMC changes.
+
+Selective implementation was made on `unofficial-android-menu-access`, using the experimental branch as reference rather than merging it:
+- `pomme-client/src/user.rs`: independent `player_uuid`, format version 1, historical offline UUID migration, validation, backup recovery, corrupt-file quarantine, future-version downgrade protection, and additional tests.
+- `pomme-client/src/lib.rs`: fail-safe startup handling for profile-store errors.
+
+Source commits:
+- `4bd084c8a9fca176da2545b800a8a2eb24c7b3e9`
+- `334f5f958bf99a61bc3d67bcc48036b88122c41f`
+- `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`
+
+The runtime identity remains username-derived in `UserData::from_local_profile()`; the new persisted `player_uuid` is not yet supplied to SteelMC. That trusted integrated-connection work belongs to C/D.
+
+At the time of the follow-up, CI run `41008897990` for source HEAD `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` was pending. No local Cargo test, build, Android build, or device test was executed. Therefore the implementation is applied but not yet verified.

@@ -61,6 +61,7 @@ impl LocalProfileStore {
         store
     }
 
+    #[allow(dead_code)] // Used by the local-profile picker API and its persistence tests.
     pub fn profiles(&self) -> &[LocalProfile] {
         &self.profiles
     }
@@ -72,6 +73,7 @@ impl LocalProfileStore {
             .unwrap_or(&self.profiles[0])
     }
 
+    #[allow(dead_code)] // Used by the local-profile picker API and its persistence tests.
     pub fn create_profile(&mut self, username: &str) -> std::io::Result<LocalProfile> {
         let valid = !username.is_empty()
             && username.len() <= 16
@@ -94,6 +96,7 @@ impl LocalProfileStore {
         Ok(profile)
     }
 
+    #[allow(dead_code)] // Used by the local-profile picker API and its persistence tests.
     pub fn select_profile(&mut self, id: uuid::Uuid) -> std::io::Result<()> {
         if !self.profiles.iter().any(|profile| profile.id == id) {
             return Err(std::io::Error::new(

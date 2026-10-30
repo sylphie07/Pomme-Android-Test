@@ -129,3 +129,10 @@ For each issue, record:
 - Existing central `open_world()` path remains unchanged, including Singleplayer authorization and embedded-server startup.
 - Status: **implemented; automated verification and Android device acceptance pending**.
 - Do not confuse with Minecraft Rust hostile-mob implementation limitations (KI-014), which are outside this Pomme task.
+
+
+### KI-015 verification update — 2026-10-30
+- First CI attempt #134 failed only the formatting job on the added tests; rustfmt corrections were applied in source commit `d928b424ef60551483b6ac8fcbf2fd6d92a15ff6`.
+- Latest CI #138 / run `41126804805`: fmt, Android/iOS Clippy, platform lint, launcher macOS/Windows, launcher frontend, and PR-template checks passed at the latest poll. Rust tests, singleplayer, launcher Ubuntu, and aggregate CI were still running.
+- APK workflow run `41126798107`: OpenAL succeeded; Rust Android library compilation was in progress. No APK artifact yet.
+- Status remains: **implemented; partial automated checks passed; full CI, APK build/artifact, and device acceptance pending**.

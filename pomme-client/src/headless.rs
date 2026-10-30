@@ -40,13 +40,21 @@ pub fn user(
     let stored = (args.username.is_none() && matches!(play, QuickPlay::Multiplayer(_)))
         .then(|| rt.block_on(crate::account::restore(&*crate::account::store(game_dir))))
         .flatten();
+    let profiles =
+        crate::user::LocalProfileStore::load_or_create(&game_dir.join("local-profiles.json"));
+    let local_profile = profiles.selected().clone();
     match stored {
-        Some(account) => UserData::from_account(&account),
-        None => UserData::from_args(
-            args.username.clone(),
-            args.uuid.clone(),
-            args.access_token.clone(),
-        ),
+        Some(account) => UserData::from_account(&account, local_profile),
+        None
+            if args.username.is_some() || args.uuid.is_some() || args.access_token.is_some() =>
+        {
+            UserData::from_args(
+                args.username.clone(),
+                args.uuid.clone(),
+                args.access_token.clone(),
+            )
+        }
+        None => UserData::from_local_profile(local_profile),
     }
 }
 
@@ -78,7 +86,7 @@ pub fn run(
             transport,
             username: user.username,
             uuid: user.uuid,
-            access_token: user.access_token,
+            access_token: user.authenticated_access_token().map(str::to_owned),
             view_distance: rd as u8,
             chat_options,
             skin_options,

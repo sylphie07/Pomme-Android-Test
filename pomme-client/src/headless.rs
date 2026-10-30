@@ -45,9 +45,7 @@ pub fn user(
     let local_profile = profiles.selected().clone();
     match stored {
         Some(account) => UserData::from_account(&account, local_profile),
-        None
-            if args.username.is_some() || args.uuid.is_some() || args.access_token.is_some() =>
-        {
+        None if args.username.is_some() || args.uuid.is_some() || args.access_token.is_some() => {
             UserData::from_args(
                 args.username.clone(),
                 args.uuid.clone(),

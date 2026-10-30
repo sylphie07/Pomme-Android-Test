@@ -62,3 +62,72 @@ Update repository-backed project memory so a fresh chat can resume the current t
 
 ### Next action
 Review the complete Phase 2.2-A report, verify it against the current Pomme branch and pinned SteelMC source, then prepare a separately approved Phase 2.2-B implementation plan.
+
+
+## 2026-10-30 — Session 003: Complete Phase 2.2-A persistent identity design report
+
+### Scope
+Complete the read-only investigation and write a durable handoff so a new chat can continue without relying on the full conversation.
+
+### Repository verification
+- Repository: `sylphie07/Pomme-Android-Test`.
+- Working branch: `unofficial-android-menu-access`.
+- At investigation start, the branch HEAD matched the user's expected SHA `c730ae9e1334646f507f9f068e8774e8950a18a8`.
+- When recording this handoff, the live branch endpoint reported HEAD `4c1073a5af9f77b0b8f8c6723598496c1bde7a71`, commit message `docs: fix project context documentation typo`.
+- The current branch tree's SteelMC gitlink is `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+- `.gitmodules` points to `https://github.com/Steel-Foundation/SteelMC.git`.
+
+### Source inspection performed
+Pomme at `c730ae9e1334646f507f9f068e8774e8950a18a8`:
+- `pomme-client/src/user.rs`
+- `pomme-client/src/app/core.rs`
+- `pomme-client/src/app/phases/in_menu.rs`
+- `pomme-client/src/net/connection.rs`
+- `pomme-singleplayer/src/lib.rs`
+
+SteelMC at `e655880a7b1487b2444c70013c14ee86c69d53b3`:
+- `steel-login/src/handlers/login.rs`
+- `steel-login/src/tcp_client.rs`
+- `steel-core/src/player/profile/mod.rs`
+- `steel-core/src/server/player_lifecycle.rs`
+- `steel-core/src/player/player_data_storage/mod.rs`
+- `steel-core/src/player/player_data_storage/file_storage.rs`
+- `steel-core/src/player/player_data_storage/permissions.rs`
+- `steel-core/src/player/profile/known_players.rs`
+- `steel-core/src/player/player_data.rs`
+- `steel-core/src/player/advancement/mod.rs`
+
+### Findings
+- Current local player UUID is derived from username; `LocalProfile.id` is a separate profile-record identifier.
+- SteelMC offline login treats Hello UUID as untrusted and derives the effective UUID from username.
+- Stable identity therefore requires a trusted internal identity handoff for the embedded server, scoped to a concrete connection.
+- Recommended design is not to put player identity into a shared `ServerConnectionSession`; use a dedicated integrated connection construction/context path.
+- Legacy profiles should receive `player_uuid = offlineUUID(username_currently_stored)`, retaining `LocalProfile.id`.
+- If historical UUID is retained, SteelMC's existing UUID-keyed player paths remain unchanged; no world/player file migration is needed just to add the field.
+- Profile store's error handling can recreate/persist a default profile after read/parse/validation failure; this is a critical data-preservation issue to fix before migration.
+- Duplicate names/UUIDs, previously renamed profiles, corrupt JSON, interrupted writes, and older-client downgrade need explicit non-destructive handling.
+- Microsoft/Java authentication remains separate from local identity.
+- Advancement persistence was not verified; do not claim it is absent.
+
+### Work performed
+- Completed the Phase 2.2-A technical design report in `docs/PHASE_2_2_A_PERSISTENT_PLAYER_IDENTITY.md`.
+- Updated `docs/CONTINUITY.md` with exact repository state, findings, restrictions, and startup checklist.
+- Appended this session to `docs/DEVELOPMENT_LOG.md`.
+- Documentation only. No application source code, SteelMC submodule contents, world files, or player data were changed.
+
+### Verification and tests
+- GitHub branch endpoint and current tree were checked.
+- Source investigation was read-only.
+- No build, unit/integration tests, CI run, or Android-device test was performed.
+- No test is claimed as passed.
+
+### Explicitly not performed
+- No source changes.
+- No UUID/profile migration.
+- No profile rename implementation.
+- No generic offline login/authentication changes.
+- No Microsoft authentication changes.
+- No master modification, merge, PR, or APK generation.
+
+### Next action
+Wait for the user's explicit authorization. If authorized, begin only Phase 2.2-B after re-reading all docs and re-verifying branch HEAD and SteelMC pin.

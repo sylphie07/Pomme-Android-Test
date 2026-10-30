@@ -624,7 +624,7 @@ impl UserData {
         local_profile: LocalProfile,
     ) -> (Self, bool) {
         if release {
-            return (Self::from_local_profile(local_profile), true);
+            return (Self::from_local_profile(local_profile), false);
         }
         let flagged = username.is_some() || uuid.is_some() || access_token.is_some();
         let user = if flagged {
@@ -1216,13 +1216,16 @@ mod tests {
     }
 
     #[test]
-    fn release_uses_local_identity_and_keeps_remote_account_gate() {
+    fn release_uses_local_identity_without_login_and_keeps_remote_account_gate() {
         let profile = super::LocalProfile::new("PersistentPlayer");
         let (user, required) = UserData::for_launch(None, None, None, true, true, profile.clone());
-        assert!(required);
-        assert_eq!(user.username, profile.username);
+        assert!(!required);
+        assert_eq!(user.local_profile, profile);
+        assert_eq!(user.username, "PersistentPlayer");
+        assert!(!user.is_java_authorized());
         assert!(user.allows_singleplayer(true));
         assert!(!user.allows_multiplayer());
+        assert_eq!(user.multiplayer_identity(), None);
     }
 
     #[test]

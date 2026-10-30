@@ -16,10 +16,12 @@ pub struct LocalProfile {
 impl LocalProfile {
     pub fn new(username: impl Into<String>) -> Self {
         let username = username.into();
-        let id = uuid::Uuid::new_v4();
-        let mut player_uuid = uuid::Uuid::new_v4();
-        while player_uuid == id {
-            player_uuid = uuid::Uuid::new_v4();
+        // Match the identity the runtime still uses today. Phase 2.2-C/D can
+        // later consume this persisted value without changing existing saves.
+        let player_uuid = UserData::offline_uuid(&username);
+        let mut id = uuid::Uuid::new_v4();
+        while id == player_uuid {
+            id = uuid::Uuid::new_v4();
         }
         Self {
             id,
@@ -29,7 +31,7 @@ impl LocalProfile {
     }
 }
 
-const LOCAL_PROFILE_FORMAT_VERSION: u32 = 1;
+const LOCAL_PROFILE_FORMAT_VERSION: u32 = 2;
 
 #[derive(Serialize, Deserialize)]
 struct LocalProfileDocument {
@@ -185,6 +187,23 @@ impl LocalProfileStore {
                 }
                 true
             }
+            Some(1) => {
+                // Format 1 was used only by the unmerged experiment. Its random
+                // player_uuid was not used by the runtime, which still keyed
+                // player data by OfflinePlayer:<username>. Migrate to that
+                // historical runtime identity before the field reaches SteelMC.
+                if document
+                    .profiles
+                    .iter()
+                    .any(|profile| profile.player_uuid.is_none())
+                {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "format 1 local profile is missing player_uuid",
+                    ));
+                }
+                true
+            }
             Some(LOCAL_PROFILE_FORMAT_VERSION) => {
                 if document
                     .profiles
@@ -236,9 +255,12 @@ impl LocalProfileStore {
                     format!("duplicate local profile name: {}", record.username),
                 ));
             }
-            let player_uuid = match record.player_uuid {
-                Some(id) => id,
-                None => UserData::offline_uuid(&record.username),
+            let player_uuid = if migrated {
+                // Legacy and experimental format-1 profiles must retain the
+                // UUID the running game historically used for their username.
+                UserData::offline_uuid(&record.username)
+            } else {
+                record.player_uuid.expect("current format validates player_uuid")
             };
             if !player_uuids.insert(player_uuid) {
                 return Err(std::io::Error::new(
@@ -301,16 +323,16 @@ impl LocalProfileStore {
             ));
         }
 
-        let mut profile = LocalProfile::new(username);
-        while self
+        let profile = LocalProfile::new(username);
+        if self
             .profiles
             .iter()
             .any(|existing| existing.player_uuid == profile.player_uuid)
         {
-            profile.player_uuid = uuid::Uuid::new_v4();
-            while profile.player_uuid == profile.id {
-                profile.player_uuid = uuid::Uuid::new_v4();
-            }
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "another local profile resolves to the same historical player UUID; splitting that identity would risk existing player data",
+            ));
         }
         self.profiles.push(profile.clone());
         if let Err(error) = self.persist() {
@@ -884,13 +906,49 @@ mod tests {
     }
 
     #[test]
-    fn new_profile_gets_an_independent_persistent_identity() {
+    fn new_profile_starts_with_the_historical_offline_uuid() {
         let profile = LocalProfile::new("NewPlayer");
         assert_ne!(profile.id, profile.player_uuid);
-        assert_ne!(
+        assert_eq!(
             profile.player_uuid,
             UserData::offline_uuid("NewPlayer")
         );
+    }
+
+    #[test]
+    fn experimental_format_one_migrates_to_the_runtime_offline_uuid() {
+        let dir = std::env::temp_dir().join(format!("pomme-format-one-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("local-profiles.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        let profile_id = uuid::Uuid::new_v4();
+        let experimental_uuid = uuid::Uuid::new_v4();
+        let document = serde_json::json!({
+            "format_version": 1,
+            "profiles": [{
+                "id": profile_id,
+                "username": "ExperimentalPlayer",
+                "player_uuid": experimental_uuid
+            }],
+            "selected_profile": profile_id
+        });
+        std::fs::write(&path, serde_json::to_vec_pretty(&document).unwrap()).unwrap();
+
+        let migrated = LocalProfileStore::load_or_create(&path).unwrap();
+        assert_eq!(migrated.selected().id, profile_id);
+        assert_eq!(
+            migrated.selected().player_uuid,
+            UserData::offline_uuid("ExperimentalPlayer")
+        );
+        assert_ne!(migrated.selected().player_uuid, experimental_uuid);
+
+        let persisted: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(persisted["format_version"], LOCAL_PROFILE_FORMAT_VERSION);
+        assert_eq!(
+            persisted["profiles"][0]["player_uuid"],
+            UserData::offline_uuid("ExperimentalPlayer").to_string()
+        );
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

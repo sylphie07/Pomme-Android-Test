@@ -67,30 +67,17 @@ impl SecretStore for FileStore {
         // closed here: most importantly, never replace an existing file that
         // could not be decoded. A later API revision can surface this error
         // to the UI instead of silently declining the write.
-        let mut entries = match self.entries() {
-            Ok(entries) => entries,
-            Err(error) => {
-                tracing::error!(
-                    path = %self.path.display(),
-                    %error,
-                    "Refusing to overwrite unreadable account store"
-                );
-                return;
-            }
+        let Ok(mut entries) = self.entries() else {
+            return;
         };
 
         entries.insert(key.to_owned(), value.to_owned());
-        let json = match serde_json::to_vec(&entries) {
-            Ok(json) => json,
-            Err(error) => {
-                tracing::error!(%error, "Failed to serialize account store");
-                return;
-            }
+        let Ok(json) = serde_json::to_vec(&entries) else {
+            return;
         };
 
         if let Some(dir) = self.path.parent() {
-            if let Err(error) = std::fs::create_dir_all(dir) {
-                tracing::error!(path = %dir.display(), %error, "Failed to create account-store directory");
+            if std::fs::create_dir_all(dir).is_err() {
                 return;
             }
         }
@@ -100,17 +87,10 @@ impl SecretStore for FileStore {
         let mut tmp = self.path.as_os_str().to_owned();
         tmp.push(".part");
         let tmp = PathBuf::from(tmp);
-        if let Err(error) = std::fs::write(&tmp, json) {
-            tracing::error!(path = %tmp.display(), %error, "Failed to write temporary account store");
+        if std::fs::write(&tmp, json).is_err() {
             return;
         }
-        if let Err(error) = std::fs::rename(&tmp, &self.path) {
-            tracing::error!(
-                from = %tmp.display(),
-                to = %self.path.display(),
-                %error,
-                "Failed to publish account store"
-            );
+        if std::fs::rename(&tmp, &self.path).is_err() {
             let _ = std::fs::remove_file(&tmp);
         }
     }

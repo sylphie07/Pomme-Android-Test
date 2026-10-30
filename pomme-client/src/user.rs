@@ -160,7 +160,8 @@ pub struct UserData {
     pub microsoft_session: Option<MicrosoftSession>,
     /// Compatibility mirror for the account menu; never authorizes by itself.
     pub access_token: Option<String>,
-    /// Whether a parseable profile UUID was supplied; this alone is not authorization.
+    /// Whether a parseable profile UUID was supplied; this alone is not
+    /// authorization.
     pub has_profile: bool,
     pub identity_source: IdentitySource,
     pub java_authorization: JavaAuthorization,

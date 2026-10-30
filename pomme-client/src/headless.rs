@@ -40,8 +40,13 @@ pub fn user(
     let stored = (args.username.is_none() && matches!(play, QuickPlay::Multiplayer(_)))
         .then(|| rt.block_on(crate::account::restore(&*crate::account::store(game_dir))))
         .flatten();
-    let profiles =
-        crate::user::LocalProfileStore::load_or_create(&game_dir.join("local-profiles.json"));
+    let profiles = crate::user::LocalProfileStore::load_or_create(
+        &game_dir.join("local-profiles.json"),
+    )
+    .unwrap_or_else(|error| {
+        tracing::error!("Failed to load local profiles: {error}");
+        std::process::exit(1);
+    });
     let local_profile = profiles.selected().clone();
     match stored {
         Some(account) => UserData::from_account(&account, local_profile),

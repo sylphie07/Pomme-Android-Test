@@ -65,8 +65,8 @@ impl LocalProfileStore {
         let backup = Self::backup_path(path);
 
         if path.exists() {
-            let primary = std::fs::read_to_string(path)
-                .and_then(|json| Self::decode_document(&json));
+            let primary =
+                std::fs::read_to_string(path).and_then(|json| Self::decode_document(&json));
 
             match primary {
                 Ok((profiles, selected_profile, migrated)) => {
@@ -81,9 +81,7 @@ impl LocalProfileStore {
                     return Ok(store);
                 }
                 Err(primary_error) => {
-                    if primary_error.kind() == std::io::ErrorKind::Unsupported
-                        || !backup.exists()
-                    {
+                    if primary_error.kind() == std::io::ErrorKind::Unsupported || !backup.exists() {
                         return Err(primary_error);
                     }
 
@@ -150,9 +148,8 @@ impl LocalProfileStore {
     }
 
     fn decode_document(json: &str) -> std::io::Result<(Vec<LocalProfile>, uuid::Uuid, bool)> {
-        let raw: serde_json::Value = serde_json::from_str(json).map_err(|error| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, error)
-        })?;
+        let raw: serde_json::Value = serde_json::from_str(json)
+            .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
         let has_format_version = raw
             .as_object()
             .is_some_and(|object| object.contains_key("format_version"));
@@ -166,10 +163,8 @@ impl LocalProfileStore {
                         .is_some_and(|object| object.contains_key("player_uuid"))
                 })
             });
-        let document: LocalProfileDocument =
-            serde_json::from_value(raw).map_err(|error| {
-                std::io::Error::new(std::io::ErrorKind::InvalidData, error)
-            })?;
+        let document: LocalProfileDocument = serde_json::from_value(raw)
+            .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
 
         let migrated = match document.format_version {
             None => {
@@ -388,9 +383,8 @@ impl LocalProfileStore {
                 // Validate the exact bytes copied into the backup. Never replace
                 // a known-good backup with a primary file corrupted after load.
                 let previous = std::fs::read(&self.path)?;
-                let previous_json = std::str::from_utf8(&previous).map_err(|error| {
-                    std::io::Error::new(std::io::ErrorKind::InvalidData, error)
-                })?;
+                let previous_json = std::str::from_utf8(&previous)
+                    .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
                 Self::decode_document(previous_json)?;
 
                 let mut destination = std::fs::OpenOptions::new()
@@ -788,7 +782,8 @@ mod tests {
 
     #[test]
     fn legacy_local_profiles_migrate_with_the_historical_offline_uuid() {
-        let dir = std::env::temp_dir().join(format!("pomme-legacy-profile-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("pomme-legacy-profile-{}", uuid::Uuid::new_v4()));
         let path = dir.join("local-profiles.json");
         std::fs::create_dir_all(&dir).unwrap();
         let profile_id = uuid::Uuid::new_v4();
@@ -863,7 +858,8 @@ mod tests {
 
     #[test]
     fn missing_primary_profile_file_recovers_a_valid_backup() {
-        let dir = std::env::temp_dir().join(format!("pomme-profile-backup-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("pomme-profile-backup-{}", uuid::Uuid::new_v4()));
         let path = dir.join("local-profiles.json");
         std::fs::create_dir_all(&dir).unwrap();
         let profile_id = uuid::Uuid::new_v4();
@@ -893,7 +889,8 @@ mod tests {
 
     #[test]
     fn corrupt_local_profiles_are_preserved_and_never_replaced() {
-        let dir = std::env::temp_dir().join(format!("pomme-corrupt-profile-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("pomme-corrupt-profile-{}", uuid::Uuid::new_v4()));
         let path = dir.join("local-profiles.json");
         std::fs::create_dir_all(&dir).unwrap();
         let original = b"{ this is not valid json";
@@ -953,7 +950,8 @@ mod tests {
 
     #[test]
     fn versioned_local_profile_uuid_survives_reload() {
-        let dir = std::env::temp_dir().join(format!("pomme-versioned-profile-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("pomme-versioned-profile-{}", uuid::Uuid::new_v4()));
         let path = dir.join("local-profiles.json");
         let store = LocalProfileStore::load_or_create(&path).unwrap();
         let original = store.selected().clone();
@@ -1164,7 +1162,8 @@ mod tests {
 
     #[test]
     fn corrupt_primary_recovers_from_valid_backup_and_preserves_original() {
-        let dir = std::env::temp_dir().join(format!("pomme-corrupt-primary-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("pomme-corrupt-primary-{}", uuid::Uuid::new_v4()));
         let path = dir.join("local-profiles.json");
         std::fs::create_dir_all(&dir).unwrap();
         let profile_id = uuid::Uuid::new_v4();
@@ -1192,20 +1191,27 @@ mod tests {
         let recovered_json: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(recovered_json["profiles"][0]["username"], "RecoveredPlayer");
-        let preserved_corrupt = std::fs::read_dir(&dir)
-            .unwrap()
-            .filter_map(Result::ok)
-            .any(|entry| {
-                entry.file_name().to_string_lossy().starts_with("local-profiles.json.corrupt-")
-                    && std::fs::read(entry.path()).map(|bytes| bytes.as_slice() == corrupt).unwrap_or(false)
-            });
+        let preserved_corrupt =
+            std::fs::read_dir(&dir)
+                .unwrap()
+                .filter_map(Result::ok)
+                .any(|entry| {
+                    entry
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with("local-profiles.json.corrupt-")
+                        && std::fs::read(entry.path())
+                            .map(|bytes| bytes.as_slice() == corrupt)
+                            .unwrap_or(false)
+                });
         assert!(preserved_corrupt, "the invalid primary should be preserved");
         std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
     fn future_profile_format_is_not_downgraded_from_backup() {
-        let dir = std::env::temp_dir().join(format!("pomme-future-profile-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("pomme-future-profile-{}", uuid::Uuid::new_v4()));
         let path = dir.join("local-profiles.json");
         std::fs::create_dir_all(&dir).unwrap();
         let profile_id = uuid::Uuid::new_v4();
@@ -1231,7 +1237,9 @@ mod tests {
         let future_bytes = serde_json::to_vec_pretty(&future).unwrap();
         std::fs::write(&path, &future_bytes).unwrap();
 
-        let error = LocalProfileStore::load_or_create(&path).err().expect("future schema must fail closed");
+        let error = LocalProfileStore::load_or_create(&path)
+            .err()
+            .expect("future schema must fail closed");
         assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
         assert_eq!(std::fs::read(&path).unwrap(), future_bytes);
         std::fs::remove_dir_all(dir).unwrap();

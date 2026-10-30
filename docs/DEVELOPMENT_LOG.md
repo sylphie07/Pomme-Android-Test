@@ -729,3 +729,37 @@ No merge of PR #11, no changes to `master`, no APK build/publication, and no des
 ### Repository and scope
 - Preflight: PR #11 remains open and unmerged, targeting master; authorized branch is `unofficial-android-menu-access`; live PR head before this documentation update was `a566f1ec613e82afa479eeadfbca3a78262ad27d`.
 - Documentation-only update. No source, Minecraft Rust/SteelMC code or pin, APK, workflow, worlds, profiles, player data, master, or merge was changed. No automated test or CI result is claimed.
+
+
+
+## 2026-10-30 — Session 020: Implement create-world auto-launch correction
+
+### Authorization and preflight
+- The user explicitly authorized proceeding with the remaining Pomme fixes and preparing a new APK.
+- Repository: `sylphie07/Pomme-Android-Test`; authorized branch: `unofficial-android-menu-access`.
+- Preflight branch HEAD: `87e00c5b6640c0b5d224d4de12e51b80dd6d0aea`; PR #11 open/unmerged, base `master`; no changes to `master`.
+- Re-read project context, continuity, development log, decisions, known issues, handoff recommendations, create-world source, world-list persistence, central menu action handling, CI workflow and Android APK workflow.
+- Current PR head after implementation: `546ec38f7d07d1784a0951cbfbb437088ffedf01`.
+
+### Source change applied
+- File: `pomme-client/src/ui/menu/worlds.rs`.
+- `build_create_world()` now carries a `MenuAction` result and returns the action produced by the Create New World button.
+- `create_world()` now returns a menu action instead of switching unconditionally back to `Screen::WorldList`.
+- New `persist_created_world()` persists the summary first, captures the exact folder identifier, and returns `MenuAction::PlayWorld { folder }` only after `WorldList::create()` succeeds.
+- The existing `in_menu::update_menu()` → `open_world()` route performs the actual launch and preserves the existing Singleplayer authorization gate, world resolution, embedded server start, and memory transport. No authentication policy was bypassed.
+- If persistence fails, the helper logs the error and returns `MenuAction::None`; the create screen remains active and no launch is requested.
+- Three regression tests were added: exact folder on successful creation; duplicate display name resolves to the generated suffixed folder; persistence failure emits no PlayWorld action and preserves the blocking file.
+- No change to `WorldList::create()`, profile identity, UUIDs, remote multiplayer, SteelMC, or player/world data.
+
+### Verification state at log time
+- GitHub branch ref and PR #11 were re-read after source changes: head `546ec38f7d07d1784a0951cbfbb437088ffedf01`, PR open/unmerged.
+- CI run #134 / ID `41126486791` was created for this head and was pending.
+- Android APK workflow run ID `41126478882` was observed for the same head and was in progress.
+- The three new tests are present in source but have not yet been confirmed executed. No local `cargo test`, `cargo fmt`, build, or device test was run in this chat.
+- The prior CI pass #125 predates this fix and is not evidence for it.
+
+### Scope and next steps
+- Source-only application fix plus tests; build workflow is automatically triggered by the authorized branch push. APK artifact is not yet confirmed.
+- Preserve all existing user worlds, profiles, and player data. Do not ask the user to reset or delete data.
+- After CI and APK workflow finish, inspect their final job outcomes and artifact. Then user-device acceptance should verify: create world enters it immediately; duplicate names launch the new folder; existing worlds remain intact and retain independent inventory, position, death/respawn, Ender Chest, stats and XP/progression behavior.
+- PR #11 remains open/unmerged. No release or merge performed.

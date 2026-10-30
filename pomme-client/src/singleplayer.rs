@@ -115,6 +115,8 @@ mod steel {
         world: &WorldSummary,
         dir: &Path,
         view_distance: u8,
+        player_username: String,
+        player_uuid: uuid::Uuid,
     ) -> Result<(World, MemoryEnd), String> {
         let lock = SessionLock::take(dir)?;
         let (client, server) = memory_pipes();
@@ -139,6 +141,8 @@ mod steel {
                 world_list::Difficulty::Hard => Difficulty::Hard,
             },
             allow_commands: world.allow_commands,
+            player_username,
+            player_uuid,
             transport: ServerTransport {
                 read: Box::new(server.rx),
                 write: Box::new(server.tx),
@@ -184,6 +188,8 @@ mod steel {
         _world: &WorldSummary,
         _dir: &Path,
         _view_distance: u8,
+        _player_username: String,
+        _player_uuid: uuid::Uuid,
     ) -> Result<(World, MemoryEnd), String> {
         Err(super::UNAVAILABLE_MESSAGE.to_owned())
     }

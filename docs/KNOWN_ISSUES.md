@@ -79,3 +79,21 @@ For each issue, record:
 ## KI-011 — SteelMC advancement persistence remains separate
 - At the recorded SteelMC pin `e655880a7b1487b2444c70013c14ee86c69d53b3`, `Player.advancements` is initialized in memory and marked `TODO save the advancement`; the inspected player-data persistence path does not serialize it.
 - Status: separate SteelMC handoff. Do not bundle it into Phase 2.2-C/D or change the submodule without authorization.
+
+
+## KI-012 — Legacy worlds may be opened under a newly generated default identity
+- Inspected at Pomme HEAD `e902fa1cb733edabd1349877dd49b3d8a8a74d42`; live SteelMC gitlink `c5098cdd8a4ec1176e00d737df24a2861b4055ac`.
+- `LocalProfileStore::load_or_create()` creates and persists `Player` when no profile document exists, without inspecting old saves.
+- The old offline login derived the server-side identity from `offline_uuid(username)`; SteelMC stores player data under that UUID. The old username may have come from the restored Microsoft account or launch arguments, but neither is proof by itself.
+- Recovery evidence exists in the old SteelMC save format: `global/known_players.dat` stores UUID/name pairs; domain data is keyed by UUID under `<domain>/players/data/<uuid>`. The cache is limited to 1,000 entries and has a one-month expiry, so it is best-effort and must be corroborated with actual player-data files.
+- Risk: old data is not deleted, but the new default identity can load as a fresh player and write a second set of records, making the old progress appear lost.
+- Recommended correction: inspect worlds read-only before creating the default profile; auto-migrate only when exactly one identity is corroborated; require explicit recovery for ambiguous/missing metadata; never rewrite world/player files.
+- Existing format-2 `Player` documents are ambiguous and must not be overwritten automatically.
+- Detailed evidence, alternatives, file paths, and acceptance tests: `docs/LEGACY_WORLD_IDENTITY_MIGRATION.md`.
+- Status: investigation complete; implementation handoff only. No source changes or tests performed.
+
+## KI-013 — Local runtime UUID mirrors still derive from the visible name
+- At inspected Pomme HEAD `e902fa1...`, `UserData::from_local_profile()` and `set_local_profile()` recompute `offline_uuid(username)` instead of copying `LocalProfile.player_uuid`.
+- Current `open_world()` and memory `connect_args()` explicitly pass the stored profile UUID, so the trusted embedded path currently uses the stored value. The duplicate `UserData.uuid` can nevertheless diverge for a future renamed/custom-UUID profile.
+- Recommended correction: preserve the exact stored UUID in all local-profile-derived runtime state and add a deliberately non-derived UUID regression test.
+- Status: source-level consistency finding; no change made. See `docs/LEGACY_WORLD_IDENTITY_MIGRATION.md`.

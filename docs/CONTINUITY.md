@@ -303,3 +303,19 @@ Only repository documentation was changed. No Pomme source, SteelMC source/gitli
 
 ### Next step
 - User creates the writable SteelMC fork (no new implementation authorization is needed; authorization for C/D is already recorded). Resume with the exact pinned base, then implement C and its isolation/security tests before plumbing D. Preserve the historical UUID and Microsoft online authentication.
+
+
+## Session — Legacy world identity recovery investigation (2026-10-30)
+
+- User requested investigation of possible solutions for the critical legacy-world identity continuity risk while the dedicated programmer continues C/D.
+- Inspected live PR #11: open, unmerged, base `master`, head `unofficial-android-menu-access`, HEAD `e902fa1cb733edabd1349877dd49b3d8a8a74d42`.
+- Verified the Pomme tree's actual SteelMC gitlink is `c5098cdd8a4ec1176e00d737df24a2861b4055ac`; historical pre-C/D pin `e655880a7b1487b2444c70013c14ee86c69d53b3` was inspected for legacy metadata support.
+- Confirmed current `LocalProfileStore::load_or_create()` creates/persists `Player` if no profile file/backup exists, without scanning old worlds.
+- Confirmed the old Steel offline login derived `offline_uuid(username)` from the login name, and player-data storage is keyed by server-side profile UUID.
+- Confirmed old and current SteelMC contain `global/known_players.dat`, storing UUID/name/expiry records. The cache is updated after successful player admission and flushed at shutdown; it is limited to 1,000 entries and has a one-month expiry.
+- Confirmed domain player data path `<world>/<domain>/players/data/<uuid>`, domain stats path `<world>/<domain>/players/stats/<uuid>.toml`, and global data under `<world>/global/players/data/<uuid>`.
+- Recommended a read-only discovery/migration before default profile creation, using a Steel-owned decoder/API and corroborating UUID/name pairs against existing player-data files. Ambiguous/multiple world identities require explicit recovery; no file rewriting or silent guesses.
+- Found adjacent consistency issue: `UserData::from_local_profile()` and `set_local_profile()` recompute UUID from username instead of using exact persisted `player_uuid`. Current open-world/memory connection paths use the stored UUID, but runtime mirrors should be corrected for future renamed/custom-UUID profiles.
+- Full technical handoff and acceptance matrix: `docs/LEGACY_WORLD_IDENTITY_MIGRATION.md`.
+- Investigation-only: no source, SteelMC, gitlink, world, profile, build, APK, or master changes; no tests/builds/device validation run.
+- Next: dedicated programmer reviews this handoff against current local C/D work, then implements read-only discovery and explicit recovery in an isolated scope after coordinating any conflicts.

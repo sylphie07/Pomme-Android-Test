@@ -443,14 +443,14 @@ mod tests {
         touch(&mut c, 1, TouchPhase::Started, LOOK, t);
         assert!(c.tick(ms(t, 300), false).is_empty());
         assert!(
-            c.on_touch(1, TouchPhase::Ended, LOOK, false, &LAYOUT, ms(t, 350))
+            c.on_touch(1, TouchPhase::Ended, LOOK, INVENTORY, &LAYOUT, ms(t, 350))
                 .is_empty()
         );
 
         touch(&mut c, 2, TouchPhase::Started, LOOK, t);
         assert_eq!(c.tick(ms(t, 300), true), [TouchOutput::DestroyStart]);
         assert_eq!(
-            c.on_touch(2, TouchPhase::Ended, LOOK, false, &LAYOUT, ms(t, 400)),
+            c.on_touch(2, TouchPhase::Ended, LOOK, INVENTORY, &LAYOUT, ms(t, 400)),
             [TouchOutput::DestroyCancel]
         );
     }

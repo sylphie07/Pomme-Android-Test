@@ -26,10 +26,11 @@ Implemented in source (not yet CI-verified at the time of this note):
 - `LocalProfile.id` remains the profile-record identifier.
 - `LocalProfile.player_uuid` is a separate persistent UUID.
 - New profiles start with the historical offline UUID used by the current runtime, so later C/D plumbing can consume the stored value without changing existing saves.
-- Legacy profile migration derives the historical offline UUID from the stored username, preserving profile IDs and the selected profile.
+- Legacy profile migration derives the historical offline UUID from the stored username, preserving profile IDs and the selected profile. Newly created profiles also start with that same historical runtime UUID.
 - Experimental format-1 documents that stored random UUIDs are migrated to the historical runtime UUID; current document format is version 2.
 - Invalid profile JSON is not replaced by a default profile.
 - A valid backup can recover a corrupt or missing primary; a corrupt primary is quarantined instead of discarded.
+- Experimental format 1 (which stored random UUIDs not used by the runtime) migrates to format 2 and resets the player UUID to the historical offline UUID, preventing a later C/D transition from orphaning world data.
 - Future format versions fail closed and are not silently downgraded from an older backup.
 - Duplicate profile IDs, player UUIDs, and case-insensitive names are rejected without silently reassigning identity.
 - The app startup now handles profile-store errors by logging and exiting instead of continuing with replaced defaults.

@@ -50,7 +50,7 @@ Android singleplayer discrepancy was also investigated. Historical user report: 
 - Previous session's known HEAD was `c730ae9e1334646f507f9f068e8774e8950a18a8`; it is historical and must not be treated as current.
 - SteelMC submodule SHA previously recorded: `e655880a7b1487b2444c70013c14ee86c69d53b3`; verify again before implementation.
 - The connector used for this documentation update confirmed the branch exists and fetched files from it, but did not expose a dedicated branch-head SHA field. Therefore `a147ca27...` is the latest commit observed in repository search, not a separately confirmed branch-ref HEAD. Verify the exact HEAD at the start of the next coding session.
-- Existing documentation files confirmed in `docs/`: `PROJECT_CONTEXT.md`, `CONTINUITY.md`, `DEVELOPMENT_LOG.md`, and `DECISIONS.md). `docs/ARCHITECTURE.md` and `docs/README.md` were not found at the checked paths.
+- Existing documentation files confirmed in `docs/`: `PROJECT_CONTEXT.md`, `CONTINUITY.md`, `DEVELOPMENT_LOG.md`, and `DECISIONS.md`. `docs/ARCHITECTURE.md` and `docs/README.md` were not found at the checked paths.
 
 ## Device / environment
 - User develops and tests from Android and has no desktop PC.

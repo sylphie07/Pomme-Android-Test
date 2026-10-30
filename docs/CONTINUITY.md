@@ -156,3 +156,42 @@ The user authorized code edits to integrate the other chats' findings. The exper
 2. Before C/D: design and test trusted per-connection identity while preserving the now-stable historical UUID exactly.
 3. Keep profile picker UI, token refresh/Keystore, Android device discrepancy, and advancement persistence as separate scoped tasks.
 4. Do not begin C/D/E, update SteelMC, merge, publish, or generate an APK without their own explicit authorization.
+
+
+## Session 009 — Close CI-discovered B1–B4 compile and format gaps (2026-10-30)
+
+### Repository verification before edits
+- Repository: `sylphie07/Pomme-Android-Test`.
+- Authorized branch: `unofficial-android-menu-access`.
+- Initial live branch HEAD: `f7ae3ce885b4e0e3d1c50f866201351d9549ef68`.
+- `master` remains `a147ca27e24850e5d6e796e1dc7bd02e1ecf3a72`.
+- SteelMC gitlink remains `e655880a7b1487b2444c70013c14ee86c69d53b3`; `.gitmodules` still points to `https://github.com/Steel-Foundation/SteelMC.git`.
+- No SteelMC source or gitlink changes were made.
+
+### CI evidence and defects found
+- Run `41009217544` was cancelled; it did not validate B1–B4.
+- The first complete CI attempt on the then-current docs/source HEAD, run `41009743471` (#84), failed. Logs identified:
+  - Seven test references to `LOCAL_PROFILE_FORMAT_VERSION` missing from the child test module's imports.
+  - `headless.rs` treated `LocalProfileStore::load_or_create()` as a direct store even though it now returns `Result`.
+  - `cargo fmt --check` found two formatting differences in `user.rs`.
+  - The required aggregate check consequently failed. Android, iOS, test, singleplayer and lint were not green.
+- The run exposed real source errors, not merely a cancelled/incomplete workflow.
+
+### Source corrections applied
+- `bcca539e67e85959e99ce7bf39ce000065e02ffa` — imported the format-version constant into the test module and applied the two exact rustfmt changes reported by CI.
+- `5a8de7d95f375ad93969b5098244d1a3c3bf5d5e` — updated the headless profile-store call site to handle storage errors by logging and exiting rather than proceeding without the saved profile.
+- These corrections preserve the fail-closed storage behavior; no identity/authentication policy or SteelMC code was changed.
+
+### Current verification state
+- Current branch HEAD after source corrections: `5a8de7d95f375ad93969b5098244d1a3c3bf5d5e`.
+- Fresh CI runs associated with this source HEAD were observed: `41010632204` and `41010632271` (pending at the last poll). Runs `41010627093` and `41010626979` for the immediately preceding source commit were still in progress at that poll.
+- No CI run for the corrected HEAD has yet been confirmed complete and green.
+- No local `cargo fmt`, `cargo test`, Android build, or Android device test was run in this session.
+- Tests remain written but not yet confirmed executed successfully on the corrected HEAD.
+
+### Scope and next action
+1. Poll CI for HEAD `5a8de7d95f375ad93969b5098244d1a3c3bf5d5e`; inspect all failed jobs/logs and wait for the required aggregate `ci` job.
+2. Review the complete B1–B4 source diff and verify migration/recovery/compatibility test coverage.
+3. Prepare a documentation-only C/D trusted-identity design. Do not implement C/D or modify SteelMC without separate authorization.
+4. Keep profile selector UI, Android Keystore, and advancement persistence separate.
+5. Do not merge, publish, create an APK, change `master`, or change the SteelMC pin.

@@ -165,3 +165,11 @@ The programmer must follow `docs/PHASE_2_2_CD_PROGRAMMER_HANDOFF.md`, freshly ve
 - Existing `open_world()` path remains the only launch route; no auth bypass or remote multiplayer change.
 - CI #134 / run `41126486791` was pending. Android APK build run `41126478882` was in progress for the same head. Neither is considered passed/available until final results are inspected.
 - Do not merge PR #11 or modify `master`. Preserve all worlds/profile data and prior Phase 2.2-E device-verified behavior.
+
+
+## CI/APK verification correction — 2026-10-30
+
+- The first CI run #134 failed only `fmt` due to rustfmt differences in the new test module. These were corrected in source commit `d928b424ef60551483b6ac8fcbf2fd6d92a15ff6`.
+- Latest CI run #138 / `41126804805` targets that source head. At the latest poll, formatting, Android/iOS Clippy, platform lint, launcher macOS/Windows, launcher frontend, and PR-template jobs had passed; Rust tests, singleplayer, launcher Ubuntu and aggregate CI remained in progress.
+- APK build run `41126798107` targets the same source head. OpenAL completed; Rust Android library compilation remained in progress. No artifact was yet available.
+- Do not treat the prior investigation-only handoff as current authorization: the user has now authorized implementation and new APK preparation. PR #11 must nevertheless remain open/unmerged and `master` untouched.

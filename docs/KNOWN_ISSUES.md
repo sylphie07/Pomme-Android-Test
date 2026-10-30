@@ -19,7 +19,8 @@ Last updated: 2026-10-30
 ## KI-003 — Phase 2.2-B1–B4 CI verification incomplete
 - Parent-source run `41008828793` (run #58): `ci-fmt` failed because rustfmt differences remained in `pomme-client/src/user.rs`; the other substantive jobs were cancelled or skipped. This run targeted the parent source revision, not the final B1–B4 source commit.
 - Final-source run `41008897990` (run #59), associated with source commit `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`: cancelled. The connector returned no job records for this run, so no successful validation can be inferred.
-- Newer run `41009018315` (run #63), on the documentation-updated revision containing the same B1–B4 source: `ci-fmt` failed again with rustfmt diffs in `pomme-client/src/user.rs`; `lint` (macOS/Windows/Ubuntu), Android Clippy, and iOS were cancelled; `test` and `singleplayer` were still running at the latest check. Do not call the run green while these jobs are unresolved.
+- Newer run `41009018315` (run #63), on the revision before the latest profile fix: `ci-fmt` failed with rustfmt diffs in `pomme-client/src/user.rs`; `test` and `singleplayer` were cancelled after a newer commit superseded it. Do not use this run to validate the latest profile fix.
+- Latest run `41009217544` (run #70), for commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`, was in progress at the latest poll. `test`, `singleplayer`, Android, iOS, lint, and fmt jobs had started; no final conclusions were available yet.
 - Run `41008473575` (run #56) targeted the earlier `fd945ed...` revision, before the B1–B4 source commits. Android Clippy, format, lint, iOS Clippy, and PR-template jobs passed; `test` and `singleplayer` were cancelled and aggregate `ci` failed. It does not validate B1–B4.
 - Status: no complete CI pass is established for B1–B4. The dedicated programming chat should rerun CI against the latest source HEAD and inspect all jobs/logs.
 
@@ -47,12 +48,11 @@ For each issue, record:
 - Status: pending.
 
 
-## KI-006 — New-profile UUID transition can orphan pre-C/D player data
-- Source fact: `LocalProfile::new()` creates a random `player_uuid`, while `UserData::from_local_profile()` and `set_local_profile()` still use `offline_uuid(username)` for the runtime player UUID.
-- Consequence: a world created before Phase 2.2-C/D is keyed by the name-derived UUID. Simply switching the runtime to the stored random UUID later can make the old player data appear missing.
-- Legacy migration assigns `offline_uuid(username_currently_stored)`, but newly created/default profiles do not follow that rule.
-- Required before C/D: define a non-destructive transition for profiles created during B1–B4 (or change the new-profile identity policy with an explicit compatibility plan). Test inventory, position, Ender Chest, stats, and all UUID-keyed records before/after transition. Do not just wire `player_uuid` into the connection.
-- Status: confirmed compatibility risk; implementation intentionally not attempted in this investigation.
+## KI-006 — New-profile UUID transition compatibility
+- Source fix in commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`: `LocalProfile::new()` now assigns the historical `offline_uuid(username)`; the document format is version 2; experimental format-1 random UUIDs migrate back to the runtime offline UUID before the field is used by SteelMC.
+- `create_profile()` now rejects a duplicate historical player UUID instead of inventing a new one and splitting existing identity.
+- Regression tests were added for new-profile identity and experimental format-1 migration.
+- Status: addressed in source, pending CI. C/D must continue using the exact stored UUID and test world/player data continuity; do not reinterpret or regenerate it.
 
 ## KI-007 — Local profile management UI is not integrated
 - `LocalProfileStore` is loaded at startup and its storage API includes `profiles()`, `create_profile()`, and `select_profile()`.

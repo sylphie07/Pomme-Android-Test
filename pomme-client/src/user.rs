@@ -265,7 +265,10 @@ impl LocalProfileStore {
                 std::io::copy(&mut source, &mut destination)?;
                 destination.sync_all()?;
                 std::fs::rename(&backup_temp, &backup)?;
-                Self::sync_parent(&backup)
+                if let Err(error) = Self::sync_parent(&backup) {
+                    tracing::warn!("Could not sync local profile backup directory: {error}");
+                }
+                Ok(())
             })();
             if backup_result.is_err() {
                 let _ = std::fs::remove_file(&backup_temp);
@@ -282,7 +285,12 @@ impl LocalProfileStore {
             file.write_all(&json)?;
             file.sync_all()?;
             std::fs::rename(&temporary, &self.path)?;
-            Self::sync_parent(&self.path)
+            if let Err(error) = Self::sync_parent(&self.path) {
+                // Publication already succeeded. Report reduced durability,
+                // but do not make callers roll back in-memory state.
+                tracing::warn!("Could not sync local profile directory: {error}");
+            }
+            Ok(())
         })();
         if write_result.is_err() {
             let _ = std::fs::remove_file(&temporary);

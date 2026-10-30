@@ -471,3 +471,12 @@ Correct the Release startup policy so a persisted local profile can enter local 
 - No local tests/build or device test has been performed by this chat. No user data, worlds, profiles, UUIDs, SteelMC pin, `master`, or PR merge was changed.
 - Phase 2.2-E device checks user-tested / passed: per-world inventory, position continuity, death/respawn, Ender Chest, statistics, and XP/progression. A complete force-stop/restart lifecycle remains outstanding. Missing hostile mobs remain an upstream Minecraft Rust gameplay limitation outside this Pomme task.
 - Next: inspect CI #134 and APK run #41126478882, correct any failures, verify the final APK artifact, then have the user install/test it without deleting existing data. Preserve all passed gameplay checks as regression criteria.
+
+
+## Verification follow-up — source formatting correction and current build state
+
+- The initial CI run #134 / `41126486791` exposed only rustfmt differences in the newly added test module (import order, one extra blank line, and multiline assertion formatting). These were corrected in source commit `d928b424ef60551483b6ac8fcbf2fd6d92a15ff6`.
+- Current CI run #138 / `41126804805` targets the final source head `d928b424ef60551483b6ac8fcbf2fd6d92a15ff6`. Confirmed passed so far: fmt, Android Clippy, iOS Clippy, Ubuntu/macOS/Windows lint, launcher macOS/Windows, launcher frontend, PR template. Still running: Rust tests, singleplayer, launcher Ubuntu and aggregate CI. Do not call CI fully green yet.
+- Current Android APK workflow run `41126798107` targets the same head. OpenAL build completed; Rust Android library build is still in progress. APK assembly and artifact upload have not yet completed.
+- Current branch HEAD/PR #11 head: `d928b424ef60551483b6ac8fcbf2fd6d92a15ff6`; PR remains open/unmerged, base `master`.
+- Device acceptance is still pending. No APK artifact has been confirmed available.

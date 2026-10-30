@@ -686,3 +686,25 @@ No merge of PR #11, no changes to `master`, no APK build/publication, and no des
 
 ### Next step
 - Continue with the separately diagnosed world-creation auto-launch fix. Preserve inventory isolation, position continuity, and death/respawn behavior as device regression criteria. Statistics and Ender Chest remain to be checked if the user can do so safely without deleting or resetting data.
+
+
+## 2026-10-30 — Session 018: Ender Chest and entity implementation status from device test
+
+### User-reported Android acceptance
+- The user tested the Ender Chest on the current APK and confirmed that it works.
+- The user also reports that passive animals such as cows, pigs, and sheep now appear in the world.
+- Hostile mobs do not appear. The user attributes this to missing Minecraft Rust implementations, not to the Pomme world/player-data persistence path.
+- Record Ender Chest behavior as **user-tested / passed** on the tested APK. Record passive-entity visibility and missing hostile mobs as a gameplay implementation observation, not as a Pomme persistence defect. The attribution to Minecraft Rust is the user's assessment and has not been independently source-audited in this session.
+
+### Phase 2.2-E impact
+- Per-world inventory isolation: user-tested / passed (Session 016).
+- Position continuity on world re-entry: user-tested / passed (Session 017).
+- Death item-loss and spawn respawn behavior: user-tested / passed (Session 017).
+- Ender Chest: user-tested / passed (this session).
+- Statistics persistence and full force-stop/restart lifecycle remain unconfirmed.
+- Passive animals render/spawn according to the user's observation; hostile mob implementation remains outside the Pomme persistence scope unless a separate reproducible Pomme-specific defect is found.
+
+### Scope and verification
+- This entry records user-reported Android behavior only; no independent runtime reproduction, source inspection of Minecraft Rust mob systems, automated test, or CI run was performed here.
+- No Rust source, SteelMC gitlink, workflow, APK, world/profile/player data, master branch, or PR merge was changed.
+- Next programming priority remains the separately diagnosed world-creation auto-launch fix. Keep the verified persistence behaviors as regression criteria.

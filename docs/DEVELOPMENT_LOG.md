@@ -528,3 +528,48 @@ These tests directly cover identity collision and selection-integrity checks alr
 
 ### Next step
 - User creates the writable SteelMC fork (no new implementation authorization is needed; authorization for C/D is already recorded). Resume with the exact pinned base, then implement C and its isolation/security tests before plumbing D. Preserve the historical UUID and Microsoft online authentication.
+
+
+## 2026-10-30 — Phase 2.2-C/D implementation, CI #120, and final audit
+
+### Objective
+The user clarified the intended behavior: local singleplayer must work without signing in; only remote multiplayer requires Microsoft authentication. This is the intended Bedrock-like separation and is distinct from bypassing authentication on remote servers.
+
+### Implementation summary
+- SteelMC trusted identity is implemented in the `sylphie07/SteelMC` fork and pinned at `c5098cdd8a4ec1176e00d737df24a2861b4055ac`.
+- SteelMC changed files relative to the previous pin `e655880a7b1487b2444c70013c14ee86c69d53b3`:
+  - `steel-login/src/tcp_client.rs`: typed `TrustedLocalPlayer` and explicit embedded constructor; identity is held per `JavaTcpClient`, never on the shared listener session. Normal TCP constructors leave it absent.
+  - `steel-login/src/handlers/login.rs`: exact username match and trusted UUID for embedded offline login; mismatch rejection; ordinary offline UUID fallback; trusted context forbidden in online mode; regression tests.
+  - `steel-login/src/lib.rs`: public re-export for the typed embedded API.
+- Pomme wiring:
+  - `pomme-client/src/app/phases/in_menu.rs`: selected persisted profile username/UUID passed to the integrated world; memory `ConnectArgs` uses that same UUID; remote args still come from `multiplayer_identity()`.
+  - `pomme-client/src/singleplayer.rs` and `pomme-singleplayer/src/lib.rs`: explicit launch fields carry the identity into the embedded server connection.
+  - `pomme-client/src/headless.rs`: headless local-world launch also carries the local profile UUID.
+  - `pomme-client/src/net/connection.rs`: after memory login, the server-returned profile UUID must equal the expected persisted UUID.
+  - `.gitmodules`, `Cargo.lock`, `pomme-singleplayer/Cargo.toml`, and `justfile` update the fork pin, UUID dependency, and focused Steel login validation.
+- Key Pomme commits include `cb934b2f98a9582c2a7a6a2c62cf7513a5e4695f` (bind trusted identity to embedded connection), `a6551a823b3ead87809fd375e8692e84f2ea13df` (launch options), `36f6f2ddf97b6690a169eb4c6124fb291123e84b` (menu/local profile plumbing), `d141a82e91cef91d46acb909f6e1350f2e01a2ae` and `164ea8015ae720c0d42b96b232bd0c1e18071fe9` (connection/singleplayer tests), and final pin/lint commit `e902fa1cb733edabd1349877dd49b3d8a8a74d42`.
+- SteelMC C changes comprise 14 commits relative to the prior pin; final gitlink is `c5098cdd8a4ec1176e00d737df24a2861b4055ac`.
+
+### Audit and regression results
+- Exact persisted `LocalProfile.player_uuid` is passed unchanged through `open_world`, `LaunchOptions`, `TrustedLocalPlayer`, and the server-side offline `GameProfile`. The hello packet UUID is not the trust source.
+- A trusted identity is tied to one embedded `JavaTcpClient`; standard TCP construction provides `None` and preserves `offline_uuid(username)`.
+- Username mismatch is rejected. Two trusted identities resolve independently.
+- Trusted local identity cannot be used with online mode. Remote Pomme connections still require a verified, unexpired Microsoft session and use its UUID/token; the server's Mojang verification path remains intact.
+- B1–B4 historical UUID migration ensures existing world/player-data keys are not rewritten or replaced.
+- No concrete implementation defect was found in the final audit; no additional source edit was needed.
+
+### Automated validation
+- Branch HEAD at audit: `e902fa1cb733edabd1349877dd49b3d8a8a74d42`.
+- PR #11: open, targeting `master`, unmerged.
+- CI #120, run `41020133603`, overall success for that exact HEAD. The branch HEAD equals the tested SHA; no later source changes require another run. The subsequent continuity/development-log commits are documentation-only. Do not poll or rerun Actions solely to refresh the result.
+- Regression tests included in the CI-validated source cover trusted identity resolution, username mismatch, per-identity isolation, online-mode guard, normal offline UUID derivation, integrated singleplayer login/enter-reenter, memory-connection UUID consistency, and profile/account authorization invariants.
+- No local Rust commands, APK build, or Android-device validation were performed in this audit.
+
+### Remaining limitations / separate work
+- Phase 2.2-E: verify an existing world on the actual Android device, confirming inventory, position, stats, and save/reopen continuity. Preserve all user data.
+- Profile picker UI is not integrated; the underlying store supports multiple profiles.
+- Android Keystore/token refresh and advancement persistence remain separate tasks.
+- Non-blocking test-hardening opportunities: add a wire-level conflicting-Hello-UUID test and a constructor-level TCP non-inheritance test. Source paths currently enforce the intended separation; no defect was observed.
+
+### Scope boundaries
+No merge of PR #11, no changes to `master`, no APK build/publication, and no destructive world/profile/player-data operation.

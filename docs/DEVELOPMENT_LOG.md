@@ -204,3 +204,58 @@ The existing cross-chat guide contained general rules and technical-area review 
 
 ### Next action
 All investigative chats should use the new handoff template and send pending programming work to the dedicated programming chat. That chat must independently verify state and obtain/confirm user authorization before implementing each task.
+
+
+## 2026-10-30 — Session 006: Implement Phase 2.2-B1–B4 profile-store foundations
+
+### Authorization and scope
+- The user explicitly authorized code edits to correct and integrate findings from the parallel investigation chats.
+- Work remained on `unofficial-android-menu-access`.
+- The experimental branch `phase-2.2-b-persistent-local-profile` was inspected as reference material. It was not merged or cherry-picked wholesale.
+- SteelMC, authentication implementation, worlds, player-data files, `master`, PR merge state, and APK distribution were left untouched.
+
+### Repository checks
+- Branch HEAD before source edits: `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`.
+- SteelMC gitlink: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+- Branch changes since the preceding continuity audit were documentation-only.
+- The experimental branch had 22 commits ahead and 22 behind the authorized branch at the time of comparison; its code delta was confined to `pomme-client/src/user.rs` and `pomme-client/src/lib.rs`, plus experimental documentation.
+- The experimental implementation had no successful build/test/CI evidence. It was therefore treated as unverified reference code.
+
+### Findings corrected during integration
+- The experimental loader recovered a backup only when the primary file was missing, not when it existed but was corrupt.
+- Its backup writer copied the primary file without validating the bytes, potentially replacing a good backup with a corrupt primary modified after load.
+- It did not reject case-insensitive duplicate names in already serialized versioned profiles.
+- Future schema versions were reported as generic invalid data, making downgrade protection indistinguishable from corruption.
+- The runtime player UUID still derives from the username; the new field is not yet wired into SteelMC. This remains C/D work.
+
+### Files changed
+1. `pomme-client/src/user.rs`
+   - Added independent `player_uuid` and versioned JSON representation (reference implementation).
+   - Preserved historical offline UUID for legacy profiles while retaining profile-record and selected-profile IDs.
+   - Added strict validation for malformed/future documents, duplicate profile IDs, player UUIDs, and case-insensitive names.
+   - Added backup recovery for missing or corrupt primary files; corrupt primary is quarantined rather than discarded.
+   - Prevented a corrupt primary from overwriting the backup by validating the exact bytes before backup publication.
+   - Added regression tests for corrupt-primary recovery/preservation, future-version downgrade prevention, and case-insensitive duplicate names.
+2. `pomme-client/src/lib.rs`
+   - Handles profile-store load failure by logging and exiting instead of silently proceeding with replacement defaults.
+
+### Commits
+- `4bd084c8a9fca176da2545b800a8a2eb24c7b3e9` — profile store implementation and tests.
+- `334f5f958bf99a61bc3d67bcc48036b88122c41f` — startup error handling.
+- `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` — test assertion cleanup.
+
+### Verification
+- GitHub contents API confirmed each source file update and returned the commits above.
+- Branch tree confirmed the SteelMC gitlink remained unchanged.
+- CI run `41008897990` for source HEAD `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` was pending at the last check.
+- CI run `41008828793` targeted the previous source commit and was still in progress at the last check; do not substitute it for the final run.
+- No local Rust compiler, Cargo, rustfmt, Android build, or Android device execution was performed in this session.
+- New tests are written but are **not yet verified as passing**.
+
+### Remaining risks / next steps
+- Inspect final CI jobs and logs; fix any failures on the authorized branch.
+- Review the complete diff after CI.
+- Verify all `LocalProfileStore::load_or_create` call sites and compile configurations.
+- Consider concurrent multi-process access/locking as a separate follow-up; this implementation does not claim cross-process locking.
+- Do not connect `player_uuid` to the embedded connection until the trusted per-connection design in C/D is reviewed.
+- No claim is made about advancement persistence; SteelMC's existing TODO remains separate.

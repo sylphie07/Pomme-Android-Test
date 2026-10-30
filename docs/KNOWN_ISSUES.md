@@ -19,6 +19,7 @@ Last updated: 2026-10-30
 ## KI-003 — Phase 2.2-B1–B4 CI verification incomplete
 - Parent-source run `41008828793` (run #58): `ci-fmt` failed because rustfmt differences remained in `pomme-client/src/user.rs`; the other substantive jobs were cancelled or skipped. This run targeted the parent source revision, not the final B1–B4 source commit.
 - Final-source run `41008897990` (run #59), associated with source commit `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`: cancelled. The connector returned no job records for this run, so no successful validation can be inferred.
+- Newer run `41009018315` (run #63), on the documentation-updated revision containing the same B1–B4 source: `ci-fmt` failed again with rustfmt diffs in `pomme-client/src/user.rs`; `lint` (macOS/Windows/Ubuntu), Android Clippy, and iOS were cancelled; `test` and `singleplayer` were still running at the latest check. Do not call the run green while these jobs are unresolved.
 - Run `41008473575` (run #56) targeted the earlier `fd945ed...` revision, before the B1–B4 source commits. Android Clippy, format, lint, iOS Clippy, and PR-template jobs passed; `test` and `singleplayer` were cancelled and aggregate `ci` failed. It does not validate B1–B4.
 - Status: no complete CI pass is established for B1–B4. The dedicated programming chat should rerun CI against the latest source HEAD and inspect all jobs/logs.
 

@@ -595,3 +595,41 @@ No merge of PR #11, no changes to `master`, no APK build/publication, and no des
 
 ### Next step
 - Run the focused Rust test and the repository CI on this source commit. After automated checks pass, build/install a new APK only under separate authorization and repeat the signed-out singleplayer device test.
+
+
+## 2026-10-30 — Session 015: Diagnose world creation returning to list
+
+### User-reported behavior
+- The user tested the latest APK after the Release Singleplayer authentication correction.
+- Signed-out Singleplayer now works and a new world is created, but Pomme returns to the world-selection screen instead of entering the new world. Manually selecting the new world and pressing Play successfully enters it.
+
+### Repository preflight
+- Repository: `sylphie07/Pomme-Android-Test`.
+- Branch: `unofficial-android-menu-access`.
+- Inspected branch HEAD: `730c08c307a9aceaef9241a52dd9265be7f58c34`.
+- PR #11 remained open and unmerged.
+- SteelMC gitlink at the inspected tree: `c5098cdd8a4ec1176e00d737df24a2861b4055ac`.
+- Re-read continuity, development log, and parallel-chat handoff guidance before investigation.
+
+### Investigation and confirmed source cause
+- Inspected `pomme-client/src/ui/menu/worlds.rs`, `pomme-client/src/ui/menu/mod.rs`, `pomme-client/src/ui/world_list.rs`, and `pomme-client/src/app/phases/in_menu.rs`.
+- `MainMenu::build_create_world()` calls `create_world()` on the Create New World button.
+- `MainMenu::create_world()` creates a `WorldSummary`, persists it with `WorldList::create()`, and unconditionally switches to `Screen::WorldList`. It does not return a `MenuAction::PlayWorld` action.
+- The existing `MenuAction::PlayWorld { folder }` handler in `update_menu()` calls `open_world()`, which performs the existing Singleplayer authorization, resolves the world folder, starts the integrated server, and connects through the in-memory transport.
+- Conclusion: the create handler is missing the transition into the existing PlayWorld path. This is a source-confirmed explanation matching the user report; no Android/Docker/authentication defect is implicated by this particular flow.
+
+### Recommended change and handoff
+- On successful persistence, return `MenuAction::PlayWorld` using the exact generated `summary.folder` (not the display name) so duplicate-name suffixes are handled safely.
+- On persistence failure, do not attempt launch; remain in a safe menu state and report the error.
+- Preserve the existing central auth/gameplay gate; do not bypass `open_world()` or alter remote multiplayer policy.
+- Add focused regression tests for empty/non-empty save lists, duplicate names, persistence failure, manual PlayWorld, QuickPlay, signed-out Release Singleplayer, and protected remote multiplayer.
+- The detailed 11-point handoff was appended to `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`.
+
+### CI and verification
+- Rechecked CI run ID `41032914173` (#125): all listed jobs, including Android, singleplayer, tests, fmt, platform lint, and aggregate CI, completed successfully.
+- This CI run predates the proposed auto-launch change and does not verify it.
+- No local tests, builds, formatting commands, or independent device reproduction were performed in this investigation.
+
+### Scope
+- Documentation/handoff only. No source code, workflow, SteelMC, world/profile data, APK, or `master` changes.
+- No source implementation was performed; the dedicated programming chat remains implementation owner.

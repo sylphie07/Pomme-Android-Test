@@ -91,19 +91,30 @@ For each issue, record:
 ## KI-013 — Remaining player-data acceptance checks (Phase 2.2-E)
 - User-tested / passed on the current APK: each world retains its independent inventory (Session 016); re-entering a world restores the exact previous player location; after death, the expected carried-item loss occurs and the player respawns at the world spawn (Session 017).
 - These are user-reported Android device results, not independently reproduced tests or CI assertions.
-- Still unconfirmed: statistics persistence, Ender Chest continuity, every other player-data field, and a complete force-stop/restart save lifecycle.
+- Statistics are now user-tested / passed (Session 019).
+- Ender Chest is user-tested / passed (Session 018).
+- XP collection, expected XP loss on death, and progression are user-tested / passed (Session 019).
+- Still unconfirmed: a complete force-stop/restart save lifecycle and any player-data fields not explicitly covered by the user's checks.
 - Required approach: non-destructive checks only. Preserve existing worlds, profiles, UUIDs, and player-data files; do not ask the user to delete/reset data.
-- Regression requirement after the world-creation auto-launch fix: ensure the fix does not regress per-world inventory separation, position continuity, or the reported death/respawn behavior.
-- Status: Phase 2.2-E partially validated on the user's device; remaining checks are open.
+- Regression requirement after the world-creation auto-launch fix: preserve per-world inventory separation, position continuity, death/respawn behavior, Ender Chest, statistics, and XP/progression.
+- Status: Phase 2.2-E substantially validated on the user's device; full close/restart lifecycle remains open.
 
 
-## KI-014 — Hostile mobs not appearing in current Android gameplay test
+## KI-014 — Upstream Minecraft Rust hostile-mob implementation gap (out of Pomme scope)
 - User reports that passive animals (cows, pigs, sheep) appear, but hostile mobs do not.
-- User attributes this to missing Minecraft Rust implementations. This is not currently established as a Pomme menu, world-save, or player-data persistence defect.
-- Status: separate gameplay implementation limitation reported by the user; no source-level diagnosis was performed in this session.
-- Follow-up: investigate in the Minecraft Rust entity/spawning implementation only when that work is in scope. Do not change Pomme persistence or world data based on this observation alone.
+- The user clarifies that the APK is based on a Minecraft Rust version that still lacks substantial gameplay implementations.
+- This is an upstream gameplay implementation limitation/observation, not a current Pomme programming task or a demonstrated Pomme world-save/player-data defect.
+- Status: user-reported; no independent source-level diagnosis was performed. Keep out of Pomme persistence work unless a separate reproducible Pomme-specific cause is found.
 
 ## Phase 2.2-E acceptance update
 - Ender Chest behavior is now **user-tested / passed** on the current APK (Session 018).
 - Combined with prior device reports, passed checks are per-world inventory isolation, position continuity on world re-entry, death/item-loss/spawn-respawn behavior, and Ender Chest behavior.
 - Statistics persistence and a complete force-stop/restart save lifecycle remain unconfirmed.
+
+
+## Phase 2.2-E acceptance update — Session 019
+- Statistics: **user-tested / passed**.
+- XP collection, expected XP loss on death, and progression: **user-tested / passed**.
+- Combined passed checks: per-world inventory isolation, position continuity, death/item-loss/spawn-respawn, Ender Chest, statistics, and XP/progression.
+- Remaining lifecycle check: complete force-stop/restart persistence, plus any untested player-data fields.
+- Hostile mobs are tracked separately as an upstream Minecraft Rust gameplay implementation limitation (KI-014), not a Pomme defect.

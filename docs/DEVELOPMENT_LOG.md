@@ -456,3 +456,13 @@ These tests directly cover identity collision and selection-integrity checks alr
 - The prior CI run on source commit `5a8de7d95f375ad93969b5098244d1a3c3bf5d5e` was superseded after CI found two additional rustfmt layout differences. Those exact differences were corrected in `1d7256ec025dd184f9a910aad724d9468341191d` and `406a3d63db222f897338047dae40419baed18db1`.
 - A new complete CI run is required for this consolidated source/test commit.
 - No SteelMC, authentication policy, world data, merge, release, or APK change.
+
+
+## 2026-10-30 — Session 012: Fix invalid format-1 test fixture
+
+- CI run `41011216161` (#92) reached test execution. `fmt`, Android, iOS, and Ubuntu/macOS/Windows lint passed; the Rust test job failed on `experimental_format_one_migrates_to_the_runtime_offline_uuid`.
+- Log evidence: `LocalProfileStore::load_or_create` rejected fixture username `ExperimentalPlayer` because it exceeds the existing 16-character local-profile username limit. This was a malformed test fixture.
+- Changed only the fixture and its expected-value references to `ExpPlayer`, preserving the production validator and migration behavior.
+- Source commit: `8362a0b20b5627db1e66e4954f116165ab591b38`.
+- Test execution for the corrected fixture is pending a new CI run. Singleplayer had not yet completed on run #92 at last observation.
+- No production logic, SteelMC, authentication policy, C/D/E implementation, profile UI, Keystore, advancement persistence, merge, publication, or APK change.

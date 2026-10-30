@@ -273,7 +273,7 @@ impl UserData {
     /// server. A local/offline profile can never supply multiplayer auth.
     pub fn authenticated_access_token(&self) -> Option<&str> {
         self.is_java_authorized()
-            .then(|| self.access_token.as_deref())
+            .then_some(self.access_token.as_deref())
             .flatten()
     }
 

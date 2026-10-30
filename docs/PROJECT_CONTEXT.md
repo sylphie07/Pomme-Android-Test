@@ -18,21 +18,26 @@ Target behavior:
 - Online/multiplayer authentication remains protected and uses the official authentication flow.
 - Existing player/world data must not become orphaned or appear lost because a profile is renamed or migrated.
 
-## Current technical focus — Phase 2.2-A
-**Design persistent player identity per local profile.** We are currently in the investigation/design stage only. The next implementation phase is not authorized until the Phase 2.2-A report is reviewed and the design is explicitly approved.
+## Current technical focus — Phase 2.2-B1–B4 implementation
 
-The current audit findings supplied in the prior technical report:
-1. Pomme currently derives the offline player UUID from the profile name.
-2. SteelMC offline login recalculates the offline UUID from the requested username; it does not accept an arbitrary client Hello UUID as trusted identity.
-3. SteelMC indexes player persistence using the game profile UUID. The reported affected areas include global player data, domain player data, statistics, permissions, and known-player records.
-4. Renaming a profile changes its name-derived offline UUID. The old data may remain on disk but will no longer be selected by the new identity.
-5. `LocalProfile.id` already identifies the local profile record with a persistent UUID, but is not currently the same thing as the player's SteelMC identity.
-6. Candidate design: add a separate persistent `player_uuid` to `LocalProfile`, preserving `id` as the profile-record ID.
-7. For existing profiles, candidate migration is to initialize `player_uuid` to the historical offline UUID of the profile's current username. This should preserve existing SteelMC storage keys if the handoff is implemented correctly.
-8. The persistent identity must reach the embedded SteelMC through a trusted internal mechanism. Do not trust arbitrary UUIDs supplied by generic offline clients or weaken generic offline login.
-9. Advancement persistence and any unlisted storage domains remain unverified; do not claim complete coverage without source inspection and tests.
+**The user explicitly authorized implementation on 2026-10-30.** Work is scoped to the authorized branch `unofficial-android-menu-access` and currently covers profile-store safety, the independent `player_uuid` field, compatible legacy migration, and integrity tests.
 
-These are recorded audit findings/design hypotheses from the prior report, not yet independently revalidated against the current submodule source in this session. The detailed scope and verification requirements are in [PHASE_2_2_A_PERSISTENT_PLAYER_IDENTITY.md](PHASE_2_2_A_PERSISTENT_PLAYER_IDENTITY.md).
+Implemented in source (not yet CI-verified at the time of this note):
+- `LocalProfile.id` remains the profile-record identifier.
+- `LocalProfile.player_uuid` is a separate persistent UUID.
+- Legacy profile migration derives the historical offline UUID from the stored username, preserving profile IDs and the selected profile.
+- Invalid profile JSON is not replaced by a default profile.
+- A valid backup can recover a corrupt or missing primary; a corrupt primary is quarantined instead of discarded.
+- Future format versions fail closed and are not silently downgraded from an older backup.
+- Duplicate profile IDs, player UUIDs, and case-insensitive names are rejected without silently reassigning identity.
+- The app startup now handles profile-store errors by logging and exiting instead of continuing with replaced defaults.
+
+Important boundary:
+- The new `player_uuid` is persisted but is **not yet used by `UserData::from_local_profile()` or the embedded SteelMC connection**. That remains Phase 2.2-C/D work and is not part of this implementation.
+- No SteelMC source or submodule pin has been changed.
+- Microsoft/Java authentication behavior has not been intentionally changed by the profile-store patch.
+
+The implementation is based on a selective review of the experimental branch `phase-2.2-b-persistent-local-profile`; it was not wholesale-merged. See the current continuity note and development log for exact commits, limitations, and CI state.
 
 ## Previous technical focus
 Earlier work investigated menu access without sign-in and traced gameplay entry routes:

@@ -58,3 +58,18 @@
 - Date: 2026-10-30
 - Decision: complete source investigation and a written design report before implementation.
 - No source edits, UUID migration, profile rename implementation, merge, PR, or APK generation is authorized by this documentation entry.
+
+
+## D-011 — Authorize Phase 2.2-B1–B4 implementation
+- Date: 2026-10-30
+- Decision: the user explicitly authorized the programming chat to edit code to correct and integrate findings from the other Pomme investigation chats. This authorizes Phase 2.2-B1–B4 on `unofficial-android-menu-access`.
+- Scope: profile JSON safety/recovery, independent `player_uuid`, compatible legacy migration, and integrity/idempotence tests.
+- Exclusions: no SteelMC submodule update, no trusted connection identity (C), no Pomme-to-SteelMC identity plumbing (D), no Android acceptance phase (E), no merge, no master modification, and no APK publication.
+- Status: implementation started; automated and Android verification pending.
+
+## D-012 — Fail closed on invalid or future local-profile documents
+- Date: 2026-10-30
+- Decision: invalid existing profile data must never be silently replaced with a default profile. A valid backup may recover a missing or corrupt primary, while the corrupt original is retained under a unique quarantine filename.
+- Future schema versions must not be silently downgraded from an older backup.
+- Before updating the backup, validate the exact bytes from the current primary so corrupt content cannot replace the last known-good backup.
+- Status: implemented in source; CI verification pending.

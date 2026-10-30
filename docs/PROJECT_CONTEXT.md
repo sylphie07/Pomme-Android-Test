@@ -49,13 +49,18 @@ Earlier work investigated menu access without sign-in and traced gameplay entry 
 Android singleplayer discrepancy was also investigated. Historical user report: the user successfully launched and played a world on their own Android device from a built APK, but this did not prove the issue resolved for all devices/builds.
 
 ## Repository state recorded on 2026-10-30
-- Branch existence: `unofficial-android-menu-access` was returned by GitHub branch search.
-- Most recent commit returned by repository commit search: `a147ca27e24850e5d6e796e1dc7bd02e1ecf3a72` — “Add 'singleplayer' feature to pomme-client dependency”.
-- That commit changes `pomme-android/Cargo.toml` to enable the `singleplayer` feature for the Android `pomme-client` dependency.
-- Previous session's known HEAD was `c730ae9e1334646f507f9f068e8774e8950a18a8`; it is historical and must not be treated as current.
-- SteelMC submodule SHA previously recorded: `e655880a7b1487b2444c70013c14ee86c69d53b3`; verify again before implementation.
-- The connector used for this documentation update confirmed the branch exists and fetched files from it, but did not expose a dedicated branch-head SHA field. Therefore `a147ca27...` is the latest commit observed in repository search, not a separately confirmed branch-ref HEAD. Verify the exact HEAD at the start of the next coding session.
-- Existing documentation files confirmed in `docs/`: `PROJECT_CONTEXT.md`, `CONTINUITY.md`, `DEVELOPMENT_LOG.md`, and `DECISIONS.md`. `docs/ARCHITECTURE.md` and `docs/README.md` were not found at the checked paths.
+
+- Repository: `sylphie07/Pomme-Android-Test`.
+- Authorized branch: `unofficial-android-menu-access`.
+- Latest verified branch HEAD before this documentation refresh: `aee098d4ca5b5afc4ecb9533657f3de8c405784e`.
+- Latest source-code commit: `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`; later commits in this session are documentation-only.
+- Source commits for Phase 2.2-B1–B4 are `4bd084c8a9fca176da2545b800a8a2eb24c7b3e9`, `334f5f958bf99a61bc3d67bcc48036b88122c41f`, and `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`.
+- SteelMC gitlink: `e655880a7b1487b2444c70013c14ee86c69d53b3`; no submodule update was made.
+- `.gitmodules` points to `https://github.com/Steel-Foundation/SteelMC.git`.
+- The experimental branch `phase-2.2-b-persistent-local-profile` remains separate and was used only as reference material.
+- PR #11 remains unmerged; no merge or modification of `master` was performed.
+- CI run `41009018315` for branch HEAD `aee098d4ca5b5afc4ecb9533657f3de8c405784e` was pending at the last check.
+- GitHub connector access does not expose the user's local Termux worktree; local cleanliness must be checked on-device.
 
 ## Device / environment
 - User develops and tests from Android and has no desktop PC.

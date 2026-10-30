@@ -996,13 +996,13 @@ impl MainMenu {
             version: self.version.clone(),
             extra: Default::default(),
         };
-        persist_created_world(&mut self.world_list, summary)
+        Self::persist_created_world(&mut self.world_list, summary)
     }
 
-/// Persist a newly configured save and request launch only after the
-/// sidecar has been written successfully. Capture the folder before the
-/// summary is consumed so duplicate-name suffixes are preserved exactly.
-fn persist_created_world(
+    /// Persist a newly configured save and request launch only after the
+    /// sidecar has been written successfully. Capture the folder before the
+    /// summary is consumed so duplicate-name suffixes are preserved exactly.
+    fn persist_created_world(
     world_list: &mut crate::ui::world_list::WorldList,
     summary: WorldSummary,
 ) -> MenuAction {
@@ -1325,7 +1325,7 @@ mod create_world_tests {
         let saves = TempPath::new("success");
         std::fs::create_dir_all(&saves.0).unwrap();
         let mut worlds = crate::ui::world_list::WorldList::scan(&saves.0);
-        let action = persist_created_world(&mut worlds, summary("New World"));
+        let action = MainMenu::persist_created_world(&mut worlds, summary("New World"));
 
         assert!(matches!(
             action,

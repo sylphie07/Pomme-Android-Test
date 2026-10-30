@@ -130,3 +130,12 @@ Every investigation chat that leaves programming work pending should record:
 ## Current known boundary
 
 Phase 2.2-A design is documented. Phase 2.2-B1–B4 implementation is authorized and in progress on the designated branch. Phases 2.2-C/D/E, SteelMC changes, merging, publication, and APK distribution remain separate and require their own explicit authorization. This document does not grant permission to implement any additional recommendation.
+
+
+## Authorization update — 2026-10-30
+
+The user's latest explicit instruction authorizes the dedicated programming chat to implement Phase 2.2-C and 2.2-D, including necessary SteelMC submodule changes. This supersedes older statements in this file that C/D are unauthorized or that B1–B4 CI is still pending.
+
+B1–B4 CI run `41012173438` (#94) completed successfully for test, singleplayer, Android, iOS, fmt, Ubuntu/macOS/Windows lint, and aggregate CI. Launcher jobs were skipped. This does not constitute Android device acceptance.
+
+The programmer must follow `docs/PHASE_2_2_CD_PROGRAMMER_HANDOFF.md`, freshly verify branch/HEAD/PR and actual SteelMC gitlink, and preserve all security and data-continuity invariants. PR #11 must remain open and unmerged; `master` and APK publication are out of scope.

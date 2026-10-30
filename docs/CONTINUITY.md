@@ -433,3 +433,13 @@ Correct the Release startup policy so a persisted local profile can enter local 
 - Live repository preflight for this documentation update: sylphie07/Pomme-Android-Test, branch unofficial-android-menu-access, PR #11 open/unmerged, PR head 4fd37ba485adbeef54759841854bc6c0498b97ad. Base remains master; do not merge or modify master.
 - Documentation-only update. No source, SteelMC pin, APK, workflow, worlds, profiles, or player data changed; no new CI run or test execution is claimed.
 - Next: implement the already source-diagnosed create-world → MenuAction::PlayWorld handoff, then preserve these successful device behaviors as regression criteria. Statistics and Ender Chest remain outstanding Phase 2.2-E checks.
+
+
+## User-device validation update — 2026-10-30 (Ender Chest and entities)
+
+- The user has now tested the Ender Chest on the current APK and confirms it works. Mark Ender Chest behavior **user-tested / passed**.
+- The user reports passive animals (cows, pigs, sheep) appear, while hostile mobs do not. The user attributes the missing hostile mobs to incomplete Minecraft Rust implementations. Treat this as a separate gameplay implementation limitation/observation, not a Pomme world-persistence bug; this attribution has not been independently audited here.
+- Phase 2.2-E user-device checks now passed: per-world inventory isolation, position continuity on world re-entry, reported death/item-loss/spawn-respawn behavior, and Ender Chest behavior.
+- Still unconfirmed: statistics persistence, all other player-data fields, and a complete force-stop/restart save lifecycle. Preserve all existing data and use non-destructive checks only.
+- No source, SteelMC pin, APK, workflow, worlds, profiles, or player data changed in this update; no new automated test or CI result is claimed.
+- Continue with the known world-creation auto-launch repair. Treat inventory, position, death/respawn, and Ender Chest behavior as regression acceptance criteria. Hostile mob implementation should remain a separate Minecraft Rust gameplay task unless investigation identifies a Pomme-specific cause.

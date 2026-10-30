@@ -22,7 +22,7 @@ Last updated: 2026-10-30
 - Newer run `41009018315` (run #63), on the revision before the latest profile fix: `ci-fmt` failed with rustfmt diffs in `pomme-client/src/user.rs`; `test` and `singleplayer` were cancelled after a newer commit superseded it. Do not use this run to validate the latest profile fix.
 - Latest run `41009217544` (run #70), for commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`, was in progress at the latest poll. `test`, `singleplayer`, Android, iOS, lint, and fmt jobs had started; no final conclusions were available yet.
 - Run `41008473575` (run #56) targeted the earlier `fd945ed...` revision, before the B1–B4 source commits. Android Clippy, format, lint, iOS Clippy, and PR-template jobs passed; `test` and `singleplayer` were cancelled and aggregate `ci` failed. It does not validate B1–B4.
-- Status: no complete CI pass is established for B1–B4. The dedicated programming chat should rerun CI against the latest source HEAD and inspect all jobs/logs.
+- Latest CI run `41009337238` targets the PR merge ref with source head `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc`; it was pending at the last check. No complete CI pass is established yet.
 
 ## Reporting format
 For each issue, record:

@@ -366,3 +366,37 @@ The backup recovery path decoded and validated the backup file, then reopened th
 ### Remaining
 - Obtain complete CI results for the latest source commit, including fmt, lint, unit tests, Android, and singleplayer.
 - Inspect all job logs before declaring B1–B4 verified.
+
+
+## 2026-10-30 — Session 009: Fix CI-discovered profile-store integration errors
+
+### Scope
+Close concrete CI failures in the already authorized Phase 2.2-B1–B4 implementation. No C/D/E implementation, SteelMC change, merge, release, or APK work.
+
+### Repository checks
+- Confirmed live branch `unofficial-android-menu-access` at `f7ae3ce885b4e0e3d1c50f866201351d9549ef68` before edits.
+- Confirmed `master` at `a147ca27e24850e5d6e796e1dc7bd02e1ecf3a72`.
+- Confirmed `third_party/SteelMC` gitlink at `e655880a7b1487b2444c70013c14ee86c69d53b3` and `.gitmodules` URL unchanged.
+
+### Investigation
+- Run `41009217544` was cancelled and was not a passing validation.
+- Run `41009743471` (#84) completed with failure. Its job logs showed missing test-module import of `LOCAL_PROFILE_FORMAT_VERSION`, an unhandled `Result` at the headless profile-store call site, and two rustfmt differences.
+- The same call-site/type errors prevented lint, tests, Android/iOS clippy and singleplayer checks from compiling successfully.
+
+### Changes applied
+- `pomme-client/src/user.rs`: imported the schema version constant into the nested test module and applied the two rustfmt changes explicitly reported by CI.
+- `pomme-client/src/headless.rs`: handle profile-store loading failure explicitly; log and exit nonzero rather than dereferencing a `Result` or continuing with a missing profile.
+
+### Commits
+- `bcca539e67e85959e99ce7bf39ce000065e02ffa` — test import and formatting correction.
+- `5a8de7d95f375ad93969b5098244d1a3c3bf5d5e` — headless error handling.
+
+### Verification
+- GitHub confirmed both commits and the current branch HEAD `5a8de7d95f375ad93969b5098244d1a3c3bf5d5e`.
+- New workflow runs `41010632204` and `41010632271` for that HEAD were pending at the last poll. Runs `41010627093` and `41010626979` for the preceding commit were in progress.
+- No corrected-HEAD CI result is yet complete/green.
+- No local formatter/test/build command or Android device test was run.
+- Therefore source corrections are implemented, but tests are not yet verified as passed.
+
+### Next
+Poll the current-HEAD workflow runs, inspect all job logs, then review the full B1–B4 diff and document a trusted server-side identity handoff design for future C/D. Do not implement C/D or alter SteelMC without separate approval.

@@ -118,3 +118,14 @@ For each issue, record:
 - Combined passed checks: per-world inventory isolation, position continuity, death/item-loss/spawn-respawn, Ender Chest, statistics, and XP/progression.
 - Remaining lifecycle check: complete force-stop/restart persistence, plus any untested player-data fields.
 - Hostile mobs are tracked separately as an upstream Minecraft Rust gameplay implementation limitation (KI-014), not a Pomme defect.
+
+
+
+## KI-015 — Create-world action did not launch the newly created save
+- Reproduction: tap Create New World; the save was persisted but the menu returned to the world list instead of entering it.
+- Source cause: `MainMenu::create_world()` persisted the summary and unconditionally switched to `Screen::WorldList`, without emitting `MenuAction::PlayWorld`.
+- Correction applied on `unofficial-android-menu-access`, source HEAD `546ec38f7d07d1784a0951cbfbb437088ffedf01`, in `pomme-client/src/ui/menu/worlds.rs`: successful persistence returns `MenuAction::PlayWorld` with the exact generated folder; failed persistence returns `MenuAction::None` and does not launch.
+- Regression tests added for successful create, duplicate folder suffix, and persistence failure. Test execution is pending CI.
+- Existing central `open_world()` path remains unchanged, including Singleplayer authorization and embedded-server startup.
+- Status: **implemented; automated verification and Android device acceptance pending**.
+- Do not confuse with Minecraft Rust hostile-mob implementation limitations (KI-014), which are outside this Pomme task.

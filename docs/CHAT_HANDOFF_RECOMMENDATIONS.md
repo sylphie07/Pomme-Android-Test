@@ -111,7 +111,7 @@ Every investigation chat that leaves programming work pending should record:
 11. **What was not changed or tested**
 
 ### Current known programming handoffs
-- **Phase 2.2-B — persistent local profile identity:** pending investigation findings from the identity audit. The highest-priority concerns are non-destructive profile JSON loading/writing/recovery; avoiding UUID transition that makes existing player data appear orphaned; case-insensitive legacy-name conflicts; backup recovery when the primary file exists but is corrupt; downgrade behavior; and tests for interrupted writes/concurrent access. The experimental branch is reference material only and must not be wholesale-merged. **Implementation remains unauthorized.**
+- **Phase 2.2-B1–B4 — persistent local profile identity:** implementation is explicitly authorized by the user on 2026-10-30 and has begun on `unofficial-android-menu-access`. Source changes add `player_uuid`, versioned JSON, historical UUID migration, strict duplicate validation, corrupt/missing-primary backup recovery, quarantine preservation, future-version downgrade protection, and regression tests. CI and Android verification remain pending. The experimental branch is reference material only and was not wholesale-merged. The new field is not yet wired into SteelMC; C/D remain separate downstream phases.
 - **SteelMC advancement persistence:** separate follow-up item at the recorded SteelMC pin; do not bundle it into identity work or change the submodule without authorization.
 - Other chats should append newly discovered programming tasks here and in the development log, without editing code themselves.
 
@@ -121,4 +121,4 @@ Every investigation chat that leaves programming work pending should record:
 
 ## Current known boundary
 
-Phase 2.2-A design is documented. Phase 2.2-B and all subsequent identity implementation stages remain unauthorized. This document does not grant permission to implement any recommendation.
+Phase 2.2-A design is documented. Phase 2.2-B1–B4 implementation is authorized and in progress on the designated branch. Phases 2.2-C/D/E, SteelMC changes, merging, publication, and APK distribution remain separate and require their own explicit authorization. This document does not grant permission to implement any additional recommendation.

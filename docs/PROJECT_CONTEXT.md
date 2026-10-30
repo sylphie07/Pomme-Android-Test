@@ -83,3 +83,10 @@ Android singleplayer discrepancy was also investigated. Historical user report: 
 - Do not weaken official Microsoft/Java authentication or trust arbitrary offline Hello UUIDs.
 - No merge, PR, APK generation, publishing, or changes to `master` without explicit authorization.
 - After every meaningful technical session, update `docs/CONTINUITY.md` and append to `docs/DEVELOPMENT_LOG.md`; update other documentation when relevant.
+
+
+## Phase 2.2-C/D authorization update — 2026-10-30
+
+B1–B4 automated CI passed on run `41012173438` (#94) for the PR #11 checkpoint `dedebc588065782768665d80b9fc3f6ca3281044`: tests, singleplayer, Android, iOS, fmt, Ubuntu/macOS/Windows lint, and aggregate CI succeeded; launcher jobs were skipped. This is not Android device acceptance.
+
+The user explicitly authorized Phase 2.2-C/D implementation, including necessary SteelMC submodule changes. The dedicated programmer must follow `docs/PHASE_2_2_CD_PROGRAMMER_HANDOFF.md` and verify the live SteelMC gitlink before editing. Preserve exact persisted player UUIDs, keep ordinary offline Hello UUIDs untrusted, and retain Microsoft verification for remote multiplayer. PR #11 must remain unmerged; no `master` changes or APK publication are authorized.

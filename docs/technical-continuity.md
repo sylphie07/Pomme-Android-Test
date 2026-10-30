@@ -5,7 +5,7 @@
 - Rama de trabajo: `phase-2.2-b-persistent-local-profile`
 - Rama base de Fase 2.2-B: `unofficial-android-menu-access`
 - HEAD base: `c730ae9e1334646f507f9f068e8774e8950a18a8`
-- Último commit registrado al actualizar este documento: `66bd785866440142398b3d6ae442421c10040535`
+- Último commit registrado al actualizar este documento: `e247812983cc1879efdc4cb1f8db00fb1011e841`
 - Estado: implementación de Fase 2.2-B en progreso; validación local/CI todavía no ejecutada.
 - No se ha abierto PR, no se ha hecho merge, no se ha modificado `master`, no se ha generado APK.
 
@@ -26,7 +26,8 @@ Añadir una identidad persistente de jugador independiente del identificador de 
 - Escritura temporal única, sincronización del archivo, copia `.bak` y publicación por renombrado.
 - Publicación POSIX mediante `rename` de reemplazo atómico; en Windows se usa una sustitución con rollback porque `std::fs::rename` no reemplaza destinos existentes.
 - Recuperación desde `.bak` cuando falta el archivo principal.
-- Los perfiles recién creados mantienen por ahora el UUID offline del nombre para no cambiar el comportamiento real hasta que Fase 2.2-D conecte `player_uuid` al servidor integrado.
+- Los perfiles nuevos reciben UUID v4 independiente; se regenera ante colisión antes de persistir.
+- La ruta de juego todavía utiliza el UUID offline derivado del nombre hasta Fase 2.2-D. Por eso esta rama intermedia no debe tratarse como una versión de uso final: el paso D debe conectar el UUID persistente y verificar los mundos antes de distribuirla.
 - Se actualizó la prueba existente para desenvolver el resultado fallible de `load_or_create`.
 
 ### `pomme-client/src/lib.rs`

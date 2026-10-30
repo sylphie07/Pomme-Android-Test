@@ -230,3 +230,12 @@ The user authorized code edits to integrate the other chats' findings. The exper
 - Source and documentation updates are committed together to provide one stable CI-triggering branch update.
 - The latest complete Rust CI result remains pending; prior run `41010633965` failed the two newly reported formatting checks before being superseded. Do not call B1–B4 verified until a complete successful CI run finishes.
 - No authentication logic, C/D/E code, SteelMC source/pin, world data, merge, release, or APK was changed.
+
+
+### Session 012 — Correct format-1 migration test fixture
+- CI run `41011216161` (#92), source HEAD `ff37877abd2aef8a1902859c55ce1744f96c607c`, confirmed `fmt`, Android, iOS, and lint jobs green (Ubuntu, macOS, Windows), but `test` failed.
+- The failure was isolated to `experimental_format_one_migrates_to_the_runtime_offline_uuid`: its fixture username `ExperimentalPlayer` exceeded the existing 16-character local-name limit. The production validation correctly rejected the invalid fixture; this was a test-data defect, not a migration-code defect.
+- Replaced the fixture name consistently with valid `ExpPlayer`. This does not change production code or accepted username rules.
+- New source commit: `8362a0b20b5627db1e66e4954f116165ab591b38`.
+- Run #92's singleplayer job was still in progress at the last check; regardless, the failing test job means #92 cannot validate B1–B4. A fresh full CI run on the corrected HEAD is required.
+- No SteelMC, C/D/E, authentication, profile UI, Keystore, advancement persistence, merge, publication, or APK changes.

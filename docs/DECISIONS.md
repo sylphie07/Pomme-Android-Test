@@ -73,3 +73,11 @@
 - Future schema versions must not be silently downgraded from an older backup.
 - Before updating the backup, validate the exact bytes from the current primary so corrupt content cannot replace the last known-good backup.
 - Status: implemented in source; CI verification pending.
+
+
+## D-013 — Preserve the current runtime UUID for all new profiles until trusted C/D integration
+- Date: 2026-10-30
+- Decision: newly created local profiles must initially persist the same offline UUID the running game currently uses for `OfflinePlayer:<username>`. Do not assign a random player UUID and later switch the live game to it.
+- Compatibility: profile ID remains independent and random. When C/D eventually supplies `player_uuid` to SteelMC, it must preserve the exact current storage key for every profile created during B1–B4.
+- Experimental compatibility: format-1 documents from the unmerged experiment stored random player UUIDs that the runtime did not consume. Migrate these to the historical offline UUID and write format 2.
+- Status: implemented in source; CI verification pending.

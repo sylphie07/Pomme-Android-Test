@@ -25,7 +25,9 @@ Target behavior:
 Implemented in source (not yet CI-verified at the time of this note):
 - `LocalProfile.id` remains the profile-record identifier.
 - `LocalProfile.player_uuid` is a separate persistent UUID.
+- New profiles start with the historical offline UUID used by the current runtime, so later C/D plumbing can consume the stored value without changing existing saves.
 - Legacy profile migration derives the historical offline UUID from the stored username, preserving profile IDs and the selected profile.
+- Experimental format-1 documents that stored random UUIDs are migrated to the historical runtime UUID; current document format is version 2.
 - Invalid profile JSON is not replaced by a default profile.
 - A valid backup can recover a corrupt or missing primary; a corrupt primary is quarantined instead of discarded.
 - Future format versions fail closed and are not silently downgraded from an older backup.
@@ -33,7 +35,7 @@ Implemented in source (not yet CI-verified at the time of this note):
 - The app startup now handles profile-store errors by logging and exiting instead of continuing with replaced defaults.
 
 Important boundary:
-- The new `player_uuid` is persisted but is **not yet used by `UserData::from_local_profile()` or the embedded SteelMC connection**. That remains Phase 2.2-C/D work and is not part of this implementation.
+- The new `player_uuid` is persisted but is **not yet used by `UserData::from_local_profile()` or the embedded SteelMC connection**. That remains Phase 2.2-C/D work and is not part of this implementation. New and migrated profile UUIDs now match the runtime's historical offline UUID.
 - No SteelMC source or submodule pin has been changed.
 - Microsoft/Java authentication behavior has not been intentionally changed by the profile-store patch.
 

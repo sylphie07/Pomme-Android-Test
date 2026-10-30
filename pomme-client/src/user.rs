@@ -5,23 +5,46 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LocalProfile {
+    /// Stable identifier for this profile record and its selection in the UI.
     pub id: uuid::Uuid,
     pub username: String,
+    /// Stable player identity used for world data. It is deliberately
+    /// independent from both the profile-record ID and the visible name.
+    pub player_uuid: uuid::Uuid,
 }
 
 impl LocalProfile {
     pub fn new(username: impl Into<String>) -> Self {
+        let username = username.into();
+        let id = uuid::Uuid::new_v4();
+        let mut player_uuid = uuid::Uuid::new_v4();
+        while player_uuid == id {
+            player_uuid = uuid::Uuid::new_v4();
+        }
         Self {
-            id: uuid::Uuid::new_v4(),
-            username: username.into(),
+            id,
+            username,
+            player_uuid,
         }
     }
 }
 
+const LOCAL_PROFILE_FORMAT_VERSION: u32 = 1;
+
 #[derive(Serialize, Deserialize)]
 struct LocalProfileDocument {
-    profiles: Vec<LocalProfile>,
+    #[serde(default)]
+    format_version: Option<u32>,
+    profiles: Vec<LocalProfileRecord>,
     selected_profile: uuid::Uuid,
+}
+
+#[derive(Serialize, Deserialize)]
+struct LocalProfileRecord {
+    id: uuid::Uuid,
+    username: String,
+    #[serde(default)]
+    player_uuid: Option<uuid::Uuid>,
 }
 
 /// Persistent, non-secret player identities. This file never contains
@@ -33,20 +56,85 @@ pub struct LocalProfileStore {
 }
 
 impl LocalProfileStore {
-    pub fn load_or_create(path: &Path) -> Self {
-        if let Ok(json) = std::fs::read_to_string(path)
-            && let Ok(document) = serde_json::from_str::<LocalProfileDocument>(&json)
-            && !document.profiles.is_empty()
-            && document
-                .profiles
-                .iter()
-                .any(|profile| profile.id == document.selected_profile)
-        {
-            return Self {
+    /// Load profiles without replacing invalid or future-version user data.
+    /// A validated backup may recover a corrupt primary; the corrupt file is
+    /// retained under a unique quarantine name before recovery is published.
+    pub fn load_or_create(path: &Path) -> std::io::Result<Self> {
+        let backup = Self::backup_path(path);
+
+        if path.exists() {
+            let primary = std::fs::read_to_string(path)
+                .and_then(|json| Self::decode_document(&json));
+
+            match primary {
+                Ok((profiles, selected_profile, migrated)) => {
+                    let store = Self {
+                        path: path.to_owned(),
+                        profiles,
+                        selected_profile,
+                    };
+                    if migrated {
+                        store.persist()?;
+                    }
+                    return Ok(store);
+                }
+                Err(primary_error) => {
+                    if primary_error.kind() == std::io::ErrorKind::Unsupported
+                        || !backup.exists()
+                    {
+                        return Err(primary_error);
+                    }
+
+                    let backup_json = std::fs::read_to_string(&backup).map_err(|backup_error| {
+                        std::io::Error::new(
+                            primary_error.kind(),
+                            format!(
+                                "local profile primary is invalid ({primary_error}); backup could not be read ({backup_error})"
+                            ),
+                        )
+                    })?;
+                    let (profiles, selected_profile, migrated) =
+                        Self::decode_document(&backup_json).map_err(|backup_error| {
+                            std::io::Error::new(
+                                primary_error.kind(),
+                                format!(
+                                    "local profile primary is invalid ({primary_error}); backup is also invalid ({backup_error})"
+                                ),
+                            )
+                        })?;
+
+                    Self::restore_backup(path, &backup)?;
+                    tracing::warn!(
+                        "Recovered local profiles from backup; the invalid primary was preserved"
+                    );
+                    let store = Self {
+                        path: path.to_owned(),
+                        profiles,
+                        selected_profile,
+                    };
+                    if migrated {
+                        store.persist()?;
+                    }
+                    return Ok(store);
+                }
+            }
+        }
+
+        // A missing primary file with a backup indicates an interrupted
+        // publication. Restore only a backup that passes full validation.
+        if backup.exists() {
+            let json = std::fs::read_to_string(&backup)?;
+            let (profiles, selected_profile, migrated) = Self::decode_document(&json)?;
+            Self::restore_backup(path, &backup)?;
+            let store = Self {
                 path: path.to_owned(),
-                profiles: document.profiles,
-                selected_profile: document.selected_profile,
+                profiles,
+                selected_profile,
             };
+            if migrated {
+                store.persist()?;
+            }
+            return Ok(store);
         }
 
         let profile = LocalProfile::new("Player");
@@ -55,10 +143,130 @@ impl LocalProfileStore {
             profiles: vec![profile.clone()],
             selected_profile: profile.id,
         };
-        if let Err(error) = store.persist() {
-            tracing::warn!("Could not persist the default local profile: {error}");
+        store.persist()?;
+        Ok(store)
+    }
+
+    fn decode_document(json: &str) -> std::io::Result<(Vec<LocalProfile>, uuid::Uuid, bool)> {
+        let raw: serde_json::Value = serde_json::from_str(json).map_err(|error| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, error)
+        })?;
+        let has_format_version = raw
+            .as_object()
+            .is_some_and(|object| object.contains_key("format_version"));
+        let has_player_uuid_field = raw
+            .get("profiles")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|profiles| {
+                profiles.iter().any(|profile| {
+                    profile
+                        .as_object()
+                        .is_some_and(|object| object.contains_key("player_uuid"))
+                })
+            });
+        let document: LocalProfileDocument =
+            serde_json::from_value(raw).map_err(|error| {
+                std::io::Error::new(std::io::ErrorKind::InvalidData, error)
+            })?;
+
+        let migrated = match document.format_version {
+            None => {
+                if has_format_version {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "local profile format_version must be a supported integer",
+                    ));
+                }
+                if has_player_uuid_field {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "local profile document mixes legacy and versioned identity fields",
+                    ));
+                }
+                true
+            }
+            Some(LOCAL_PROFILE_FORMAT_VERSION) => {
+                if document
+                    .profiles
+                    .iter()
+                    .any(|profile| profile.player_uuid.is_none())
+                {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "versioned local profile is missing player_uuid",
+                    ));
+                }
+                false
+            }
+            Some(version) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    format!("unsupported local profile format version: {version}"),
+                ));
+            }
+        };
+
+        if document.profiles.is_empty() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "local profile document contains no profiles",
+            ));
         }
-        store
+
+        let mut profiles = Vec::with_capacity(document.profiles.len());
+        let mut ids = std::collections::HashSet::new();
+        let mut player_uuids = std::collections::HashSet::new();
+        let mut usernames = std::collections::HashSet::new();
+        for record in document.profiles {
+            if !ids.insert(record.id) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("duplicate local profile ID: {}", record.id),
+                ));
+            }
+            if !valid_local_username(&record.username) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("invalid local profile name: {}", record.username),
+                ));
+            }
+            if !usernames.insert(record.username.to_ascii_lowercase()) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("duplicate local profile name: {}", record.username),
+                ));
+            }
+            let player_uuid = match record.player_uuid {
+                Some(id) => id,
+                None => UserData::offline_uuid(&record.username),
+            };
+            if !player_uuids.insert(player_uuid) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("duplicate local player UUID: {player_uuid}"),
+                ));
+            }
+            profiles.push(LocalProfile {
+                id: record.id,
+                username: record.username,
+                player_uuid,
+            });
+        }
+
+        if !ids.contains(&document.selected_profile) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "selected local profile does not exist",
+            ));
+        }
+
+        Ok((profiles, document.selected_profile, migrated))
+    }
+
+    fn backup_path(path: &Path) -> PathBuf {
+        let mut backup = path.as_os_str().to_owned();
+        backup.push(".bak");
+        PathBuf::from(backup)
     }
 
     #[allow(dead_code)] // Used by the local-profile picker API and its persistence tests.
@@ -70,24 +278,40 @@ impl LocalProfileStore {
         self.profiles
             .iter()
             .find(|profile| profile.id == self.selected_profile)
-            .unwrap_or(&self.profiles[0])
+            .expect("validated local profile selection must exist")
     }
 
     #[allow(dead_code)] // Used by the local-profile picker API and its persistence tests.
     pub fn create_profile(&mut self, username: &str) -> std::io::Result<LocalProfile> {
-        let valid = !username.is_empty()
-            && username.len() <= 16
-            && username
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_');
-        if !valid {
+        if !valid_local_username(username) {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "Minecraft profile names must be 1-16 ASCII letters, digits, or underscores",
             ));
         }
 
-        let profile = LocalProfile::new(username);
+        if self
+            .profiles
+            .iter()
+            .any(|profile| profile.username.eq_ignore_ascii_case(username))
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "a local profile with this name already exists",
+            ));
+        }
+
+        let mut profile = LocalProfile::new(username);
+        while self
+            .profiles
+            .iter()
+            .any(|existing| existing.player_uuid == profile.player_uuid)
+        {
+            profile.player_uuid = uuid::Uuid::new_v4();
+            while profile.player_uuid == profile.id {
+                profile.player_uuid = uuid::Uuid::new_v4();
+            }
+        }
         self.profiles.push(profile.clone());
         if let Err(error) = self.persist() {
             self.profiles.pop();
@@ -114,20 +338,187 @@ impl LocalProfileStore {
     }
 
     fn persist(&self) -> std::io::Result<()> {
+        use std::io::Write as _;
+
         let document = LocalProfileDocument {
-            profiles: self.profiles.clone(),
+            format_version: Some(LOCAL_PROFILE_FORMAT_VERSION),
+            profiles: self
+                .profiles
+                .iter()
+                .map(|profile| LocalProfileRecord {
+                    id: profile.id,
+                    username: profile.username.clone(),
+                    player_uuid: Some(profile.player_uuid),
+                })
+                .collect(),
             selected_profile: self.selected_profile,
         };
         let json = serde_json::to_vec_pretty(&document).map_err(std::io::Error::other)?;
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let mut temporary = self.path.as_os_str().to_owned();
-        temporary.push(".part");
-        let temporary = PathBuf::from(temporary);
-        std::fs::write(&temporary, json)?;
-        std::fs::rename(temporary, &self.path)
+
+        // Preserve the previous valid document before publishing a replacement.
+        if self.path.exists() {
+            let backup = Self::backup_path(&self.path);
+            let backup_temp = Self::unique_temp_path(&backup);
+            let backup_result: std::io::Result<()> = (|| {
+                // Validate the exact bytes copied into the backup. Never replace
+                // a known-good backup with a primary file corrupted after load.
+                let previous = std::fs::read(&self.path)?;
+                let previous_json = std::str::from_utf8(&previous).map_err(|error| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, error)
+                })?;
+                Self::decode_document(previous_json)?;
+
+                let mut destination = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&backup_temp)?;
+                destination.write_all(&previous)?;
+                destination.sync_all()?;
+                Self::publish_file(&backup_temp, &backup)?;
+                if let Err(error) = Self::sync_parent(&backup) {
+                    tracing::warn!("Could not sync local profile backup directory: {error}");
+                }
+                Ok(())
+            })();
+            if backup_result.is_err() {
+                let _ = std::fs::remove_file(&backup_temp);
+                return backup_result;
+            }
+        }
+
+        let temporary = Self::unique_temp_path(&self.path);
+        let write_result: std::io::Result<()> = (|| {
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temporary)?;
+            file.write_all(&json)?;
+            file.sync_all()?;
+            Self::publish_file(&temporary, &self.path)?;
+            if let Err(error) = Self::sync_parent(&self.path) {
+                // Publication already succeeded. Report reduced durability,
+                // but do not make callers roll back in-memory state.
+                tracing::warn!("Could not sync local profile directory: {error}");
+            }
+            Ok(())
+        })();
+        if write_result.is_err() {
+            let _ = std::fs::remove_file(&temporary);
+        }
+        write_result
     }
+
+    fn restore_backup(path: &Path, backup: &Path) -> std::io::Result<()> {
+        use std::io::Write as _;
+
+        let temporary = Self::unique_temp_path(path);
+        let restore_result: std::io::Result<()> = (|| {
+            let mut source = std::fs::File::open(backup)?;
+            let mut destination = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temporary)?;
+            std::io::copy(&mut source, &mut destination)?;
+            destination.sync_all()?;
+
+            if path.exists() {
+                let quarantined = Self::unique_corrupt_path(path);
+                std::fs::rename(path, &quarantined)?;
+                if let Err(error) = Self::publish_file(&temporary, path) {
+                    if let Err(restore_error) = std::fs::rename(&quarantined, path) {
+                        return Err(std::io::Error::other(format!(
+                            "restoring profile backup failed ({error}) and restoring the original file failed ({restore_error}); original retained at {}",
+                            quarantined.display()
+                        )));
+                    }
+                    return Err(error);
+                }
+                tracing::warn!(
+                    "Preserved invalid local profile file at {}",
+                    quarantined.display()
+                );
+            } else {
+                Self::publish_file(&temporary, path)?;
+            }
+
+            if let Err(error) = Self::sync_parent(path) {
+                tracing::warn!("Could not sync recovered local profile directory: {error}");
+            }
+            Ok(())
+        })();
+
+        if restore_result.is_err() {
+            let _ = std::fs::remove_file(&temporary);
+        }
+        restore_result
+    }
+
+    fn unique_corrupt_path(path: &Path) -> PathBuf {
+        let mut quarantined = path.as_os_str().to_owned();
+        quarantined.push(format!(".corrupt-{}", uuid::Uuid::new_v4()));
+        PathBuf::from(quarantined)
+    }
+
+    fn unique_temp_path(path: &Path) -> PathBuf {
+        let mut temporary = path.as_os_str().to_owned();
+        temporary.push(format!(".part-{}", uuid::Uuid::new_v4()));
+        PathBuf::from(temporary)
+    }
+
+    fn publish_file(temporary: &Path, destination: &Path) -> std::io::Result<()> {
+        #[cfg(not(windows))]
+        {
+            // POSIX rename atomically replaces an existing destination.
+            std::fs::rename(temporary, destination)
+        }
+
+        #[cfg(windows)]
+        {
+            // std::fs::rename cannot replace an existing file on Windows.
+            // Keep a rollback copy while swapping; the .bak profile document
+            // remains the crash-recovery source if the process stops mid-swap.
+            if !destination.exists() {
+                return std::fs::rename(temporary, destination);
+            }
+
+            let previous = Self::unique_temp_path(destination);
+            std::fs::rename(destination, &previous)?;
+            match std::fs::rename(temporary, destination) {
+                Ok(()) => {
+                    if let Err(error) = std::fs::remove_file(previous) {
+                        tracing::warn!("Could not remove replaced profile file: {error}");
+                    }
+                    Ok(())
+                }
+                Err(error) => {
+                    if let Err(restore_error) = std::fs::rename(&previous, destination) {
+                        return Err(std::io::Error::other(format!(
+                            "publishing profile file failed ({error}) and restoring the previous file failed ({restore_error})"
+                        )));
+                    }
+                    Err(error)
+                }
+            }
+        }
+    }
+
+    fn sync_parent(path: &Path) -> std::io::Result<()> {
+        if let Some(parent) = path.parent() {
+            std::fs::File::open(parent)?.sync_all()?;
+        }
+        Ok(())
+    }
+}
+
+fn valid_local_username(username: &str) -> bool {
+    !username.is_empty()
+        && username.len() <= 16
+        && username
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -361,16 +752,158 @@ mod tests {
     fn local_profiles_create_persist_reload_and_select() {
         let dir = std::env::temp_dir().join(format!("pomme-local-profiles-{}", std::process::id()));
         let path = dir.join("profiles.json");
-        let mut store = LocalProfileStore::load_or_create(&path);
+        let mut store = LocalProfileStore::load_or_create(&path).unwrap();
         let first = store.selected().clone();
         let second = store.create_profile("Alex_2").unwrap();
         assert_eq!(store.profiles().len(), 2);
 
         store.select_profile(second.id).unwrap();
-        let reloaded = LocalProfileStore::load_or_create(&path);
+        let reloaded = LocalProfileStore::load_or_create(&path).unwrap();
         assert_eq!(reloaded.profiles().len(), 2);
         assert_eq!(reloaded.selected(), &second);
         assert_ne!(first.id, second.id);
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn legacy_local_profiles_migrate_with_the_historical_offline_uuid() {
+        let dir = std::env::temp_dir().join(format!("pomme-legacy-profile-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("local-profiles.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        let profile_id = uuid::Uuid::new_v4();
+        let legacy = serde_json::json!({
+            "profiles": [{"id": profile_id, "username": "Alex"}],
+            "selected_profile": profile_id
+        });
+        std::fs::write(&path, serde_json::to_vec_pretty(&legacy).unwrap()).unwrap();
+
+        let store = LocalProfileStore::load_or_create(&path).unwrap();
+        assert_eq!(store.selected().id, profile_id);
+        assert_eq!(store.selected().username, "Alex");
+        assert_eq!(
+            store.selected().player_uuid.to_string(),
+            "36532b5e-c442-3dbb-a24c-c7e55d0f979a"
+        );
+        let persisted: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(persisted["format_version"], LOCAL_PROFILE_FORMAT_VERSION);
+        assert_eq!(persisted["selected_profile"], profile_id.to_string());
+        assert!(path.with_file_name("local-profiles.json.bak").exists());
+
+        // A second startup must load the migrated identity without changing it.
+        drop(store);
+        let reloaded = LocalProfileStore::load_or_create(&path).unwrap();
+        assert_eq!(reloaded.selected().id, profile_id);
+        assert_eq!(
+            reloaded.selected().player_uuid.to_string(),
+            "36532b5e-c442-3dbb-a24c-c7e55d0f979a"
+        );
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn legacy_null_player_uuid_is_not_treated_as_an_absent_field() {
+        let profile_id = uuid::Uuid::new_v4();
+        let document = serde_json::json!({
+            "profiles": [{
+                "id": profile_id,
+                "username": "Alex",
+                "player_uuid": null
+            }],
+            "selected_profile": profile_id
+        });
+        assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
+    }
+
+    #[test]
+    fn legacy_profiles_with_colliding_historical_uuids_are_rejected() {
+        let first_id = uuid::Uuid::new_v4();
+        let second_id = uuid::Uuid::new_v4();
+        let document = serde_json::json!({
+            "profiles": [
+                {"id": first_id, "username": "Alex"},
+                {"id": second_id, "username": "Alex"}
+            ],
+            "selected_profile": first_id
+        });
+        assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
+    }
+
+    #[test]
+    fn null_format_version_is_not_treated_as_a_legacy_document() {
+        let document = serde_json::json!({
+            "format_version": null,
+            "profiles": [],
+            "selected_profile": uuid::Uuid::new_v4()
+        });
+        assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
+    }
+
+    #[test]
+    fn missing_primary_profile_file_recovers_a_valid_backup() {
+        let dir = std::env::temp_dir().join(format!("pomme-profile-backup-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("local-profiles.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        let profile_id = uuid::Uuid::new_v4();
+        let player_uuid = UserData::offline_uuid("BackupPlayer");
+        let backup = serde_json::json!({
+            "format_version": LOCAL_PROFILE_FORMAT_VERSION,
+            "profiles": [{
+                "id": profile_id,
+                "username": "BackupPlayer",
+                "player_uuid": player_uuid
+            }],
+            "selected_profile": profile_id
+        });
+        std::fs::write(
+            LocalProfileStore::backup_path(&path),
+            serde_json::to_vec_pretty(&backup).unwrap(),
+        )
+        .unwrap();
+
+        let recovered = LocalProfileStore::load_or_create(&path).unwrap();
+        assert_eq!(recovered.selected().id, profile_id);
+        assert_eq!(recovered.selected().player_uuid, player_uuid);
+        assert!(path.exists());
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn corrupt_local_profiles_are_preserved_and_never_replaced() {
+        let dir = std::env::temp_dir().join(format!("pomme-corrupt-profile-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("local-profiles.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        let original = b"{ this is not valid json";
+        std::fs::write(&path, original).unwrap();
+
+        assert!(LocalProfileStore::load_or_create(&path).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn new_profile_gets_an_independent_persistent_identity() {
+        let profile = LocalProfile::new("NewPlayer");
+        assert_ne!(profile.id, profile.player_uuid);
+        assert_ne!(
+            profile.player_uuid,
+            UserData::offline_uuid("NewPlayer")
+        );
+    }
+
+    #[test]
+    fn versioned_local_profile_uuid_survives_reload() {
+        let dir = std::env::temp_dir().join(format!("pomme-versioned-profile-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("local-profiles.json");
+        let store = LocalProfileStore::load_or_create(&path).unwrap();
+        let original = store.selected().clone();
+        let reloaded = LocalProfileStore::load_or_create(&path).unwrap();
+        assert_eq!(reloaded.selected(), &original);
+        assert_ne!(original.id, original.player_uuid);
 
         std::fs::remove_dir_all(dir).unwrap();
     }
@@ -571,6 +1104,96 @@ mod tests {
         assert_eq!(user.username, profile.username);
         assert!(user.allows_singleplayer(true));
         assert!(!user.allows_multiplayer());
+    }
+
+    #[test]
+    fn corrupt_primary_recovers_from_valid_backup_and_preserves_original() {
+        let dir = std::env::temp_dir().join(format!("pomme-corrupt-primary-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("local-profiles.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        let profile_id = uuid::Uuid::new_v4();
+        let player_uuid = UserData::offline_uuid("RecoveredPlayer");
+        let backup = serde_json::json!({
+            "format_version": LOCAL_PROFILE_FORMAT_VERSION,
+            "profiles": [{
+                "id": profile_id,
+                "username": "RecoveredPlayer",
+                "player_uuid": player_uuid
+            }],
+            "selected_profile": profile_id
+        });
+        std::fs::write(
+            LocalProfileStore::backup_path(&path),
+            serde_json::to_vec_pretty(&backup).unwrap(),
+        )
+        .unwrap();
+        let corrupt = b"{ truncated primary";
+        std::fs::write(&path, corrupt).unwrap();
+
+        let recovered = LocalProfileStore::load_or_create(&path).unwrap();
+        assert_eq!(recovered.selected().id, profile_id);
+        assert_eq!(recovered.selected().player_uuid, player_uuid);
+        let recovered_json: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(recovered_json["profiles"][0]["username"], "RecoveredPlayer");
+        let preserved_corrupt = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .any(|entry| {
+                entry.file_name().to_string_lossy().starts_with("local-profiles.json.corrupt-")
+                    && std::fs::read(entry.path()).map(|bytes| bytes == corrupt).unwrap_or(false)
+            });
+        assert!(preserved_corrupt, "the invalid primary should be preserved");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn future_profile_format_is_not_downgraded_from_backup() {
+        let dir = std::env::temp_dir().join(format!("pomme-future-profile-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("local-profiles.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        let profile_id = uuid::Uuid::new_v4();
+        let backup = serde_json::json!({
+            "format_version": LOCAL_PROFILE_FORMAT_VERSION,
+            "profiles": [{
+                "id": profile_id,
+                "username": "OlderBackup",
+                "player_uuid": uuid::Uuid::new_v4()
+            }],
+            "selected_profile": profile_id
+        });
+        std::fs::write(
+            LocalProfileStore::backup_path(&path),
+            serde_json::to_vec_pretty(&backup).unwrap(),
+        )
+        .unwrap();
+        let future = serde_json::json!({
+            "format_version": LOCAL_PROFILE_FORMAT_VERSION + 1,
+            "profiles": [],
+            "selected_profile": profile_id
+        });
+        let future_bytes = serde_json::to_vec_pretty(&future).unwrap();
+        std::fs::write(&path, &future_bytes).unwrap();
+
+        let error = LocalProfileStore::load_or_create(&path).err().expect("future schema must fail closed");
+        assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+        assert_eq!(std::fs::read(&path).unwrap(), future_bytes);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn versioned_profiles_reject_case_insensitive_duplicate_names() {
+        let first_id = uuid::Uuid::new_v4();
+        let second_id = uuid::Uuid::new_v4();
+        let document = serde_json::json!({
+            "format_version": LOCAL_PROFILE_FORMAT_VERSION,
+            "profiles": [
+                {"id": first_id, "username": "Alex", "player_uuid": uuid::Uuid::new_v4()},
+                {"id": second_id, "username": "aLeX", "player_uuid": uuid::Uuid::new_v4()}
+            ],
+            "selected_profile": first_id
+        });
+        assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
     }
 
     #[test]

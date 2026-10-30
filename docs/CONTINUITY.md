@@ -411,3 +411,13 @@ Correct the Release startup policy so a persisted local profile can enter local 
 - This investigation made no Rust/source, workflow, SteelMC, world/profile, or APK changes. No local test/build or independent device reproduction was performed. The user-reported runtime result is recorded as device feedback.
 - Implementation authority remains with the dedicated programming chat. This handoff is not a source-edit authorization. Do not merge PR #11, modify `master`, or generate/publish an APK without the applicable explicit authorization.
 - Next step: programming chat re-verifies live HEAD and implements the scoped action handoff with regression tests; then run CI and obtain a new APK only when separately authorized.
+
+
+## User-device validation update — 2026-10-30
+
+- Confirmed by user on the current APK: each world retains its own independent inventory. Record this as a passed, user-reported Android acceptance check for per-world inventory isolation.
+- This does not by itself prove position/stats/Ender Chest continuity or the complete clean save-close-reopen lifecycle. Those remain outstanding parts of Phase 2.2-E.
+- The known world-creation defect is still separate: after creating a world, the app returns to the world list rather than entering it automatically. Manual selection and Play work.
+- CI run #126 (41108688700) for PR #11's observed head 03d17d2d7f7baba484b125b6102c4b195e707750 completed successfully, including Android, tests, singleplayer, fmt, lint and aggregate CI. This is not a substitute for Android device acceptance.
+- PR #11 remains open/unmerged; master is not to be modified. No source change or APK build was performed for this documentation update.
+- Next: fix world creation's missing MenuAction::PlayWorld handoff, retain per-world inventory isolation as a regression criterion, then continue the remaining non-destructive Phase 2.2-E checks.

@@ -31,3 +31,30 @@
 - Date: 2026-10-30
 - Decision: update `docs/CONTINUITY.md` and append to `docs/DEVELOPMENT_LOG.md` after each meaningful investigation, code-generation, edit, or test session. Update the other docs when their content changes.
 - Status: standing workflow rule.
+
+
+## D-007 — Separate profile-record ID from persistent player identity
+- Date: 2026-10-30
+- Decision status: design direction under investigation; not yet approved for implementation.
+- Preserve `LocalProfile.id` as the identity of the profile record.
+- Investigate a separate persistent `player_uuid` for the player's identity in the embedded server.
+- Reason: changing a profile's visible username must not silently change the identity used to locate persistent player data.
+- Compatibility requirement: existing profiles must retain the historical player UUID if the proposed migration is confirmed safe.
+
+## D-008 — Preserve historical identity for existing local profiles
+- Date: 2026-10-30
+- Decision status: candidate migration rule pending source verification and user approval.
+- Candidate: initialize a missing `player_uuid` from the offline UUID derived from that profile's current stored username; do not regenerate `LocalProfile.id`.
+- Reason: preserve existing SteelMC player-data keys rather than forcing a broad storage migration.
+- Open questions: malformed/incomplete profile records, duplicate names/UUIDs, interrupted writes, and exact serialization compatibility.
+
+## D-009 — Trusted identity handoff must be embedded-server-specific
+- Date: 2026-10-30
+- Decision: do not trust arbitrary UUID values from generic offline Hello packets and do not weaken generic offline login.
+- Design requirement: investigate an internal trusted handoff from Pomme to its embedded SteelMC server, scoped so ordinary remote/offline clients cannot select another player's identity.
+- Status: design requirement; implementation not authorized.
+
+## D-010 — Phase 2.2-A is design-only until explicit approval
+- Date: 2026-10-30
+- Decision: complete source investigation and a written design report before implementation.
+- No source edits, UUID migration, profile rename implementation, merge, PR, or APK generation is authorized by this documentation entry.

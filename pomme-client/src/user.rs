@@ -230,22 +230,27 @@ impl UserData {
     }
 
     pub fn from_account(account: &pomme_auth::AuthAccount, local_profile: LocalProfile) -> Self {
+        let profile_uuid = uuid::Uuid::parse_str(&account.uuid).ok();
+        let has_profile = profile_uuid.is_some();
         Self {
             username: account.username.clone(),
-            uuid: uuid::Uuid::parse_str(&account.uuid)
-                .unwrap_or_else(|_| Self::offline_uuid(&account.username)),
+            uuid: profile_uuid.unwrap_or_else(|| Self::offline_uuid(&account.username)),
             access_token: Some(account.access_token.clone()),
-            has_profile: uuid::Uuid::parse_str(&account.uuid).is_ok(),
+            has_profile,
             local_profile,
             identity_source: IdentitySource::MicrosoftAccount,
-            java_authorization: JavaAuthorization::Verified {
-                expires_at: account.expires_at,
+            java_authorization: if has_profile {
+                JavaAuthorization::Verified {
+                    expires_at: account.expires_at,
+                }
+            } else {
+                JavaAuthorization::Unverified
             },
         }
     }
 
     pub fn is_java_authorized(&self) -> bool {
-        if self.identity_source != IdentitySource::MicrosoftAccount {
+        if self.identity_source != IdentitySource::MicrosoftAccount || !self.has_profile {
             return false;
         }
         let JavaAuthorization::Verified { expires_at } = self.java_authorization else {
@@ -395,6 +400,20 @@ mod tests {
         let user = UserData::from_account(&account, super::LocalProfile::new("LocalPlayer"));
         assert!(!user.allows_singleplayer(true));
         assert!(!user.allows_multiplayer());
+        assert_eq!(user.authenticated_access_token(), None);
+    }
+
+    #[test]
+    fn malformed_microsoft_profile_id_fails_closed() {
+        let account = pomme_auth::AuthAccount {
+            username: "MalformedProfile".into(),
+            uuid: "not-a-uuid".into(),
+            access_token: "token".into(),
+            expires_at: super::unix_now() + 3600,
+        };
+        let user = UserData::from_account(&account, super::LocalProfile::new("LocalPlayer"));
+        assert!(!user.has_profile);
+        assert!(!user.is_java_authorized());
         assert_eq!(user.authenticated_access_token(), None);
     }
 

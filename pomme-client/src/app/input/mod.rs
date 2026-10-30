@@ -1014,13 +1014,20 @@ impl InputState {
     }
 
     /// `gameplay`: the world has the input (no screen, chat or pause menu).
-    pub fn on_touch(&mut self, touch: &Touch, gameplay: bool, layout: &TouchLayout) {
+    pub fn on_touch(
+        &mut self,
+        touch: &Touch,
+        gameplay: bool,
+        scrollable: bool,
+        layout: &TouchLayout,
+    ) {
         let p = glam::vec2(touch.location.x as f32, touch.location.y as f32);
         let out = self.touch.on_touch(
             touch.id,
             touch.phase,
             p,
             gameplay,
+            scrollable,
             layout,
             std::time::Instant::now(),
         );

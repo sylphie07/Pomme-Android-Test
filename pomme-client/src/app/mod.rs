@@ -1011,6 +1011,15 @@ impl ApplicationHandler for App {
             // Desktop touchscreens already drive the mouse through the OS.
             WindowEvent::Touch(touch) if cfg!(mobile) => {
                 let gameplay = self.world_has_pointer();
+                // Only scrollable screens claim vertical drags. Inventory and
+                // crafting screens must preserve pointer drags for item stacks.
+                let scrollable = match self.phase.get() {
+                    AppPhase::InMenu { .. } | AppPhase::Connecting { .. } => true,
+                    AppPhase::InGame { game, .. } => {
+                        game.options_from_game || game.dialog_open()
+                    }
+                    _ => false,
+                };
                 if let Some(gfx) = self.phase.gfx_mut() {
                     let width = gfx.renderer.screen_width() as f32;
                     let height = gfx.renderer.screen_height() as f32;
@@ -1019,7 +1028,9 @@ impl ApplicationHandler for App {
                         height,
                         gs: self.core.menu.gui_scale(width, height),
                     };
-                    self.core.input.on_touch(&touch, gameplay, &layout);
+                    self.core
+                        .input
+                        .on_touch(&touch, gameplay, scrollable, &layout);
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {

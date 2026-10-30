@@ -195,3 +195,20 @@ The user authorized code edits to integrate the other chats' findings. The exper
 3. Prepare a documentation-only C/D trusted-identity design. Do not implement C/D or modify SteelMC without separate authorization.
 4. Keep profile selector UI, Android Keystore, and advancement persistence separate.
 5. Do not merge, publish, create an APK, change `master`, or change the SteelMC pin.
+
+
+## Phase 2.2-C/D design prepared — documentation only (2026-10-30)
+
+- Added `docs/PHASE_2_2_C_D_TRUSTED_IDENTITY_DESIGN.md` at commit `54a673e5138e8e1cf843a72d527fec8ad644a9ea`.
+- The design follows the inspected Pomme in-menu → `pomme-singleplayer::LaunchOptions` → Steel `JavaTcpClient::from_transport` path and Steel offline login behavior at pin `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+- Key security finding: Steel's offline `handle_hello` deliberately ignores the client-supplied hello UUID and derives `offline_uuid(username)`. Therefore changing only Pomme's packet UUID cannot implement persistent identity.
+- Proposed channel: a typed server-side identity supplied from the selected persisted local profile through the in-process embedded-server Rust API into a per-connection trusted context. Ordinary TCP connections get no such context; online-mode logins continue through Mojang authentication; the hello UUID remains untrusted.
+- This is a proposal only. No C/D source, SteelMC code, submodule pin, remote authentication, profile selector UI, Keystore, or advancement behavior was changed.
+- Required test matrix and compatibility invariants are documented in the design file. C/D still require separate authorization.
+
+### Current source/CI checkpoint
+- Source-fix HEAD: `5a8de7d95f375ad93969b5098244d1a3c3bf5d5e`.
+- Follow-up documentation commit for design: `54a673e5138e8e1cf843a72d527fec8ad644a9ea`.
+- The only completed CI result on the preceding source HEAD `f7ae3ce885b4e0e3d1c50f866201351d9549ef68` is failure `41009743471`; it exposed and motivated the source fixes.
+- Runs `41010632204` and `41010632271` were auxiliary `pull_request_target` conflict/label workflows, not Rust CI. They must not be counted as source validation.
+- No completed Rust CI run for the corrected source HEAD has been confirmed yet. Continue checking for a `pull_request` run; if no run was triggered, use an authorized GitHub Actions rerun/dispatch path or ask the user to trigger the CI workflow from GitHub. Do not call B1–B4 verified until the required `ci` job and its dependent code jobs pass.

@@ -44,3 +44,11 @@
 - Cambio aplicado: helper `publish_file`; POSIX conserva reemplazo por rename; Windows mueve temporalmente el destino previo, publica el nuevo archivo y restaura el anterior si falla el reemplazo. La copia `.bak` continúa siendo el mecanismo de recuperación ante interrupciones.
 - Commit: `66bd785866440142398b3d6ae442421c10040535`.
 - No se ejecutaron pruebas Windows ni Android.
+
+### Identidad para perfiles nuevos
+
+- Ajuste de diseño: la arquitectura aprobada requiere UUID v4 independiente para perfiles nuevos; solo los perfiles legacy reciben el UUID offline histórico derivado del nombre.
+- Se actualizó `LocalProfile::new` y se añadió regeneración si un UUID nuevo colisiona con uno ya almacenado.
+- La ruta de juego todavía usa UUID offline hasta Fase 2.2-D; esta rama intermedia no debe distribuirse como versión final antes de conectar y validar la identidad persistente.
+- Se actualizó la prueba correspondiente.
+- Commit: `e247812983cc1879efdc4cb1f8db00fb1011e841`.

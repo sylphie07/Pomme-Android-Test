@@ -43,8 +43,9 @@ Recommended review:
 ## Chat area: local profiles and persistent player identity — Phase 2.2
 
 Recommended review:
-- Do not implement Phase 2.2-B until the user explicitly authorizes it.
-- If authorized, begin with the profile JSON safety issue before adding `player_uuid`: corrupt, incomplete, or future-version JSON must never be silently replaced by a default profile.
+- Phase 2.2-B1–B4 was explicitly authorized and has been implemented in source; do not repeat that work or treat it as fully verified until CI passes.
+- Phase 2.2-C/D/E remain separate downstream phases and are not authorized by the B1–B4 decision.
+- Before C/D, resolve the new-profile UUID compatibility issue: newly created profiles currently store a random `player_uuid`, while live world sessions still use `offline_uuid(username)`. Preserve player data during the transition.
 - Preserve `LocalProfile.id` as the profile-record ID. A new `player_uuid` must have its own lifecycle.
 - For valid legacy profiles, the candidate migration is the offline UUID of the currently stored username; preserve the profile ID and selected-profile ID. Handle renamed-before-migration profiles as a recovery case, not a guess.
 - Validate duplicate profile IDs, player UUIDs, and case-insensitive names without silently reassigning identities or merging data.

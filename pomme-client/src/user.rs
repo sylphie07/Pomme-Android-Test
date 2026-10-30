@@ -98,11 +98,22 @@ impl LocalProfileStore {
     }
 
     fn decode_document(json: &str) -> std::io::Result<(Vec<LocalProfile>, uuid::Uuid, bool)> {
-        let document: LocalProfileDocument =
+        let raw: serde_json::Value =
             serde_json::from_str(json).map_err(std::io::Error::other)?;
+        let has_format_version = raw
+            .as_object()
+            .is_some_and(|object| object.contains_key("format_version"));
+        let document: LocalProfileDocument =
+            serde_json::from_value(raw).map_err(std::io::Error::other)?;
 
         let migrated = match document.format_version {
             None => {
+                if has_format_version {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "local profile format_version must be a supported integer",
+                    ));
+                }
                 if document.profiles.iter().any(|profile| profile.player_uuid.is_some()) {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidData,
@@ -603,6 +614,16 @@ mod tests {
         assert!(path.with_file_name("local-profiles.json.bak").exists());
 
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn null_format_version_is_not_treated_as_a_legacy_document() {
+        let document = serde_json::json!({
+            "format_version": null,
+            "profiles": [],
+            "selected_profile": uuid::Uuid::new_v4()
+        });
+        assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
     }
 
     #[test]

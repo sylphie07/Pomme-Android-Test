@@ -14,3 +14,4 @@ steel-utils = { path = "../third_party/SteelMC/steel-utils" }
 tokio = { workspace = true }
 tokio-util = { version = "0.7", features = ["rt"] }
 tracing = { workspace = true }
+uuid = "1"

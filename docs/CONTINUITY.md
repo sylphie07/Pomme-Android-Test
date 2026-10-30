@@ -6,7 +6,6 @@ Last updated: 2026-10-30
 
 **Phase 2.2-B1–B4 — profile-store safety and persistent local identity implementation.**
 
-<badge> </badge>
 Implementation was explicitly authorized by the user on 2026-10-30. Source changes have been committed to the authorized branch. CI/device verification is pending; do not call this phase complete yet.
 
 ## Repository state
@@ -18,7 +17,7 @@ Implementation was explicitly authorized by the user on 2026-10-30. Source chang
   - `4bd084c8a9fca176da2545b800a8a2eb24c7b3e9` — profile model, validation, recovery, and tests.
   - `334f5f958bf99a61bc3d67bcc48036b88122c41f` — fail safely during app startup if profile storage cannot be loaded.
   - `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` — cleanup of recovery test assertions.
-- The current live branch HEAD must be rechecked before the next edit because documentation commits follow these source commits.
+- Latest verified branch HEAD before this continuity refresh: `aee098d4ca5b5afc4ecb9533657f3de8c405784e`. This continuity refresh itself creates a newer documentation-only commit; re-check the branch ref before the next edit.
 - SteelMC gitlink: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
 - `.gitmodules`: `https://github.com/Steel-Foundation/SteelMC.git`.
 - No SteelMC update was made.
@@ -52,8 +51,8 @@ Do not claim that player UUID continuity is already active in live world session
 
 - GitHub source writes: confirmed by returned commit SHAs.
 - GitHub branch HEAD and SteelMC gitlink: verified after source commits.
-- CI for source HEAD `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`: run `41008897990` was pending when last checked.
-- Earlier CI run `41008828793` targeted parent source HEAD `334f5f958bf99a61bc3d67bcc48036b88122c41f` and was still in progress; it is not the final validation target.
+- CI run `41009018315` for branch HEAD `aee098d4ca5b5afc4ecb9533657f3de8c405784e` was pending when last checked. This revision contains the source changes plus documentation-only follow-ups.
+- Earlier runs for intermediate source commits were cancelled or still in progress after newer commits superseded them; they are not final validation results.
 - No local `cargo test`, `cargo fmt`, Android build, or Android device test was run in this session.
 - No test is yet claimed as passed for these new changes.
 
@@ -75,6 +74,17 @@ Do not claim that player UUID continuity is already active in live world session
 4. If working from Termux, inspect local branch, HEAD, and `git status` separately.
 5. Preserve all worlds, profiles, and player data. Never regenerate UUIDs to silence an error.
 6. Do not implement C/D/E, update SteelMC, merge, publish, or generate an APK without the relevant explicit authorization.
+
+## Documentation commit chain
+
+The implementation-session documentation commits were:
+- `b590d42d543d724ddf542cf1ed8ec9c84933c822`
+- `216154300bc94955eec92de9270be1e1844c4831`
+- `8fc6e15b62c9baab4a4de6a02ec5b8fffca03ccd`
+- `465241fa0de6f9ebaf977a47c5b6829fb6c60e1f`
+- `735d6b528bc68c3730cc793d2046933b33bbe624`
+- `790f7a9a973cf2384de91b1bad6b3c89315ee1a8`
+- `aee098d4ca5b5afc4ecb9533657f3de8c405784e`
 
 ## Session update — 2026-10-30
 

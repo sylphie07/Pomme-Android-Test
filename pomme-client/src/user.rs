@@ -392,7 +392,7 @@ mod tests {
     }
 
     #[test]
-    fn expired_session_does_not_authorize_gameplay() {
+    fn expired_session_blocks_multiplayer_but_keeps_local_singleplayer() {
         let account = pomme_auth::AuthAccount {
             username: "ExpiredPlayer".into(),
             uuid: "b50ad385-829d-3141-a216-7e7d7539ba7f".into(),
@@ -431,12 +431,12 @@ mod tests {
     }
 
     #[test]
-    fn release_uses_local_identity_but_requires_account() {
+    fn release_uses_local_identity_and_keeps_remote_account_gate() {
         let profile = super::LocalProfile::new("PersistentPlayer");
         let (user, required) = UserData::for_launch(None, None, None, true, true, profile.clone());
         assert!(required);
         assert_eq!(user.username, profile.username);
-        assert!(!user.allows_singleplayer(true));
+        assert!(user.allows_singleplayer(true));
         assert!(!user.allows_multiplayer());
     }
 

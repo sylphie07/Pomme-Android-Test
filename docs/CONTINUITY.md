@@ -303,3 +303,64 @@ Only repository documentation was changed. No Pomme source, SteelMC source/gitli
 
 ### Next step
 - User creates the writable SteelMC fork (no new implementation authorization is needed; authorization for C/D is already recorded). Resume with the exact pinned base, then implement C and its isolation/security tests before plumbing D. Preserve the historical UUID and Microsoft online authentication.
+
+
+## Session 014 — Phase 2.2-C/D implementation and final audit (2026-10-30)
+
+> **Authoritative current status:** this section supersedes earlier historical entries in this file that describe C/D as unauthorized, blocked, or not implemented. Those entries remain as chronological records of the state at the time.
+
+### User-visible objective
+- Local singleplayer must start and play without requiring Microsoft sign-in.
+- Remote multiplayer must continue to require a valid, verified, unexpired Microsoft Java session, using its Microsoft UUID and access token.
+- This is the intended Bedrock-like separation: local play is independent; online multiplayer remains authenticated.
+
+### Verified repository state
+- Repository: `sylphie07/Pomme-Android-Test`.
+- Branch: `unofficial-android-menu-access`.
+- Implementation HEAD: `e902fa1cb733edabd1349877dd49b3d8a8a74d42`.
+- PR #11: open, base `master`, head `unofficial-android-menu-access` at the same SHA, not merged.
+- CI #120, run `41020133603`, was reported successful for this exact HEAD. The live branch HEAD equals the tested SHA; no later source changes require another CI run. Do not poll or rerun Actions solely to refresh status.
+- The required documentation updates after this audit are documentation-only and do not alter the code validated by CI #120.
+- Actual SteelMC gitlink: `c5098cdd8a4ec1176e00d737df24a2861b4055ac`.
+- `.gitmodules` points to `https://github.com/sylphie07/SteelMC.git`. The pinned commit exists in that repository and is also present in the Steel-Foundation repository. Relative to the prior pin `e655880a7b1487b2444c70013c14ee86c69d53b3`, the SteelMC fork is 14 commits ahead and 0 behind; the diff is limited to `steel-login/src/handlers/login.rs`, `steel-login/src/lib.rs`, and `steel-login/src/tcp_client.rs`.
+- Pomme changes since the B1–B4 checkpoint are confined to the trusted identity integration, tests, supporting build configuration, and documentation. No changes were made to `master`.
+
+### Phase 2.2-C — SteelMC trusted per-connection identity
+- Added `TrustedLocalPlayer`, containing the trusted local username and exact persisted UUID.
+- The trusted value is stored on the individual `JavaTcpClient`, not on the listener-wide `ServerConnectionSession`.
+- The embedded-only `from_transport_with_trusted_local_player` constructor supplies the value. The ordinary TCP `new` constructor routes through `from_transport`, which supplies `None`; ordinary TCP connections therefore retain the existing offline identity path.
+- Offline login uses the trusted UUID only when the requested username exactly matches the trusted username. A mismatch is rejected.
+- The Java Hello UUID remains untrusted and is not an input to the trusted/offline profile resolver.
+- Ordinary offline connections without a trusted context continue to derive `offline_uuid(username)`.
+- A trusted context combined with online-mode authentication is rejected. Online-mode login without a trusted context continues through the existing encryption and Mojang authentication flow.
+
+### Phase 2.2-D — Pomme identity plumbing
+- `open_world()` passes `core.user.local_profile.username` and the exact `core.user.local_profile.player_uuid` into `singleplayer::open()`.
+- `pomme-client/src/singleplayer.rs` carries those values into `pomme_singleplayer::LaunchOptions`.
+- The embedded server constructs `TrustedLocalPlayer` from those launch fields and attaches it to the one in-memory `JavaTcpClient`.
+- Memory-transport `ConnectArgs.uuid` uses the same persisted `player_uuid`; after login, Pomme checks that the server-returned profile UUID equals it.
+- The headless singleplayer path also passes the local profile UUID into the integrated launch and memory connection.
+- Remote `ConnectArgs` are built only from `multiplayer_identity()`, which requires a verified, unexpired Microsoft session and supplies the Microsoft account name, UUID, and access token. Local profile identity is not used as remote authentication.
+
+### Final audit findings
+- **Exact identity:** passed source review. No UUID is regenerated or re-derived between the persisted profile and the embedded server-side `GameProfile`.
+- **Existing-world compatibility:** B1–B4 preserve the historical `offline_uuid(username)` for new and migrated profiles. C/D use that exact stored value and do not rewrite world/player-data files.
+- **Connection isolation:** identity is a per-`JavaTcpClient` field. The listener session contains only its existing session ID. Steel tests cover distinct trusted identities and username mismatch.
+- **Normal TCP compatibility:** ordinary TCP constructors pass no trusted identity; the standard offline UUID fallback remains.
+- **Microsoft authentication:** preserved. Remote connections require the verified/unexpired Microsoft session; Steel online mode retains the Mojang verification path and rejects a trusted-local context.
+- **Regression coverage:** Steel tests cover exact trusted UUID selection, username mismatch, independent identity values, online-mode guard, and ordinary offline UUID derivation. Pomme tests cover the integrated world login/enter-and-reenter path; the connection code rejects a memory login whose server UUID differs from the persisted UUID. Existing profile/account tests cover sign-in, sign-out, switching, and separation of local identity from multiplayer authorization.
+- **No concrete implementation defect was found. No source fix was necessary.**
+
+### Validation and limitations
+- CI #120 (`41020133603`) overall conclusion: success, for implementation HEAD `e902fa1cb733edabd1349877dd49b3d8a8a74d42`. This is the final automated validation checkpoint; no repeated Actions polling is required.
+- No local Rust command, APK build, or physical Android-device test was run during this final audit.
+- Existing-world save continuity on the user's Android device remains to be confirmed in Phase 2.2-E. Do not delete worlds, app data, profiles, or player files for testing.
+- The profile-store API supports multiple profiles, but the player-facing profile picker/create/switch UI is not yet integrated.
+- Android Keystore/token lifecycle work and SteelMC advancement persistence remain separate tasks.
+- Two test-hardening opportunities remain non-blocking: a wire-level test that deliberately sends a conflicting Hello UUID, and a constructor-level test proving an ordinary TCP client cannot inherit an embedded identity. Source inspection confirms the current paths are separated; these are not observed defects.
+
+### Final boundaries
+- PR #11 remains open and unmerged.
+- `master` was not modified.
+- No APK was built or published.
+- Phase 2.2-C/D implementation and automated validation are complete at the recorded code checkpoint. Phase 2.2-E/device and existing-world acceptance remains separate.

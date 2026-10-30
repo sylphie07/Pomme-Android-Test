@@ -79,3 +79,10 @@ For each issue, record:
 ## KI-011 — SteelMC advancement persistence remains separate
 - At the recorded SteelMC pin `e655880a7b1487b2444c70013c14ee86c69d53b3`, `Player.advancements` is initialized in memory and marked `TODO save the advancement`; the inspected player-data persistence path does not serialize it.
 - Status: separate SteelMC handoff. Do not bundle it into Phase 2.2-C/D or change the submodule without authorization.
+
+
+## KI-012 — Existing-world per-world inventory isolation (device check)
+- User report dated 2026-10-30: on the current APK, each world retains its own independent inventory.
+- Status: **user-tested / passed for per-world inventory separation** on the tested APK. This is device feedback, not an independently reproduced test in this chat.
+- Limits: the report does not separately confirm player position, stats, Ender Chest, every other player-data field, or a clean save/close/reopen cycle. Keep those checks open under Phase 2.2-E.
+- Regression requirement: after the world-creation auto-launch fix, verify that creating/entering a new world does not disturb the independent inventory of any existing world.

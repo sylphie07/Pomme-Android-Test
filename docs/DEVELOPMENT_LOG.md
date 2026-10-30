@@ -426,3 +426,13 @@ Prepare the C/D technical handoff without implementing C/D or changing SteelMC. 
 - No SteelMC source or gitlink, Pomme C/D source, remote auth behavior, profile selector UI, Keystore, advancement persistence, world data, or APK was changed.
 - Separate explicit authorization is still required for C/D and any SteelMC modification.
 - Rust CI for the corrected B1–B4 source HEAD is still not confirmed. Auxiliary conflict/label workflows were explicitly excluded from CI validation.
+
+
+## 2026-10-30 — Session 009 follow-up: Apply second rustfmt report
+
+- CI rerun attempt 2 of `41010633965` reached the formatter and reported two additional rustfmt-only differences: layout of the headless `load_or_create` expression and import ordering in the `user.rs` test module.
+- Applied the exact requested formatting:
+  - `1d7256ec025dd184f9a910aad724d9468341191d` — headless formatting.
+  - `406a3d63db222f897338047dae40419baed18db1` — test import ordering.
+- The run was superseded by these new source commits and is not a green validation. A fresh complete CI execution is still required.
+- No semantic behavior, authentication policy, or SteelMC source/pin was changed in this follow-up.

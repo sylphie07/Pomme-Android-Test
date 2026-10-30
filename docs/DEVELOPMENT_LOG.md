@@ -528,3 +528,33 @@ These tests directly cover identity collision and selection-integrity checks alr
 
 ### Next step
 - User creates the writable SteelMC fork (no new implementation authorization is needed; authorization for C/D is already recorded). Resume with the exact pinned base, then implement C and its isolation/security tests before plumbing D. Preserve the historical UUID and Microsoft online authentication.
+
+
+## 2026-10-30 — Investigate legacy world identity recovery (documentation-only handoff)
+
+### Repository/source checkpoint
+- Pomme PR #11: open and unmerged; inspected head `e902fa1cb733edabd1349877dd49b3d8a8a74d42`.
+- Branch: `unofficial-android-menu-access`.
+- Actual SteelMC gitlink at that Pomme HEAD: `c5098cdd8a4ec1176e00d737df24a2861b4055ac`.
+- Historical SteelMC pre-C/D pin inspected: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+
+### Findings
+- Missing `local-profiles.json` currently causes `LocalProfileStore::load_or_create()` to persist a new `Player` identity without inspecting existing worlds.
+- Historical offline login used `offline_uuid(username)`; Steel's player-data files are keyed by the server-side GameProfile UUID.
+- Both the historical pin and current SteelMC fork have a persisted `global/known_players.dat` cache containing UUID/name/expiry records. It is recorded after successful player admission and flushed on orderly shutdown; it is bounded to 1,000 entries and a one-month expiry.
+- Existing player data can corroborate a known-player candidate at `<world>/<domain>/players/data/<uuid>`; stats and global data are also UUID-keyed.
+- The cache is useful recovery evidence but not guaranteed. Multiple historical names/accounts across worlds require explicit recovery rather than a global guess.
+- `UserData::from_local_profile()` and `set_local_profile()` still derive runtime UUID from visible username instead of copying the persisted UUID; record as adjacent consistency fix.
+
+### Documentation changes
+- Added `docs/LEGACY_WORLD_IDENTITY_MIGRATION.md` with source evidence, a read-only recovery design, ambiguity handling, safety constraints, and regression/acceptance criteria.
+- Added KI-012 and KI-013 to `docs/KNOWN_ISSUES.md`.
+- Added a critical-priority programmer handoff to `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`.
+- Updated `docs/CONTINUITY.md` with the live checkpoint and investigation status.
+- Changes are documentation-only on isolated branch `audit/legacy-world-identity-migration`, based on inspected PR #11 HEAD. PR #11 and the programmer's SteelMC branch were not modified.
+
+### Verification and limitations
+- Remote GitHub source inspection only.
+- No Rust tests, CI, builds, APKs, Android device tests, or world fixtures were run.
+- No world/profile/player data was accessed or modified on a device.
+- This is not implementation completion and does not prove every old world has a recoverable identity.

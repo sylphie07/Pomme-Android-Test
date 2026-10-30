@@ -255,7 +255,9 @@ impl LocalProfileStore {
                 // UUID the running game historically used for their username.
                 UserData::offline_uuid(&record.username)
             } else {
-                record.player_uuid.expect("current format validates player_uuid")
+                record
+                    .player_uuid
+                    .expect("current format validates player_uuid")
             };
             if !player_uuids.insert(player_uuid) {
                 return Err(std::io::Error::new(
@@ -763,7 +765,9 @@ fn unix_now() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{JavaAuthorization, LocalProfile, LocalProfileStore, UserData};
+    use super::{
+        JavaAuthorization, LocalProfile, LocalProfileStore, UserData, LOCAL_PROFILE_FORMAT_VERSION,
+    };
 
     #[test]
     fn local_profiles_create_persist_reload_and_select() {
@@ -909,10 +913,7 @@ mod tests {
     fn new_profile_starts_with_the_historical_offline_uuid() {
         let profile = LocalProfile::new("NewPlayer");
         assert_ne!(profile.id, profile.player_uuid);
-        assert_eq!(
-            profile.player_uuid,
-            UserData::offline_uuid("NewPlayer")
-        );
+        assert_eq!(profile.player_uuid, UserData::offline_uuid("NewPlayer"));
     }
 
     #[test]

@@ -766,7 +766,7 @@ fn unix_now() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        JavaAuthorization, LocalProfile, LocalProfileStore, UserData, LOCAL_PROFILE_FORMAT_VERSION,
+        JavaAuthorization, LOCAL_PROFILE_FORMAT_VERSION, LocalProfile, LocalProfileStore, UserData,
     };
 
     #[test]

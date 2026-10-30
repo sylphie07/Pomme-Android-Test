@@ -104,7 +104,15 @@ pub fn open_world(core: &mut AppCore, folder: &str) -> MenuUpdateResult {
         .menu
         .world_to_launch(folder)
         .ok_or_else(|| "Could not find a world with the provided identifier".to_owned())
-        .and_then(|(summary, dir)| singleplayer::open(&summary, &dir, core.view_distance()));
+        .and_then(|(summary, dir)| {
+            singleplayer::open(
+                &summary,
+                &dir,
+                core.view_distance(),
+                core.user.local_profile.username.clone(),
+                core.user.local_profile.player_uuid,
+            )
+        });
     let (world, client_end) = match opened {
         Ok(opened) => opened,
         Err(reason) => {
@@ -115,7 +123,7 @@ pub fn open_world(core: &mut AppCore, folder: &str) -> MenuUpdateResult {
     };
     core.menu.world_played(folder);
     core.audio.stop_menu_music();
-    let username = core.user.username.clone();
+    let username = core.user.local_profile.username.clone();
     MenuUpdateResult::Connect {
         connect_args: Box::new(connect_args(
             core,
@@ -181,7 +189,7 @@ pub fn connect_args(core: &AppCore, transport: Transport, username: String) -> C
                 Some(token.to_owned()),
             )
         }
-        Transport::Memory { .. } => (username, core.user.uuid, None),
+        Transport::Memory { .. } => (username, core.user.local_profile.player_uuid, None),
     };
     ConnectArgs {
         transport,

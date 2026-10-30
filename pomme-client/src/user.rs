@@ -160,7 +160,7 @@ pub struct UserData {
     pub microsoft_session: Option<MicrosoftSession>,
     /// Compatibility mirror for the account menu; never authorizes by itself.
     pub access_token: Option<String>,
-    /// Whether the Microsoft account has a parseable Minecraft profile UUID.
+    /// Whether a parseable profile UUID was supplied; this alone is not authorization.
     pub has_profile: bool,
     pub identity_source: IdentitySource,
     pub java_authorization: JavaAuthorization,
@@ -283,6 +283,7 @@ impl UserData {
 
     /// Change the selected local player without discarding the Microsoft
     /// session. UUID policy is unchanged in this phase.
+    #[allow(dead_code)] // Used by the local-profile selection flow in the next phase.
     pub fn set_local_profile(&mut self, profile: LocalProfile) {
         self.username = profile.username.clone();
         self.uuid = Self::offline_uuid(&self.username);
@@ -333,6 +334,7 @@ impl UserData {
 
     /// Only a verified, unexpired Minecraft session may be sent to a remote
     /// server. A local/offline profile can never supply multiplayer auth.
+    #[allow(dead_code)] // Retained as a guarded compatibility accessor.
     pub fn authenticated_access_token(&self) -> Option<&str> {
         self.multiplayer_identity().map(|(_, _, token)| token)
     }

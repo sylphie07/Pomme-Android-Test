@@ -17,7 +17,8 @@ Implementation was explicitly authorized by the user on 2026-10-30. Source chang
   - `4bd084c8a9fca176da2545b800a8a2eb24c7b3e9` — profile model, validation, recovery, and tests.
   - `334f5f958bf99a61bc3d67bcc48036b88122c41f` — fail safely during app startup if profile storage cannot be loaded.
   - `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` — cleanup of recovery test assertions.
-- Latest verified branch HEAD before this continuity refresh: `aee098d4ca5b5afc4ecb9533657f3de8c405784e`. This continuity refresh itself creates a newer documentation-only commit; re-check the branch ref before the next edit.
+  - `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce` — preserve runtime UUID compatibility for new profiles and migrate experimental format-1 identities.
+- Latest verified branch HEAD before this continuity refresh: `df0305e3d9d10b1efcbf7f993b792ca40924bbab`. This continuity refresh itself creates a newer documentation-only commit; re-check the branch ref before the next edit.
 - SteelMC gitlink: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
 - `.gitmodules`: `https://github.com/Steel-Foundation/SteelMC.git`.
 - No SteelMC update was made.
@@ -28,7 +29,10 @@ Implementation was explicitly authorized by the user on 2026-10-30. Source chang
 
 ### `pomme-client/src/user.rs`
 - Added `LocalProfile.player_uuid`, independent from `LocalProfile.id`.
-- Added JSON `format_version = 1`.
+- Added versioned JSON; the current document format is version 2.
+- New profiles start with the historical `offline_uuid(username)` used by the current runtime.
+- Experimental format-1 records that stored random UUIDs migrate to the historical runtime UUID before the field is used by SteelMC. Legacy documents also migrate to the historical runtime UUID.
+- Creating a profile that collides with an existing historical player UUID is rejected rather than silently assigning a different identity.
 - Legacy documents receive the historical offline UUID derived from their currently stored username. Profile IDs and selected-profile ID are preserved.
 - Reject malformed, incomplete, unsupported, duplicate-ID, duplicate-player-UUID, invalid-name, and case-insensitive duplicate-name records without silently reassigning identity.
 - Existing invalid primary JSON is no longer replaced with a fresh default profile.
@@ -43,7 +47,7 @@ Implementation was explicitly authorized by the user on 2026-10-30. Source chang
 
 ## Identity boundary — important
 
-The new `player_uuid` is currently stored and migrated, but `UserData::from_local_profile()` still derives the runtime UUID from the username. This is deliberate: the trusted identity handoff into the embedded SteelMC connection is Phase 2.2-C/D, not completed by B1–B4.
+The new `player_uuid` is currently stored and migrated, but `UserData::from_local_profile()` still derives the runtime UUID from the username. This is deliberate: the trusted identity handoff into the embedded SteelMC connection is Phase 2.2-C/D, not completed by B1–B4. New and migrated profile UUIDs now match the historical runtime UUID, so C/D must consume that exact value rather than regenerate it.
 
 Do not claim that player UUID continuity is already active in live world sessions. Do not claim advancement persistence; the inspected SteelMC pin has a separate advancement-save TODO.
 
@@ -51,8 +55,8 @@ Do not claim that player UUID continuity is already active in live world session
 
 - GitHub source writes: confirmed by returned commit SHAs.
 - GitHub branch HEAD and SteelMC gitlink: verified after source commits.
-- CI run `41009018315` for branch HEAD `aee098d4ca5b5afc4ecb9533657f3de8c405784e` was pending when last checked. This revision contains the source changes plus documentation-only follow-ups.
-- Earlier runs for intermediate source commits were cancelled or still in progress after newer commits superseded them; they are not final validation results.
+- CI run `41009217544` (run #70) targeted source commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`. At the latest poll, `test` and `singleplayer` were cancelled; Android, `fmt`, and Ubuntu/macOS lint were still in progress; iOS and Windows lint were cancelled. No complete successful CI result is established.
+- Earlier runs #58/#59/#63 were failed or cancelled and do not establish a pass for the latest source.
 - No local `cargo test`, `cargo fmt`, Android build, or Android device test was run in this session.
 - No test is yet claimed as passed for these new changes.
 
@@ -89,3 +93,52 @@ The implementation-session documentation commits were:
 ## Session update — 2026-10-30
 
 The user authorized code edits to integrate the other chats' findings. The experimental branch was used as reference only; no cherry-pick or merge was performed. Source commits are listed above. Documentation is being synchronized with the actual implementation and verification status.
+
+
+## Session 007 — Cross-chat audit and profile UUID compatibility follow-up (2026-10-30)
+
+### Repository verification
+- Repository: `sylphie07/Pomme-Android-Test`.
+- Branch: `unofficial-android-menu-access`.
+- Exact branch HEAD before this continuity update: `df0305e3d9d10b1efcbf7f993b792ca40924bbab`, obtained from the live branch ref.
+- SteelMC pin remains recorded as `e655880a7b1487b2444c70013c14ee86c69d53b3`; no SteelMC source or pin was changed. The comparison from the prior audited point showed no `third_party/SteelMC` path change.
+- PR #11 remained open; no review comments or approvals were found.
+
+### Source findings
+- `authorize_gameplay()` centralizes the observed `Connect`, `PlayWorld`, `open_world()`, and QuickPlay gates. Menu navigation itself is not globally blocked; local singleplayer is allowed without Microsoft auth; remote multiplayer requires a verified, unexpired Microsoft session.
+- Startup QuickPlay is routed through `in_menu::quick_play()` after setup. Focused tests for restore/cancel races and exactly-once pending-action resumption are still absent from `in_menu.rs`.
+- `LocalProfile.player_uuid` remains stored but runtime `UserData::from_local_profile()` still derives the active UUID from the username; trusted SteelMC identity remains C/D work.
+- A compatibility issue was found: new profiles had random stored UUIDs even though pre-C/D world data was keyed by `offline_uuid(username)`. The programmer chat addressed this in source commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`: new profiles now use the historical runtime UUID; the document schema advances to version 2; experimental format-1 random UUIDs migrate back to the runtime UUID; duplicate historical UUID creation is rejected.
+- Profile management UI is not yet integrated; store APIs for list/create/select and `set_local_profile()` remain unused/reserved.
+- Account code still has a long-session token-refresh TODO and Android Keystore TODO. Android singleplayer feature and an ignored embedded-world enter/re-enter test exist, but no device acceptance result was obtained. The APK workflow does not automatically build this feature branch on PRs.
+- Advancement persistence remains a separate SteelMC limitation.
+
+### CI state
+- Latest relevant run: `41009217544` (run #70), for source commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`.
+- At the latest poll, `test` and `singleplayer` were cancelled; Android, `fmt`, and Ubuntu/macOS lint were still in progress; iOS and Windows lint were cancelled. This is not a green run.
+- Previous run #63 failed `ci-fmt` on the earlier profile source; run #70 superseded it but has not produced a complete validation result.
+
+### Documentation changes from this audit
+- `docs/KNOWN_ISSUES.md`: recorded menu/auth source status, current CI, UUID migration resolution, profile UI gap, test gaps, token/Keystore TODOs, Android APK workflow scope, and advancement persistence.
+- `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`: added implementation handoffs and updated B1–B4/UUID compatibility status.
+- `docs/DECISIONS.md`: reconciled menu/auth and profile migration decisions with source state.
+- `docs/PROJECT_CONTEXT.md`: updated profile schema and migration behavior to version 2.
+- No source code, Rust/build configuration, workflows, SteelMC, worlds, profiles, player data, APKs, or `master` were changed by this investigation chat.
+- No local tests, builds, formatting commands, or Android device checks were run by this investigation chat.
+
+### Documentation commits from this audit
+- `d54f2c704d94c114c58b1a4f90a3d1f30d17c98a` — known issues and verification handoffs.
+- `8f18d48d8a4a2e4108325b91cecb17e3f21928dd` — detailed implementation handoffs.
+- `6238ec2df2d4cfef0264041409c9784a54efb1ac` — align B1–B4 authorization.
+- `309a583548095faf1870a3a6c07563e2e08f16b5` — reconcile technical decisions.
+- `cfbf5cb0fd92fe660ac8aefb86945e745763d381` — record CI run #63.
+- `b1c6e1cdca7061bc51ea0ee63836e088d05da9a5` — refresh CI handoff.
+- `b55664d23fa77bb6830bb47e221be3a91e761c73` — update UUID compatibility and CI status.
+- `03a067a940064a43a8497da21441976531317671` — refresh programmer handoff.
+- `df0305e3d9d10b1efcbf7f993b792ca40924bbab` — update project context for profile format 2.
+
+### Next safe actions
+1. Dedicated programming chat: wait for a complete CI run on the latest source; resolve remaining formatter/lint/test failures before calling B1–B4 verified.
+2. Before C/D: design and test trusted per-connection identity while preserving the now-stable historical UUID exactly.
+3. Keep profile picker UI, token refresh/Keystore, Android device discrepancy, and advancement persistence as separate scoped tasks.
+4. Do not begin C/D/E, update SteelMC, merge, publish, or generate an APK without their own explicit authorization.

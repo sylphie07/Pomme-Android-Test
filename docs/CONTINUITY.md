@@ -221,3 +221,12 @@ The user authorized code edits to integrate the other chats' findings. The exper
   - `406a3d63db222f897338047dae40419baed18db1` — order test imports as rustfmt requires.
 - The workflow attempt was superseded by these source commits; it is not a passing validation. The latest source tree must receive a complete CI run after the final branch updates.
 - No behavior change beyond the already documented fail-closed headless handling; no SteelMC change.
+
+
+## Session 011 — Extend profile validation regression coverage (2026-10-30)
+
+- During the full B1–B4 diff review, added focused regression tests for three invariants already enforced by `decode_document`: duplicate profile-record IDs, duplicate player UUIDs across different names, and a selected-profile ID that does not exist.
+- These tests complement existing legacy/format-1 migration, backup recovery, corrupt-primary preservation, future-version downgrade prevention, case-insensitive duplicate-name, and account/auth compatibility tests.
+- Source and documentation updates are committed together to provide one stable CI-triggering branch update.
+- The latest complete Rust CI result remains pending; prior run `41010633965` failed the two newly reported formatting checks before being superseded. Do not call B1–B4 verified until a complete successful CI run finishes.
+- No authentication logic, C/D/E code, SteelMC source/pin, world data, merge, release, or APK was changed.

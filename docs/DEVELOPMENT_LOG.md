@@ -436,3 +436,23 @@ Prepare the C/D technical handoff without implementing C/D or changing SteelMC. 
   - `406a3d63db222f897338047dae40419baed18db1` — test import ordering.
 - The run was superseded by these new source commits and is not a green validation. A fresh complete CI execution is still required.
 - No semantic behavior, authentication policy, or SteelMC source/pin was changed in this follow-up.
+
+
+## 2026-10-30 — Session 011: Add missing profile-store invariant tests
+
+### Review finding
+The implementation rejected duplicate profile IDs, duplicate player UUIDs, and a selected-profile ID that did not exist, but those individual rejection branches did not all have direct regression tests.
+
+### Change
+Added tests in `pomme-client/src/user.rs` for:
+- Duplicate profile-record IDs.
+- Duplicate player UUIDs across two different valid names.
+- A selected-profile ID absent from the profile list.
+
+These tests directly cover identity collision and selection-integrity checks already implemented by `LocalProfileStore::decode_document`; no runtime behavior was changed.
+
+### Verification status
+- Tests are written, not yet confirmed executed.
+- The prior CI run on source commit `5a8de7d95f375ad93969b5098244d1a3c3bf5d5e` was superseded after CI found two additional rustfmt layout differences. Those exact differences were corrected in `1d7256ec025dd184f9a910aad724d9468341191d` and `406a3d63db222f897338047dae40419baed18db1`.
+- A new complete CI run is required for this consolidated source/test commit.
+- No SteelMC, authentication policy, world data, merge, release, or APK change.

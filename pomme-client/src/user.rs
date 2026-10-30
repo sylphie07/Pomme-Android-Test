@@ -854,6 +854,67 @@ mod tests {
     }
 
     #[test]
+    fn versioned_profiles_reject_duplicate_profile_ids() {
+        let duplicate_id = uuid::Uuid::new_v4();
+        let document = serde_json::json!({
+            "format_version": LOCAL_PROFILE_FORMAT_VERSION,
+            "profiles": [
+                {
+                    "id": duplicate_id,
+                    "username": "FirstPlayer",
+                    "player_uuid": UserData::offline_uuid("FirstPlayer")
+                },
+                {
+                    "id": duplicate_id,
+                    "username": "SecondPlayer",
+                    "player_uuid": UserData::offline_uuid("SecondPlayer")
+                }
+            ],
+            "selected_profile": duplicate_id
+        });
+        assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
+    }
+
+    #[test]
+    fn versioned_profiles_reject_duplicate_player_uuids() {
+        let first_id = uuid::Uuid::new_v4();
+        let second_id = uuid::Uuid::new_v4();
+        let duplicate_player_uuid = uuid::Uuid::new_v4();
+        let document = serde_json::json!({
+            "format_version": LOCAL_PROFILE_FORMAT_VERSION,
+            "profiles": [
+                {
+                    "id": first_id,
+                    "username": "FirstPlayer",
+                    "player_uuid": duplicate_player_uuid
+                },
+                {
+                    "id": second_id,
+                    "username": "SecondPlayer",
+                    "player_uuid": duplicate_player_uuid
+                }
+            ],
+            "selected_profile": first_id
+        });
+        assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
+    }
+
+    #[test]
+    fn versioned_profiles_reject_missing_selected_profile() {
+        let profile_id = uuid::Uuid::new_v4();
+        let document = serde_json::json!({
+            "format_version": LOCAL_PROFILE_FORMAT_VERSION,
+            "profiles": [{
+                "id": profile_id,
+                "username": "ExistingPlayer",
+                "player_uuid": UserData::offline_uuid("ExistingPlayer")
+            }],
+            "selected_profile": uuid::Uuid::new_v4()
+        });
+        assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
+    }
+
+    #[test]
     fn null_format_version_is_not_treated_as_a_legacy_document() {
         let document = serde_json::json!({
             "format_version": null,

@@ -626,6 +626,15 @@ mod tests {
         assert_eq!(persisted["selected_profile"], profile_id.to_string());
         assert!(path.with_file_name("local-profiles.json.bak").exists());
 
+        // A second startup must load the migrated identity without changing it.
+        drop(store);
+        let reloaded = LocalProfileStore::load_or_create(&path).unwrap();
+        assert_eq!(reloaded.selected().id, profile_id);
+        assert_eq!(
+            reloaded.selected().player_uuid.to_string(),
+            "36532b5e-c442-3dbb-a24c-c7e55d0f979a"
+        );
+
         std::fs::remove_dir_all(dir).unwrap();
     }
 
@@ -665,6 +674,36 @@ mod tests {
             "selected_profile": uuid::Uuid::new_v4()
         });
         assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
+    }
+
+    #[test]
+    fn missing_primary_profile_file_recovers_a_valid_backup() {
+        let dir = std::env::temp_dir().join(format!("pomme-profile-backup-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("local-profiles.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        let profile_id = uuid::Uuid::new_v4();
+        let player_uuid = UserData::offline_uuid("BackupPlayer");
+        let backup = serde_json::json!({
+            "format_version": LOCAL_PROFILE_FORMAT_VERSION,
+            "profiles": [{
+                "id": profile_id,
+                "username": "BackupPlayer",
+                "player_uuid": player_uuid
+            }],
+            "selected_profile": profile_id
+        });
+        std::fs::write(
+            LocalProfileStore::backup_path(&path),
+            serde_json::to_vec_pretty(&backup).unwrap(),
+        )
+        .unwrap();
+
+        let recovered = LocalProfileStore::load_or_create(&path).unwrap();
+        assert_eq!(recovered.selected().id, profile_id);
+        assert_eq!(recovered.selected().player_uuid, player_uuid);
+        assert!(path.exists());
+
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

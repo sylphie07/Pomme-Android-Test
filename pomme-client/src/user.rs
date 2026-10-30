@@ -412,8 +412,6 @@ impl LocalProfileStore {
     }
 
     fn restore_backup(path: &Path, backup: &Path) -> std::io::Result<()> {
-        use std::io::Write as _;
-
         let temporary = Self::unique_temp_path(path);
         let restore_result: std::io::Result<()> = (|| {
             let mut source = std::fs::File::open(backup)?;
@@ -1141,7 +1139,7 @@ mod tests {
             .filter_map(Result::ok)
             .any(|entry| {
                 entry.file_name().to_string_lossy().starts_with("local-profiles.json.corrupt-")
-                    && std::fs::read(entry.path()).map(|bytes| bytes == corrupt).unwrap_or(false)
+                    && std::fs::read(entry.path()).map(|bytes| bytes.as_slice() == corrupt).unwrap_or(false)
             });
         assert!(preserved_corrupt, "the invalid primary should be preserved");
         std::fs::remove_dir_all(dir).unwrap();

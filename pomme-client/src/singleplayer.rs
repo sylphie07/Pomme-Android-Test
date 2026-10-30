@@ -233,8 +233,15 @@ mod integration_tests {
     }
 
     fn enter_and_leave(rt: &tokio::runtime::Runtime, dir: &Path) {
-        let (mut world, end) = super::open(&summary(), dir, 2)
-            .expect("SteelMC should accept the integrated world launch");
+        let expected_uuid = uuid::Uuid::from_u128(0x123456789abcdef0123456789abcdef0);
+        let (mut world, end) = super::open(
+            &summary(),
+            dir,
+            2,
+            "PommeTest".to_owned(),
+            expected_uuid,
+        )
+        .expect("SteelMC should accept the integrated world launch");
 
         // SteelMC's embedded listener is deliberately offline-mode. The
         // test identity exercises only the local Java protocol handshake;
@@ -247,7 +254,9 @@ mod integration_tests {
                     protocol: super::PROTOCOL,
                 },
                 username: "PommeTest".to_owned(),
-                uuid: uuid::Uuid::nil(),
+                // The client UUID is bookkeeping only; Steel must admit the same
+                // value from the trusted in-process identity context.
+                uuid: expected_uuid,
                 access_token: None,
                 view_distance: 2,
                 chat_options: ChatOptions::default(),

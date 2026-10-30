@@ -54,7 +54,8 @@ pub struct LaunchOptions {
     pub allow_commands: bool,
     /// Persisted local profile name used by the embedded server login.
     pub player_username: String,
-    /// Exact persisted local player UUID; never taken from the Java Hello packet.
+    /// Exact persisted local player UUID; never taken from the Java Hello
+    /// packet.
     pub player_uuid: uuid::Uuid,
     pub transport: ServerTransport,
 }

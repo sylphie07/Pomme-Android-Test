@@ -421,3 +421,15 @@ Correct the Release startup policy so a persisted local profile can enter local 
 - CI run #126 (41108688700) for PR #11's observed head 03d17d2d7f7baba484b125b6102c4b195e707750 completed successfully, including Android, tests, singleplayer, fmt, lint and aggregate CI. This is not a substitute for Android device acceptance.
 - PR #11 remains open/unmerged; master is not to be modified. No source change or APK build was performed for this documentation update.
 - Next: fix world creation's missing MenuAction::PlayWorld handoff, retain per-world inventory isolation as a regression criterion, then continue the remaining non-destructive Phase 2.2-E checks.
+
+
+## User-device validation update — 2026-10-30 (position and respawn)
+
+- Current tested APK: user confirms that re-entering each world restores the player's exact previous location.
+- User also confirms expected death behavior: applicable carried items are lost and the player respawns at the world's spawn point.
+- Status: **user-tested / passed** for position continuity on world re-entry and the reported death/item-loss/spawn-respawn flow. These are device reports, not independently reproduced automated tests.
+- Together with Session 016, per-world inventory isolation is also user-tested / passed.
+- Statistics fields and Ender Chest continuity have not been separately confirmed. Nor does this report establish every player-data field or a full force-stop/restart persistence cycle. Keep those checks open; never delete or reset worlds/player data to test them.
+- Live repository preflight for this documentation update: sylphie07/Pomme-Android-Test, branch unofficial-android-menu-access, PR #11 open/unmerged, PR head 4fd37ba485adbeef54759841854bc6c0498b97ad. Base remains master; do not merge or modify master.
+- Documentation-only update. No source, SteelMC pin, APK, workflow, worlds, profiles, or player data changed; no new CI run or test execution is claimed.
+- Next: implement the already source-diagnosed create-world → MenuAction::PlayWorld handoff, then preserve these successful device behaviors as regression criteria. Statistics and Ender Chest remain outstanding Phase 2.2-E checks.

@@ -86,3 +86,12 @@ For each issue, record:
 - Status: **user-tested / passed for per-world inventory separation** on the tested APK. This is device feedback, not an independently reproduced test in this chat.
 - Limits: the report does not separately confirm player position, stats, Ender Chest, every other player-data field, or a clean save/close/reopen cycle. Keep those checks open under Phase 2.2-E.
 - Regression requirement: after the world-creation auto-launch fix, verify that creating/entering a new world does not disturb the independent inventory of any existing world.
+
+
+## KI-013 — Remaining player-data acceptance checks (Phase 2.2-E)
+- User-tested / passed on the current APK: each world retains its independent inventory (Session 016); re-entering a world restores the exact previous player location; after death, the expected carried-item loss occurs and the player respawns at the world spawn (Session 017).
+- These are user-reported Android device results, not independently reproduced tests or CI assertions.
+- Still unconfirmed: statistics persistence, Ender Chest continuity, every other player-data field, and a complete force-stop/restart save lifecycle.
+- Required approach: non-destructive checks only. Preserve existing worlds, profiles, UUIDs, and player-data files; do not ask the user to delete/reset data.
+- Regression requirement after the world-creation auto-launch fix: ensure the fix does not regress per-world inventory separation, position continuity, or the reported death/respawn behavior.
+- Status: Phase 2.2-E partially validated on the user's device; remaining checks are open.

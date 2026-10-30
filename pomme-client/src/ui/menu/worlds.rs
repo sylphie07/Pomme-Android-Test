@@ -1273,12 +1273,12 @@ impl MainMenu {
     }
 }
 
-
 #[cfg(test)]
 mod create_world_tests {
-    use super::*;
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::*;
 
     struct TempPath(PathBuf);
 

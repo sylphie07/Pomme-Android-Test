@@ -232,9 +232,8 @@ impl UserData {
     pub fn from_account(account: &pomme_auth::AuthAccount, local_profile: LocalProfile) -> Self {
         Self {
             username: account.username.clone(),
-            uuid: uuid::Uuid::parse_str(&account.uuid).unwrap_or_else(|_| {
-                Self::offline_uuid(&account.username)
-            }),
+            uuid: uuid::Uuid::parse_str(&account.uuid)
+                .unwrap_or_else(|_| Self::offline_uuid(&account.username)),
             access_token: Some(account.access_token.clone()),
             has_profile: uuid::Uuid::parse_str(&account.uuid).is_ok(),
             local_profile,
@@ -286,9 +285,7 @@ fn unix_now() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        JavaAuthorization, LocalProfileStore, UserData,
-    };
+    use super::{JavaAuthorization, LocalProfileStore, UserData};
 
     #[test]
     fn local_profiles_create_persist_reload_and_select() {
@@ -346,10 +343,8 @@ mod tests {
     fn restored_account_from_store_authorizes_only_while_valid() {
         use pomme_auth::SecretStore;
 
-        let dir = std::env::temp_dir().join(format!(
-            "pomme-restored-profile-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("pomme-restored-profile-{}", std::process::id()));
         let store = pomme_auth::FileStore {
             path: dir.join("accounts.json"),
         };
@@ -417,8 +412,7 @@ mod tests {
     #[test]
     fn release_uses_local_identity_but_requires_account() {
         let profile = super::LocalProfile::new("PersistentPlayer");
-        let (user, required) =
-            UserData::for_launch(None, None, None, true, true, profile.clone());
+        let (user, required) = UserData::for_launch(None, None, None, true, true, profile.clone());
         assert!(required);
         assert_eq!(user.username, profile.username);
         assert!(!user.allows_singleplayer(true));

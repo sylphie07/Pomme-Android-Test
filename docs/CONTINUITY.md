@@ -13,11 +13,11 @@ Give each local profile a stable player identity that survives username changes,
 ## Repository state and revision notes
 - Repository: `sylphie07/Pomme-Android-Test`
 - Authorized branch: `unofficial-android-menu-access`
-- Last branch HEAD confirmed in the preceding repository verification: `0902bb4571bc9210eaffdfc1d8a688d6e5e0b417` — `docs: log Phase 2.2-A design investigation`.
-- This session re-fetched the documentation from the authorized branch and confirmed that commit object exists. The available branch-search response confirms branch existence but does not itself expose the branch-ref SHA; **every new session must re-check the live HEAD before editing**.
+- Live branch HEAD verified at the start of this documentation-only session: `bb28e3a4eeedfe5e94540b027024a4dc48014ef9`.
+- This session added a documentation-only handoff commit `ab67016f7c7eaff56f4c62b39563d065d5e806c7` defining the dedicated programming chat workflow. The branch now advances to that documentation commit; **every new session must re-check the live HEAD before editing**.
 - The intervening commits `920f75d0cbda76f01132d4f85a70b63af2aa612f` and `2c9e953b7d09ab846a865b4e40b6eb61831fa786` update documentation/handoff and the Phase 2.2-A report. Commit `0902bb4571bc9210eaffdfc1d8a688d6e5e0b417` appends the investigation to the development log.
 - The earlier `4c1073a5af9f77b0b8f8c6723598496c1bde7a71` is historical, not the latest known documentation revision.
-- SteelMC gitlink last verified: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+- SteelMC gitlink verified in the live tree at starting HEAD `bb28e3a4eeedfe5e94540b027024a4dc48014ef9`: `e655880a7b1487b2444c70013c14ee86c69d53b3`. The documentation-only commit does not alter the submodule.
 - SteelMC submodule URL: `https://github.com/Steel-Foundation/SteelMC.git`.
 - `master` was not modified by this documentation session.
 - GitHub connector access does not reveal an Android/Termux uncommitted worktree; do not claim local worktree cleanliness without checking it on-device.
@@ -68,3 +68,14 @@ Every future technical session must record exact branch/HEAD, submodule SHA, fil
 
 ## Documentation-only update — 2026-10-30
 This update refreshes the handoff and points future chats to `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`. It records the advancement-persistence TODO and the known revision history. No application source, SteelMC submodule, worlds, or player data were changed by this update. No tests or builds were run.
+
+
+## Documentation-only handoff update — 2026-10-30
+- User clarified that a separate chat is dedicated exclusively to programming and fixing issues handed over by the other investigative chats.
+- Read the current cross-chat recommendations and confirmed that the dedicated programmer workflow was not explicit enough.
+- Added a dedicated-programming-chat section to `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`: investigator responsibilities, programmer responsibilities, required handoff template, and current pending identity/SteelMC items.
+- Live authorized branch HEAD at session start: `bb28e3a4eeedfe5e94540b027024a4dc48014ef9`.
+- SteelMC gitlink at that starting HEAD: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+- Documentation commit: `ab67016f7c7eaff56f4c62b39563d065d5e806c7`.
+- No application source, build configuration, workflows, SteelMC contents/pin, branches other than the authorized branch, worlds, profiles, player data, or APKs were changed. No tests/builds/CI/device checks were run.
+- Phase 2.2-B remains implementation-unauthorized. Its findings are a handoff queue, not permission to code.

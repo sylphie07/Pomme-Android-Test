@@ -592,15 +592,11 @@ mod tests {
         let moved = start + Vec2::new(80.0, 5.0);
         assert_eq!(
             c.on_touch(1, TouchPhase::Moved, moved, false, &LAYOUT, t),
-            [TouchOutput::PointerMove(moved)]
+            [TouchOutput::PointerDown, TouchOutput::PointerMove(moved)]
         );
         assert_eq!(
             c.on_touch(1, TouchPhase::Ended, moved, false, &LAYOUT, t),
-            [
-                TouchOutput::PointerMove(moved),
-                TouchOutput::PointerDown,
-                TouchOutput::PointerUp,
-            ]
+            [TouchOutput::PointerUp]
         );
     }
 }

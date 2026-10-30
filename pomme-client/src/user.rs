@@ -322,7 +322,7 @@ mod tests {
             username: "VerifiedPlayer".into(),
             uuid: "b50ad385-829d-3141-a216-7e7d7539ba7f".into(),
             access_token: "real-session-token".into(),
-            expires_at: unix_now() + 3600,
+            expires_at: super::unix_now() + 3600,
         };
         let user = UserData::from_account(&account, super::LocalProfile::new("LocalPlayer"));
         assert_eq!(

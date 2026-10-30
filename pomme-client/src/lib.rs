@@ -201,12 +201,19 @@ pub fn run(args: LaunchArgs, platform: Platform) {
         std::process::exit(headless::run(rd, play, user, version, &data_dirs, &rt));
     }
 
+    // Local identities are persisted separately from Microsoft credentials.
+    // They are used for menu presentation and development singleplayer only;
+    // the release authorization policy remains tied to a restored AuthAccount.
+    let local_profiles =
+        user::LocalProfileStore::load_or_create(&data_dirs.game_dir.join("local-profiles.json"));
+    let local_profile = local_profiles.selected().clone();
     let (user, require_account) = UserData::for_launch(
         args.username,
         args.uuid,
         args.access_token,
         cfg!(not(debug_assertions)),
         cfg!(mobile),
+        local_profile,
     );
 
     // A harness script stays off the user's Discord profile, and phones have

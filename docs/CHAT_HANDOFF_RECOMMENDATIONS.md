@@ -73,6 +73,48 @@ Recommended review:
 - Test install/update behavior on Android without instructing the user to delete worlds or app data as a routine troubleshooting step.
 - Before publishing or distributing any APK, obtain explicit user authorization.
 
+## Dedicated chat: programming and implementation queue
+
+The user has designated a separate chat exclusively for programming, applying fixes, and integrating work that other Pomme chats investigate. Treat that chat as the implementation owner, not as another parallel investigator.
+
+### Responsibilities of investigation/review chats
+- Do not edit source code, Rust/Gradle/build configuration, workflows, submodules, branches, or generated artifacts unless the user explicitly assigns that chat an implementation task.
+- Investigate only within the assigned scope. When a code change is needed, prepare a handoff for the dedicated programming chat instead of implementing it.
+- Before handing off, verify the relevant repository, branch, live HEAD, SteelMC gitlink (when relevant), and the exact source revision inspected.
+- Record the issue with: priority; observed behavior; confirmed source evidence and file/function locations; distinction between facts and hypotheses; why a change is needed; proposed behavior; affected areas; compatibility/data risks; regression tests and expected outcomes; exact authorization status.
+- Include dependencies and ordering. Mark blockers explicitly; do not ask the programmer chat to implement a downstream phase while its prerequisite is unresolved.
+- Add the handoff to the relevant documentation and development log so it survives chat changes. Do not assume a verbal summary alone is enough.
+
+### Responsibilities of the dedicated programming chat
+- Read the repository continuity docs and every pending handoff before touching code.
+- Re-check live branch/HEAD, worktree status where available, recent commits, and SteelMC gitlink. Never rely on stale SHAs or copy another chat's branch without approval.
+- Maintain a prioritized implementation queue from the pending investigation handoffs. Resolve conflicts by asking the user or reporting the conflict; do not silently choose incompatible designs.
+- Implement only tasks the user has authorized. A handoff is a technical recommendation, not permission by itself.
+- Before each task, state the exact files/areas to be changed and the tests planned. Preserve user data and unrelated work.
+- After implementation, report exact commits/files, tests actually run and their outcomes, remaining limitations, and any required Android/Termux validation. Update continuity and development logs.
+- Do not claim a fix is complete merely because code was edited or tests were written. Distinguish implemented, locally tested, CI-verified, and device-verified states.
+- Do not merge, publish, update SteelMC, generate/distribute an APK, or modify master unless the user explicitly authorizes that action.
+
+### Required handoff template
+Every investigation chat that leaves programming work pending should record:
+
+1. **Task / priority**
+2. **Authorization:** investigation only / implementation explicitly authorized / blocked pending approval
+3. **Repository, branch, inspected HEAD, and SteelMC pin**
+4. **Problem and impact**
+5. **Evidence:** files, symbols, call paths, logs, or reproducible observations
+6. **Confirmed facts vs. hypotheses**
+7. **Recommended correction and alternatives considered**
+8. **Compatibility, security, and user-data risks**
+9. **Acceptance criteria and regression tests**
+10. **Dependencies, blockers, and recommended order**
+11. **What was not changed or tested**
+
+### Current known programming handoffs
+- **Phase 2.2-B — persistent local profile identity:** pending investigation findings from the identity audit. The highest-priority concerns are non-destructive profile JSON loading/writing/recovery; avoiding UUID transition that makes existing player data appear orphaned; case-insensitive legacy-name conflicts; backup recovery when the primary file exists but is corrupt; downgrade behavior; and tests for interrupted writes/concurrent access. The experimental branch is reference material only and must not be wholesale-merged. **Implementation remains unauthorized.**
+- **SteelMC advancement persistence:** separate follow-up item at the recorded SteelMC pin; do not bundle it into identity work or change the submodule without authorization.
+- Other chats should append newly discovered programming tasks here and in the development log, without editing code themselves.
+
 ## Suggested handoff prompt for any new chat
 
 > Continue the Pomme Android task only within the scope previously authorized by the user. First read the repository documentation, verify the live branch/HEAD and SteelMC gitlink, inspect recent commits and the current code path, and read `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`. Do not assume earlier SHAs are current. Separate facts from hypotheses and proposals. Do not edit another branch, master, authentication, world/player data, or SteelMC unless explicitly authorized. Before changing code, state the exact intended files and regression tests. At the end, update continuity/development documentation and report exact changes and tests actually run.

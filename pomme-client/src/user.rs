@@ -340,6 +340,53 @@ mod tests {
     }
 
     #[test]
+    fn restored_account_from_store_authorizes_only_while_valid() {
+        use pomme_auth::SecretStore;
+
+        let dir = std::env::temp_dir().join(format!(
+            "pomme-restored-profile-{}",
+            std::process::id()
+        ));
+        let store = pomme_auth::FileStore {
+            path: dir.join("accounts.json"),
+        };
+        let account = pomme_auth::AuthAccount {
+            username: "RestoredPlayer".into(),
+            uuid: "b50ad385-829d-3141-a216-7e7d7539ba7f".into(),
+            access_token: "stored-valid-token".into(),
+            expires_at: unix_now() + 3600,
+        };
+        store.write(
+            "minecraft-accounts",
+            &serde_json::to_string(&vec![account.clone()]).unwrap(),
+        );
+
+        let restored = pomme_auth::try_restore(&store, &account.uuid).unwrap();
+        let user = UserData::from_account(&restored, super::LocalProfile::new("LocalPlayer"));
+        assert!(user.allows_singleplayer(true));
+        assert!(user.allows_multiplayer());
+        assert_eq!(
+            user.authenticated_access_token(),
+            Some("stored-valid-token")
+        );
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn launch_arguments_and_offline_uuid_are_not_authorization() {
+        let user = UserData::from_args(
+            Some("InjectedName".into()),
+            Some("b50ad385-829d-3141-a216-7e7d7539ba7f".into()),
+            Some("unverified-token".into()),
+        );
+        assert!(user.has_profile);
+        assert!(!user.is_java_authorized());
+        assert_eq!(user.authenticated_access_token(), None);
+        assert!(!user.allows_multiplayer());
+    }
+
+    #[test]
     fn expired_session_does_not_authorize_gameplay() {
         let account = pomme_auth::AuthAccount {
             username: "ExpiredPlayer".into(),

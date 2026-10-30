@@ -399,3 +399,15 @@ Correct the Release startup policy so a persisted local profile can enter local 
 1. Confirm a CI run is created for the new source commit; if none appears, investigate workflow trigger/branch configuration.
 2. Run the focused Release policy test and applicable CI on the new source commit.
 3. Only after automated checks pass and separate build authorization, generate/install the APK and test local singleplayer while signed out; also confirm remote multiplayer remains blocked without Microsoft authorization.
+
+
+## Session update — Singleplayer world creation auto-launch investigation (2026-10-30)
+
+- User-device result: the latest tested build allows signed-out Singleplayer and creates the world, but returns to the world list instead of entering the newly created world. The user can manually select that world and press Play to enter it.
+- Live branch preflight for this investigation: `unofficial-android-menu-access`, HEAD `730c08c307a9aceaef9241a52dd9265be7f58c34`; PR #11 remains open/unmerged. SteelMC gitlink at this tree: `c5098cdd8a4ec1176e00d737df24a2861b4055ac`. No changes were made to `master` or the submodule.
+- Confirmed root cause in source: `pomme-client/src/ui/menu/worlds.rs`, `MainMenu::create_world()`, persists the summary with `world_list.create(summary)` then unconditionally sets `Screen::WorldList`; it never emits `MenuAction::PlayWorld`. The existing central route in `pomme-client/src/app/phases/in_menu.rs` handles `MenuAction::PlayWorld` through `open_world()`, including the Singleplayer authorization check and embedded-server launch.
+- Recommended implementation handoff appended to `docs/CHAT_HANDOFF_RECOMMENDATIONS.md`: on successful save only, return `MenuAction::PlayWorld` with the exact generated folder; on save failure, do not launch. Includes duplicate-name, failure, manual-play, QuickPlay, offline auth, and remote-auth regression criteria.
+- CI #125 / run ID `41032914173` was rechecked: all reported jobs, including `android`, `singleplayer`, `test`, `fmt`, platform lint, and aggregate `ci`, completed with conclusion `success`. This validates the inspected preceding source revision, not the proposed world auto-launch correction.
+- This investigation made no Rust/source, workflow, SteelMC, world/profile, or APK changes. No local test/build or independent device reproduction was performed. The user-reported runtime result is recorded as device feedback.
+- Implementation authority remains with the dedicated programming chat. This handoff is not a source-edit authorization. Do not merge PR #11, modify `master`, or generate/publish an APK without the applicable explicit authorization.
+- Next step: programming chat re-verifies live HEAD and implements the scoped action handoff with regression tests; then run CI and obtain a new APK only when separately authorized.

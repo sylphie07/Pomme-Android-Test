@@ -30,3 +30,10 @@
 - CI de GitHub: no ejecutado; no hay run en la rama.
 - No afirmar compilación correcta ni tests aprobados.
 - No se modificó `master`, no se abrió PR, no hubo merge ni APK.
+
+### Pruebas adicionales añadidas
+
+- Se amplió `legacy_local_profiles_migrate_with_the_historical_offline_uuid` para realizar un segundo arranque y comprobar que el UUID histórico no cambia.
+- Añadida `missing_primary_profile_file_recovers_a_valid_backup` para comprobar la recuperación de una copia válida cuando falta el archivo principal.
+- Commit: `071880da8042c028b9728d4db371150644840c9d`.
+- Estas pruebas están añadidas, pero todavía no ejecutadas.

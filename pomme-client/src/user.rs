@@ -308,7 +308,7 @@ impl LocalProfileStore {
                     .open(&backup_temp)?;
                 std::io::copy(&mut source, &mut destination)?;
                 destination.sync_all()?;
-                std::fs::rename(&backup_temp, &backup)?;
+                Self::publish_file(&backup_temp, &backup)?;
                 if let Err(error) = Self::sync_parent(&backup) {
                     tracing::warn!("Could not sync local profile backup directory: {error}");
                 }
@@ -328,7 +328,7 @@ impl LocalProfileStore {
                 .open(&temporary)?;
             file.write_all(&json)?;
             file.sync_all()?;
-            std::fs::rename(&temporary, &self.path)?;
+            Self::publish_file(&temporary, &self.path)?;
             if let Err(error) = Self::sync_parent(&self.path) {
                 // Publication already succeeded. Report reduced durability,
                 // but do not make callers roll back in-memory state.
@@ -346,6 +346,43 @@ impl LocalProfileStore {
         let mut temporary = path.as_os_str().to_owned();
         temporary.push(format!(".part-{}", uuid::Uuid::new_v4()));
         PathBuf::from(temporary)
+    }
+
+    fn publish_file(temporary: &Path, destination: &Path) -> std::io::Result<()> {
+        #[cfg(not(windows))]
+        {
+            // POSIX rename atomically replaces an existing destination.
+            std::fs::rename(temporary, destination)
+        }
+
+        #[cfg(windows)]
+        {
+            // std::fs::rename cannot replace an existing file on Windows.
+            // Keep a rollback copy while swapping; the .bak profile document
+            // remains the crash-recovery source if the process stops mid-swap.
+            if !destination.exists() {
+                return std::fs::rename(temporary, destination);
+            }
+
+            let previous = Self::unique_temp_path(destination);
+            std::fs::rename(destination, &previous)?;
+            match std::fs::rename(temporary, destination) {
+                Ok(()) => {
+                    if let Err(error) = std::fs::remove_file(previous) {
+                        tracing::warn!("Could not remove replaced profile file: {error}");
+                    }
+                    Ok(())
+                }
+                Err(error) => {
+                    if let Err(restore_error) = std::fs::rename(&previous, destination) {
+                        return Err(std::io::Error::other(format!(
+                            "publishing profile file failed ({error}) and restoring the previous file failed ({restore_error})"
+                        )));
+                    }
+                    Err(error)
+                }
+            }
+        }
     }
 
     fn sync_parent(path: &Path) -> std::io::Result<()> {

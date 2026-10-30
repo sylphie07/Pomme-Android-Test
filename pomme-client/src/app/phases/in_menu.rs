@@ -24,15 +24,9 @@ enum GameplayMode {
 /// identify a development singleplayer session, but never authorizes a remote
 /// multiplayer session. Release builds require a verified Java account for
 /// both modes.
-fn authorize_gameplay(
-    core: &mut AppCore,
-    pending: PendingGameAction,
-    mode: GameplayMode,
-) -> bool {
+fn authorize_gameplay(core: &mut AppCore, pending: PendingGameAction, mode: GameplayMode) -> bool {
     let allowed = match mode {
-        GameplayMode::Singleplayer => {
-            core.user.allows_singleplayer(cfg!(not(debug_assertions)))
-        }
+        GameplayMode::Singleplayer => core.user.allows_singleplayer(cfg!(not(debug_assertions))),
         GameplayMode::Multiplayer => core.user.allows_multiplayer(),
     };
     if allowed {

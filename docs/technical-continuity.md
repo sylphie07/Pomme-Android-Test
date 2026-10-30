@@ -5,7 +5,7 @@
 - Rama de trabajo: `phase-2.2-b-persistent-local-profile`
 - Rama base de Fase 2.2-B: `unofficial-android-menu-access`
 - HEAD base: `c730ae9e1334646f507f9f068e8774e8950a18a8`
-- Último commit registrado al actualizar este documento: `071880da8042c028b9728d4db371150644840c9d`
+- Último commit registrado al actualizar este documento: `66bd785866440142398b3d6ae442421c10040535`
 - Estado: implementación de Fase 2.2-B en progreso; validación local/CI todavía no ejecutada.
 - No se ha abierto PR, no se ha hecho merge, no se ha modificado `master`, no se ha generado APK.
 
@@ -24,6 +24,7 @@ Añadir una identidad persistente de jugador independiente del identificador de 
 - Se rechazan documentos parcialmente versionados y UUID nulos.
 - `load_or_create` devuelve `io::Result`; un archivo ilegible o inválido no se sustituye por un perfil nuevo.
 - Escritura temporal única, sincronización del archivo, copia `.bak` y publicación por renombrado.
+- Publicación POSIX mediante `rename` de reemplazo atómico; en Windows se usa una sustitución con rollback porque `std::fs::rename` no reemplaza destinos existentes.
 - Recuperación desde `.bak` cuando falta el archivo principal.
 - Los perfiles recién creados mantienen por ahora el UUID offline del nombre para no cambiar el comportamiento real hasta que Fase 2.2-D conecte `player_uuid` al servidor integrado.
 - Se actualizó la prueba existente para desenvolver el resultado fallible de `load_or_create`.
@@ -48,7 +49,7 @@ Añadir una identidad persistente de jugador independiente del identificador de 
 
 - No se ha ejecutado `cargo fmt`, `cargo test`, `cargo nextest`, `clippy` ni compilación Android.
 - La conexión GitHub disponible permite inspección y escritura de archivos, pero no ofrece una acción de ejecución manual de Actions. El workflow CI del repositorio se dispara en push a `master`, PR hacia `master` o `workflow_dispatch`; la rama de trabajo no tiene ejecución registrada. No abrir PR ni tocar `master` sin autorización.
-- No se ha demostrado todavía el comportamiento de `rename`/backup en Android ni en Windows.
+- No se ha demostrado todavía el comportamiento de `rename`/backup en Android ni en Windows; la ruta Windows tiene lógica de rollback estática, sin ejecución.
 - No hay bloqueo explícito para escrituras concurrentes; comprobar si el ciclo de vida de `LocalProfileStore` garantiza un único escritor antes de ampliar el diseño.
 - La ruta actual de `UserData::from_local_profile` sigue derivando UUID offline del nombre. La utilización de `player_uuid` queda deliberadamente para Fase 2.2-D, después de implementar el canal confiable en SteelMC en Fase 2.2-C.
 - Perfiles antiguos con nombres repetidos producen el mismo UUID histórico y se rechazan como conflicto; no se separan automáticamente.

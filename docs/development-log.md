@@ -52,3 +52,11 @@
 - La ruta de juego todavía usa UUID offline hasta Fase 2.2-D; esta rama intermedia no debe distribuirse como versión final antes de conectar y validar la identidad persistente.
 - Se actualizó la prueba correspondiente.
 - Commit: `e247812983cc1879efdc4cb1f8db00fb1011e841`.
+
+### Intento de validación en el entorno disponible
+
+- Revisadas todas las referencias visibles a `LocalProfileStore::load_or_create`: el inicio en `pomme-client/src/lib.rs` maneja el `Result` y las pruebas usan `.unwrap()` o `.is_err()` según el caso.
+- Se intentó comprobar herramientas locales: no están instalados `rustc`, `cargo` ni `rustfmt`.
+- Se intentó clonar la rama para ejecutar búsquedas locales; el entorno no pudo resolver `github.com` (DNS), así que no se obtuvo una copia local.
+- Consultada Actions: cero ejecuciones asociadas a la rama.
+- No se ejecutó ninguna prueba ni compilación. No se declara validación aprobada.

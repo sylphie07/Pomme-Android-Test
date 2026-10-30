@@ -5,7 +5,7 @@
 - Rama de trabajo: `phase-2.2-b-persistent-local-profile`
 - Rama base de Fase 2.2-B: `unofficial-android-menu-access`
 - HEAD base: `c730ae9e1334646f507f9f068e8774e8950a18a8`
-- Último commit registrado al actualizar este documento: `e247812983cc1879efdc4cb1f8db00fb1011e841`
+- Último commit de código: `e247812983cc1879efdc4cb1f8db00fb1011e841`
 - Estado: implementación de Fase 2.2-B en progreso; validación local/CI todavía no ejecutada.
 - No se ha abierto PR, no se ha hecho merge, no se ha modificado `master`, no se ha generado APK.
 
@@ -44,11 +44,12 @@ Añadir una identidad persistente de jugador independiente del identificador de 
 - Persistencia del UUID tras recargar un documento versionado.
 - Segundo arranque después de migrar un documento legacy, sin cambiar el UUID.
 - Recuperación desde un backup válido cuando falta el archivo principal.
-- Identidad offline inicial de perfiles nuevos.
+- Generación de UUID v4 independiente para perfiles nuevos.
 
 ## Limitaciones y riesgos abiertos
 
 - No se ha ejecutado `cargo fmt`, `cargo test`, `cargo nextest`, `clippy` ni compilación Android.
+- El contenedor de ejecución no tiene `rustc`, `cargo` ni `rustfmt`, y no pudo clonar GitHub por falta de resolución DNS.
 - La conexión GitHub disponible permite inspección y escritura de archivos, pero no ofrece una acción de ejecución manual de Actions. El workflow CI del repositorio se dispara en push a `master`, PR hacia `master` o `workflow_dispatch`; la rama de trabajo no tiene ejecución registrada. No abrir PR ni tocar `master` sin autorización.
 - No se ha demostrado todavía el comportamiento de `rename`/backup en Android ni en Windows; la ruta Windows tiene lógica de rollback estática, sin ejecución.
 - No hay bloqueo explícito para escrituras concurrentes; comprobar si el ciclo de vida de `LocalProfileStore` garantiza un único escritor antes de ampliar el diseño.
@@ -57,7 +58,7 @@ Añadir una identidad persistente de jugador independiente del identificador de 
 
 ## Próximos pasos obligatorios antes de Fase 2.2-C
 
-1. Corregir cualquier error estático encontrado al revisar todas las llamadas a `load_or_create`.
+1. La revisión de llamadas visibles a `load_or_create` se completó: los tests usan `.unwrap()`/`.is_err()` y el inicio maneja el `Result` con cierre seguro.
 2. Ejecutar formato, tests específicos de `pomme-client` y las recetas de CI si se dispone de un runner autorizado.
 3. Confirmar migración real en una copia de perfil legacy y segundo arranque sin cambio de UUID.
 4. Confirmar que el JSON corrupto permanece byte por byte sin modificaciones.

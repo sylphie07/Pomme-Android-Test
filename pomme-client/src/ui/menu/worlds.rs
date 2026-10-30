@@ -1362,6 +1362,9 @@ mod create_world_tests {
 
         assert!(matches!(action, MenuAction::None));
         assert!(worlds.worlds.is_empty());
-        assert_eq!(std::fs::read_to_string(&saves.0).unwrap(), "not a directory");
+        assert_eq!(
+            std::fs::read_to_string(&saves.0).unwrap(),
+            "not a directory"
+        );
     }
 }

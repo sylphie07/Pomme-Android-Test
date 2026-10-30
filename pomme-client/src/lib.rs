@@ -205,7 +205,13 @@ pub fn run(args: LaunchArgs, platform: Platform) {
     // They are used for menu presentation and development singleplayer only;
     // the release authorization policy remains tied to a restored AuthAccount.
     let local_profiles =
-        user::LocalProfileStore::load_or_create(&data_dirs.game_dir.join("local-profiles.json"));
+        user::LocalProfileStore::load_or_create(&data_dirs.game_dir.join("local-profiles.json"))
+            .unwrap_or_else(|error| {
+                tracing::error!(
+                    "Could not load local player profiles safely; refusing to replace them: {error}"
+                );
+                std::process::exit(1);
+            });
     let local_profile = local_profiles.selected().clone();
     let (user, require_account) = UserData::for_launch(
         args.username,

@@ -280,3 +280,17 @@ Source commits:
 The runtime identity remains username-derived in `UserData::from_local_profile()`; the new persisted `player_uuid` is not yet supplied to SteelMC. That trusted integrated-connection work belongs to C/D.
 
 At the time of the follow-up, CI run `41008897990` for source HEAD `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` was pending. No local Cargo test, build, Android build, or device test was executed. Therefore the implementation is applied but not yet verified.
+
+
+### Follow-up compatibility correction — format 2
+
+A later cross-chat audit identified that experimental format 1 assigned random `player_uuid` values to new profiles even though the runtime continued using `offline_uuid(username)`. This could have caused an identity discontinuity when C/D eventually consumed the stored field.
+
+Correction applied in source commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`:
+- Newly created profiles now persist the historical offline UUID used by the current runtime.
+- If a different profile resolves to the same player UUID, creation is rejected rather than silently splitting identity.
+- Format 1 is treated as the unmerged experiment schema and migrated to format 2, replacing the unused random field with the historical offline UUID.
+- Added a test for this migration.
+- Formatting changes were applied in `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc`.
+
+CI run `41009337238` for the PR merge ref with source head `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc` was pending at the last check. No local or Android test was run.

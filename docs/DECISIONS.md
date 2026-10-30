@@ -88,3 +88,13 @@
 - Decision: backup recovery must write the exact bytes that were decoded and validated, not reopen the backup path after validation.
 - Reason: avoid restoring different contents if the backup file changes between validation and copying.
 - Status: implemented in source commit `c0576191407a1ad53db77c0635c7b0820669e547`; CI verification pending.
+
+
+## D-015 — Authorize Phase 2.2-C/D trusted local identity integration
+- Date: 2026-10-30
+- Decision: the user explicitly authorized the dedicated programming chat to implement Phase 2.2-C (trusted, per-connection local identity in SteelMC) and Phase 2.2-D (Pomme integration), including necessary SteelMC submodule changes.
+- Dependency: B1–B4 CI run `41012173438` (#94) completed successfully for tests, singleplayer, Android, iOS, fmt, cross-platform lint, and aggregate CI. Launcher jobs were skipped; this is not Android device acceptance.
+- Required constraints: preserve exact persisted `player_uuid`; do not trust client Hello UUID; do not weaken ordinary offline or Microsoft online authentication; keep remote multiplayer on verified Microsoft credentials; bind trusted identity only to the concrete embedded connection.
+- Exclusions: no merge or close of PR #11, no `master` modification, no APK publication, and no unrelated workstreams.
+- Authoritative detailed instructions: `docs/PHASE_2_2_CD_PROGRAMMER_HANDOFF.md`.
+- Status: authorized, not yet implemented or runtime-verified.

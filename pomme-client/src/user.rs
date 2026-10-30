@@ -627,6 +627,34 @@ mod tests {
     }
 
     #[test]
+    fn legacy_null_player_uuid_is_not_treated_as_an_absent_field() {
+        let profile_id = uuid::Uuid::new_v4();
+        let document = serde_json::json!({
+            "profiles": [{
+                "id": profile_id,
+                "username": "Alex",
+                "player_uuid": null
+            }],
+            "selected_profile": profile_id
+        });
+        assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
+    }
+
+    #[test]
+    fn legacy_profiles_with_colliding_historical_uuids_are_rejected() {
+        let first_id = uuid::Uuid::new_v4();
+        let second_id = uuid::Uuid::new_v4();
+        let document = serde_json::json!({
+            "profiles": [
+                {"id": first_id, "username": "Alex"},
+                {"id": second_id, "username": "Alex"}
+            ],
+            "selected_profile": first_id
+        });
+        assert!(LocalProfileStore::decode_document(&document.to_string()).is_err());
+    }
+
+    #[test]
     fn null_format_version_is_not_treated_as_a_legacy_document() {
         let document = serde_json::json!({
             "format_version": null,

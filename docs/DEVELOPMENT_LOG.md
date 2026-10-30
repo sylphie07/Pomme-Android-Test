@@ -9,7 +9,7 @@ Create a repository-based memory/handoff system so future ChatGPT conversations 
 
 ### Repository checks
 - Repository: `sylphie07/Pomme-Android-Test`
-- Confirmed branch exists: `unofficial-android-menu-access`
+- Confirmed branch exists: `unofficial-android-menu-access`.
 - Read `README.md` from that branch.
 - Checked for the planned documentation files; `docs/PROJECT_CONTEXT.md`, `docs/CONTINUITY.md`, `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, and `docs/KNOWN_ISSUES.md` were absent at the time of inspection.
 
@@ -131,3 +131,35 @@ SteelMC at `e655880a7b1487b2444c70013c14ee86c69d53b3`:
 
 ### Next action
 Wait for the user's explicit authorization. If authorized, begin only Phase 2.2-B after re-reading all docs and re-verifying branch HEAD and SteelMC pin.
+
+
+## 2026-10-30 — Session 004: Refresh handoff and add recommendations for parallel chats
+
+### Scope
+Refresh repository-backed continuity after the Phase 2.2-A report and record actionable review recommendations for other chats working on separate Pomme areas.
+
+### Repository/documentation checks
+- Re-read `docs/PROJECT_CONTEXT.md`, `docs/CONTINUITY.md`, `docs/DEVELOPMENT_LOG.md`, `docs/DECISIONS.md`, and `docs/PHASE_2_2_A_PERSISTENT_PLAYER_IDENTITY.md` from `unofficial-android-menu-access`.
+- Confirmed repository identity and branch existence through GitHub.
+- Revalidated that commit `0902bb4571bc9210eaffdfc1d8a688d6e5e0b417` exists and contains only a `docs/DEVELOPMENT_LOG.md` change. The preceding known documentation commits `920f75d0cbda76f01132d4f85a70b63af2aa612f` and `2c9e953b7d09ab846a865b4e40b6eb61831fa786` were also inspected.
+- The connector's branch search confirms branch existence but does not expose the branch-ref SHA; the last known branch HEAD remains `0902bb4571bc9210eaffdfc1d8a688d6e5e0b417`, subject to mandatory re-verification at the next session start.
+- SteelMC pin remains recorded as `e655880a7b1487b2444c70013c14ee86c69d53b3`; no submodule update was performed.
+- A missing-file response occurred for an initially guessed report path; the actual report path was then fetched successfully. No repository file was changed by that failed read.
+
+### Findings clarified
+- The previous report's advancement wording was too cautious. At the inspected SteelMC pin, `steel-core/src/player/mod.rs` initializes `Player.advancements` with `PlayerAdvancement::default()` and includes the explicit comment `TODO save the advancement`. The inspected persistence model does not serialize advancements. This is a confirmed limitation of that revision; it is separate from player UUID continuity.
+- No builds, unit tests, integration tests, CI workflows, or Android-device checks were run during this documentation session.
+- GitHub reads cannot prove the user's local Termux worktree is clean.
+
+### Work performed
+- Updated continuity handoff and appended this session.
+- Added `docs/CHAT_HANDOFF_RECOMMENDATIONS.md` with scoped review guidance for menu/authentication, Android singleplayer, profile identity, SteelMC persistence, and Android build/CI chats.
+- Updated the Phase 2.2-A report to state the advancement-persistence limitation precisely.
+- Documentation only. No application source, SteelMC submodule contents, world/player data, or APK artifacts were changed.
+
+### Tests and verification
+- No tests/build/CI/Android run was executed. No test is claimed as passed.
+- The change is documentation-only; its GitHub commit and file contents must be verified after writing.
+
+### Next action
+Use the new cross-chat recommendations as review prompts, not implementation authorization. Continue Phase 2.2-B only after the user explicitly approves implementation and the live branch/submodule state is rechecked.

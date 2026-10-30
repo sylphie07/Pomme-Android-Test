@@ -17,6 +17,8 @@ Implementation was explicitly authorized by the user on 2026-10-30. Source chang
   - `4bd084c8a9fca176da2545b800a8a2eb24c7b3e9` — profile model, validation, recovery, and tests.
   - `334f5f958bf99a61bc3d67bcc48036b88122c41f` — fail safely during app startup if profile storage cannot be loaded.
   - `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` — cleanup of recovery test assertions.
+  - `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce` — ensure new profiles retain the runtime offline UUID and migrate experimental format 1 to format 2.
+  - `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc` — apply rustfmt layout to the profile-store code/tests.
   - `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce` — preserve runtime UUID compatibility for new profiles and migrate experimental format-1 identities.
 - Latest verified branch HEAD before this continuity refresh: `df0305e3d9d10b1efcbf7f993b792ca40924bbab`. This continuity refresh itself creates a newer documentation-only commit; re-check the branch ref before the next edit.
 - SteelMC gitlink: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
@@ -28,12 +30,12 @@ Implementation was explicitly authorized by the user on 2026-10-30. Source chang
 ## Implemented source changes
 
 ### `pomme-client/src/user.rs`
-- Added `LocalProfile.player_uuid`, independent from `LocalProfile.id`.
+- Added `LocalProfile.player_uuid`, independent from `LocalProfile.id`. The current JSON format is version 2.
 - Added versioned JSON; the current document format is version 2.
 - New profiles start with the historical `offline_uuid(username)` used by the current runtime.
 - Experimental format-1 records that stored random UUIDs migrate to the historical runtime UUID before the field is used by SteelMC. Legacy documents also migrate to the historical runtime UUID.
 - Creating a profile that collides with an existing historical player UUID is rejected rather than silently assigning a different identity.
-- Legacy documents receive the historical offline UUID derived from their currently stored username. Profile IDs and selected-profile ID are preserved.
+- Legacy documents and experimental format-1 documents receive the historical offline UUID derived from their currently stored username. Profile IDs and selected-profile ID are preserved. Newly created profiles also begin with the historical runtime UUID, so wiring the field into C/D will not change existing world keys.
 - Reject malformed, incomplete, unsupported, duplicate-ID, duplicate-player-UUID, invalid-name, and case-insensitive duplicate-name records without silently reassigning identity.
 - Existing invalid primary JSON is no longer replaced with a fresh default profile.
 - A valid `.bak` may recover a corrupt or missing primary. A corrupt primary is retained under a unique `.corrupt-<uuid>` filename.
@@ -47,7 +49,7 @@ Implementation was explicitly authorized by the user on 2026-10-30. Source chang
 
 ## Identity boundary — important
 
-The new `player_uuid` is currently stored and migrated, but `UserData::from_local_profile()` still derives the runtime UUID from the username. This is deliberate: the trusted identity handoff into the embedded SteelMC connection is Phase 2.2-C/D, not completed by B1–B4. New and migrated profile UUIDs now match the historical runtime UUID, so C/D must consume that exact value rather than regenerate it.
+The new `player_uuid` is currently stored and migrated, but `UserData::from_local_profile()` still derives the runtime UUID from the username. New profiles and experimental format-1 profiles now store that same historical UUID, so the later C/D wiring can preserve current world keys. This is deliberate: the trusted identity handoff into the embedded SteelMC connection is Phase 2.2-C/D, not completed by B1–B4. New and migrated profile UUIDs now match the historical runtime UUID, so C/D must consume that exact value rather than regenerate it.
 
 Do not claim that player UUID continuity is already active in live world sessions. Do not claim advancement persistence; the inspected SteelMC pin has a separate advancement-save TODO.
 
@@ -89,6 +91,16 @@ The implementation-session documentation commits were:
 - `735d6b528bc68c3730cc793d2046933b33bbe624`
 - `790f7a9a973cf2384de91b1bad6b3c89315ee1a8`
 - `aee098d4ca5b5afc4ecb9533657f3de8c405784e`
+
+## Cross-chat compatibility correction — 2026-10-30
+
+Another investigation chat identified that the experimental implementation generated random `player_uuid` values for newly created profiles even though the runtime still used `offline_uuid(username)`. This would have created a data-key transition risk in C/D. Corrected in source commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`:
+- New profiles now set `player_uuid` to the historical offline UUID.
+- A UUID collision with another profile is rejected instead of silently generating a different identity.
+- JSON format is now version 2. Experimental format 1 migrates its unused random UUID to the historical offline UUID, preserving profile IDs and the selected profile.
+- Added a regression test for format-1 migration.
+- Formatting cleanup commit: `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc`.
+- CI run `41009337238` for this PR head was pending at the last check.
 
 ## Session update — 2026-10-30
 

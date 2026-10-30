@@ -243,6 +243,9 @@ impl UserData {
     }
 
     pub fn is_java_authorized(&self) -> bool {
+        if self.identity_source != IdentitySource::MicrosoftAccount {
+            return false;
+        }
         let JavaAuthorization::Verified { expires_at } = self.java_authorization else {
             return false;
         };

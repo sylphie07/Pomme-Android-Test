@@ -400,3 +400,29 @@ Close concrete CI failures in the already authorized Phase 2.2-B1–B4 implement
 
 ### Next
 Poll the current-HEAD workflow runs, inspect all job logs, then review the full B1–B4 diff and document a trusted server-side identity handoff design for future C/D. Do not implement C/D or alter SteelMC without separate approval.
+
+
+## 2026-10-30 — Session 010: Prepare trusted integrated-server identity design
+
+### Scope
+Prepare the C/D technical handoff without implementing C/D or changing SteelMC. Close the source review of the trust boundary and record required tests.
+
+### Verified source facts
+- Pomme `in_menu::open_world` has the selected `core.user.local_profile` available when starting the integrated server.
+- `pomme-singleplayer::LaunchOptions` currently has no trusted player identity field; the embedded server is configured offline-mode with encryption disabled.
+- SteelMC at `e655880a7b1487b2444c70013c14ee86c69d53b3` derives offline identity from the requested username in `steel-login/src/handlers/login.rs::handle_hello`; its source explicitly notes the hello UUID is client supplied.
+- Steel player data and stats are keyed by the server-side `GameProfile.id()` in `FilePlayerDataStorage`.
+- Thus a client hello UUID is not a trusted channel, even over the in-memory transport.
+
+### Documentation created
+- `docs/PHASE_2_2_C_D_TRUSTED_IDENTITY_DESIGN.md` — proposes a typed in-process Rust handoff from the persisted local profile into a per-connection trusted context in the embedded Steel server. Ordinary TCP connections receive no trusted context; online mode continues Mojang authentication; offline client UUIDs remain ignored.
+- Includes compatibility invariants, Steel/Pomme regression tests, end-to-end existing-world acceptance, and boundaries for profile selector, Keystore, advancement persistence, and Phase 2.2-E.
+
+### Commit
+- `54a673e5138e8e1cf843a72d527fec8ad644a9ea` — design document only.
+
+### Verification and boundaries
+- This is a design artifact, not an implementation or runtime validation.
+- No SteelMC source or gitlink, Pomme C/D source, remote auth behavior, profile selector UI, Keystore, advancement persistence, world data, or APK was changed.
+- Separate explicit authorization is still required for C/D and any SteelMC modification.
+- Rust CI for the corrected B1–B4 source HEAD is still not confirmed. Auxiliary conflict/label workflows were explicitly excluded from CI validation.

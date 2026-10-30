@@ -239,3 +239,27 @@ The user authorized code edits to integrate the other chats' findings. The exper
 - New source commit: `8362a0b20b5627db1e66e4954f116165ab591b38`.
 - Run #92's singleplayer job was still in progress at the last check; regardless, the failing test job means #92 cannot validate B1–B4. A fresh full CI run on the corrected HEAD is required.
 - No SteelMC, C/D/E, authentication, profile UI, Keystore, advancement persistence, merge, publication, or APK changes.
+
+
+## 2026-10-30 — Phase 2.2-B1–B4 CI closed; C/D authorized
+
+### Verified checkpoint
+- PR #11 is open, unmerged, and targets `master`; branch: `unofficial-android-menu-access`.
+- PR HEAD at the checkpoint: `dedebc588065782768665d80b9fc3f6ca3281044`.
+- CI run `41012173438` (#94) completed successfully: `test`, `singleplayer`, `android`, `ios`, `fmt`, Ubuntu/macOS/Windows lint, PR template, changes, and aggregate `ci` all succeeded. `launcher` and `launcher-frontend` were skipped.
+- This closes the B1–B4 automated CI blocker. It does not establish Android device acceptance.
+- `.gitmodules` identifies `third_party/SteelMC` as `https://github.com/Steel-Foundation/SteelMC.git`. The live gitlink SHA was not independently read during this check; the old documented pin must not be assumed current.
+
+### Authorization correction
+The user explicitly authorized Phase 2.2-C and 2.2-D implementation, including necessary SteelMC submodule changes. This supersedes earlier statements in this document and older handoffs that C/D were unauthorized or blocked pending B1–B4 CI. Authorization does not include merging PR #11, modifying `master`, publishing an APK, or unrelated workstreams.
+
+### Programmer handoff
+- Authoritative implementation order and acceptance criteria: `docs/PHASE_2_2_CD_PROGRAMMER_HANDOFF.md`.
+- Technical architecture baseline: `docs/PHASE_2_2_C_D_TRUSTED_IDENTITY_DESIGN.md`.
+- Before edits, programmer must freshly verify branch/HEAD, PR state, worktree, actual SteelMC gitlink and pinned source, and complete B1–B4 diff. The checkpoint SHA is not a substitute for live verification.
+- Preserve exact persisted `LocalProfile.player_uuid` and historical world-data keys. Never trust client Hello UUIDs; ordinary offline TCP remains unchanged; remote multiplayer retains Microsoft verification.
+- Do not modify `master`, merge/close PR #11, publish an APK, or delete/alter user data.
+- Phase 2.2-E real Android existing-world acceptance remains subsequent work and must be reported separately.
+
+### Scope of this documentation update
+Only repository documentation was changed. No Pomme source, SteelMC source/gitlink, build configuration, workflows, world/profile/player data, APK, or `master` was changed by this handoff session.

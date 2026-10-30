@@ -263,3 +263,43 @@ The user explicitly authorized Phase 2.2-C and 2.2-D implementation, including n
 
 ### Scope of this documentation update
 Only repository documentation was changed. No Pomme source, SteelMC source/gitlink, build configuration, workflows, world/profile/player data, APK, or `master` was changed by this handoff session.
+
+## Session 012 — Phase 2.2-C/D preflight and SteelMC write-access blocker (2026-10-30)
+
+### Authorization and scope
+- The user explicitly authorized Phase 2.2-C (trusted per-connection identity in SteelMC) and Phase 2.2-D (Pomme plumbing), including required SteelMC submodule changes.
+- This session completed the mandatory documentation and remote-state preflight. No source code was changed because the connected GitHub integration has read-only permission to the upstream SteelMC repository; creating a working branch there returned HTTP 403.
+
+### Live repository state
+- Pomme repository: `sylphie07/Pomme-Android-Test`.
+- Authorized branch: `unofficial-android-menu-access`.
+- Live HEAD at preflight: `c7749941e52510ab4ced755f542b9b3a2589c443`.
+- PR #11: open, base `master`, head `unofficial-android-menu-access` at the same SHA; not merged. Do not merge or modify master.
+- Actual `third_party/SteelMC` gitlink: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+- `.gitmodules` points to `https://github.com/Steel-Foundation/SteelMC.git`.
+- GitHub cannot establish the state of the user's local Termux worktree; no claim is made that it is clean.
+
+### CI B1–B4 confirmation
+- Workflow run `41012173438` (#94) is completed with overall conclusion `success` for PR head `dedebc588065782768665d80b9fc3f6ca3281044`.
+- `pr-template`, `changes`, `singleplayer`, `lint (ubuntu-latest)`, `test`, `android`, `ios`, `fmt`, `lint (macos-latest)`, `lint (windows-latest)`, and aggregate `ci` succeeded.
+- `launcher` and `launcher-frontend` were skipped by workflow filtering. This is automated CI evidence, not Android device acceptance. Current branch HEAD has subsequent documentation-only commits beyond the tested SHA.
+
+### Confirmed source path
+- Pomme `open_world()` calls `singleplayer::open(...)`, then creates `Transport::Memory`; `connect_args()` currently uses `core.user.uuid` for the memory connection.
+- `pomme-singleplayer::LaunchOptions` currently has no trusted player identity. Its embedded server constructs `JavaTcpClient::from_transport(..., Arc::new(ServerConnectionSession::default()), ...)`.
+- SteelMC at the pinned commit has a per-`JavaTcpClient` connection object, but `handle_hello()` deliberately ignores the Hello UUID and derives `offline_uuid(requested_username)` in offline mode. Online-mode login uses the existing encryption/Mojang verification path.
+- The trusted context must be attached to the concrete `JavaTcpClient` instance, not `ServerConnectionSession`, and must be absent from the ordinary TCP constructor.
+
+### Access blocker
+- Repository metadata for `Steel-Foundation/SteelMC` reports connected-account permissions `pull: true`, `push: false`.
+- Attempt to create branch `pomme-trusted-local-identity` from the pinned commit failed with HTTP 403: `Resource not accessible by integration`.
+- Therefore SteelMC C cannot be committed or pinned from this connection. Pomme D depends on the new SteelMC API, so no incomplete Pomme source wiring was applied.
+- Required unblock: create a fork at `sylphie07/SteelMC` (or grant the connected GitHub integration write access to an authorized SteelMC fork). Then create the implementation branch from exact upstream pin `e655880a7b1487b2444c70013c14ee86c69d53b3`, implement/test C there, and update the Pomme submodule URL/gitlink to that fork commit before D.
+
+### Changes and verification in this session
+- No application source, SteelMC source, gitlink, Cargo/build configuration, worlds, profiles, player data, master, PR merge state, or APK was changed.
+- Read-only inspection only; no Rust tests, builds, or new CI were run.
+- No implementation or test is claimed as complete for C/D.
+
+### Next step
+- User creates the writable SteelMC fork (no new implementation authorization is needed; authorization for C/D is already recorded). Resume with the exact pinned base, then implement C and its isolation/security tests before plumbing D. Preserve the historical UUID and Microsoft online authentication.

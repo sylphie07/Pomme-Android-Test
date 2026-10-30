@@ -135,6 +135,7 @@ enum Role {
     Pointer {
         start: Vec2,
         last: Vec2,
+        pressed: bool,
         scrolling: bool,
     },
     /// A tap already handled on press; ignored until it lifts.
@@ -187,9 +188,10 @@ impl TouchControls {
                 Role::Pointer {
                     start: p,
                     last: p,
+                    pressed: false,
                     scrolling: false,
                 },
-                vec![TouchOutput::PointerMove(p), TouchOutput::PointerDown],
+                vec![TouchOutput::PointerMove(p)],
             )
         } else if let Some(button) = layout.button_at(p) {
             match button.tapped_action() {
@@ -242,32 +244,36 @@ impl TouchControls {
             Some(Role::Pointer {
                 start,
                 last,
+                pressed,
                 scrolling,
             }) => {
                 let delta = p - *last;
                 let total = p - *start;
                 *last = p;
-                if !*scrolling
-                    && total.y.abs() > MENU_SCROLL_SLOP * layout.gs
-                    && total.y.abs() > total.x.abs() * 1.25
-                {
-                    *scrolling = true;
-                    vec![
-                        TouchOutput::PointerUp,
-                        TouchOutput::PointerMove(p),
-                        TouchOutput::Scroll(
-                            total.y / (MENU_SCROLL_PIXELS_PER_UNIT * layout.gs),
-                        ),
-                    ]
-                } else if *scrolling {
+                if *scrolling {
                     vec![
                         TouchOutput::PointerMove(p),
                         TouchOutput::Scroll(
                             delta.y / (MENU_SCROLL_PIXELS_PER_UNIT * layout.gs),
                         ),
                     ]
-                } else {
+                } else if total.y.abs() > MENU_SCROLL_SLOP * layout.gs
+                    && total.y.abs() > total.x.abs() * 1.25
+                {
+                    *scrolling = true;
+                    vec![TouchOutput::PointerMove(p), TouchOutput::Scroll(
+                        total.y / (MENU_SCROLL_PIXELS_PER_UNIT * layout.gs),
+                    )]
+                } else if !*pressed
+                    && total.x.abs() > MENU_SCROLL_SLOP * layout.gs
+                    && total.x.abs() > total.y.abs() * 1.25
+                {
+                    *pressed = true;
+                    vec![TouchOutput::PointerDown, TouchOutput::PointerMove(p)]
+                } else if *pressed {
                     vec![TouchOutput::PointerMove(p)]
+                } else {
+                    Vec::new()
                 }
             }
             _ => Vec::new(),
@@ -289,8 +295,22 @@ impl TouchControls {
             {
                 vec![TouchOutput::Use]
             }
-            Some(Role::Pointer { scrolling: false, .. }) => vec![TouchOutput::PointerUp],
-            Some(Role::Pointer { scrolling: true, .. }) => Vec::new(),
+            Some(Role::Pointer {
+                pressed: true,
+                scrolling: false,
+                ..
+            }) => vec![TouchOutput::PointerUp],
+            Some(Role::Pointer {
+                pressed: false,
+                scrolling: false,
+                last,
+                ..
+            }) if lifted => vec![
+                TouchOutput::PointerMove(last),
+                TouchOutput::PointerDown,
+                TouchOutput::PointerUp,
+            ],
+            Some(Role::Pointer { .. }) => Vec::new(),
             _ => Vec::new(),
         }
     }
@@ -521,11 +541,15 @@ mod tests {
         let p = Vec2::new(300.0, 200.0);
         assert_eq!(
             c.on_touch(1, TouchPhase::Started, p, false, &LAYOUT, t),
-            [TouchOutput::PointerMove(p), TouchOutput::PointerDown]
+            [TouchOutput::PointerMove(p)]
         );
         assert_eq!(
             c.on_touch(1, TouchPhase::Ended, p, false, &LAYOUT, t),
-            [TouchOutput::PointerUp]
+            [
+                TouchOutput::PointerMove(p),
+                TouchOutput::PointerDown,
+                TouchOutput::PointerUp,
+            ]
         );
     }
 
@@ -535,14 +559,13 @@ mod tests {
         let start = Vec2::new(500.0, 400.0);
         assert_eq!(
             c.on_touch(1, TouchPhase::Started, start, false, &LAYOUT, t),
-            [TouchOutput::PointerMove(start), TouchOutput::PointerDown]
+            [TouchOutput::PointerMove(start)]
         );
 
         let moved = start + Vec2::new(3.0, -80.0);
         assert_eq!(
             c.on_touch(1, TouchPhase::Moved, moved, false, &LAYOUT, t),
             [
-                TouchOutput::PointerUp,
                 TouchOutput::PointerMove(moved),
                 TouchOutput::Scroll(-2.0),
             ]
@@ -573,7 +596,11 @@ mod tests {
         );
         assert_eq!(
             c.on_touch(1, TouchPhase::Ended, moved, false, &LAYOUT, t),
-            [TouchOutput::PointerUp]
+            [
+                TouchOutput::PointerMove(moved),
+                TouchOutput::PointerDown,
+                TouchOutput::PointerUp,
+            ]
         );
     }
 }

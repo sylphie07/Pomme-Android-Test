@@ -56,14 +56,16 @@ Android singleplayer discrepancy was also investigated. Historical user report: 
 
 - Repository: `sylphie07/Pomme-Android-Test`.
 - Authorized branch: `unofficial-android-menu-access`.
-- Latest verified branch HEAD before this documentation refresh: `aee098d4ca5b5afc4ecb9533657f3de8c405784e`.
-- Latest source-code commit: `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`; later commits in this session are documentation-only.
-- Source commits for Phase 2.2-B1–B4 are `4bd084c8a9fca176da2545b800a8a2eb24c7b3e9`, `334f5f958bf99a61bc3d67bcc48036b88122c41f`, and `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`.
+- Latest verified branch HEAD before this documentation refresh: `9258c2118f744a17591a0dba75a50d3c5f16fa38`.
+- Latest source-code commit: `c0576191407a1ad53db77c0635c7b0820669e547`; subsequent changes in this session are documentation-only.
+- Phase 2.2-B1–B4 source commits: `4bd084c8a9fca176da2545b800a8a2eb24c7b3e9`, `334f5f958bf99a61bc3d67bcc48036b88122c41f`, `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc`, `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`, `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc`, and `c0576191407a1ad53db77c0635c7b0820669e547`.
 - SteelMC gitlink: `e655880a7b1487b2444c70013c14ee86c69d53b3`; no submodule update was made.
 - `.gitmodules` points to `https://github.com/Steel-Foundation/SteelMC.git`.
-- The experimental branch `phase-2.2-b-persistent-local-profile` remains separate and was used only as reference material.
-- PR #11 remains unmerged; no merge or modification of `master` was performed.
-- CI run `41009018315` for branch HEAD `aee098d4ca5b5afc4ecb9533657f3de8c405784e` was pending at the last check.
+- Experimental branch `phase-2.2-b-persistent-local-profile` remains separate and was used only as reference material.
+- PR #11 remains open and unmerged. `master` was not modified.
+- CI run `41009545949` targeted source HEAD `c0576191407a1ad53db77c0635c7b0820669e547`; its `test` job was still running while lint/fmt/Android/iOS/singleplayer jobs were cancelled after newer commits superseded the run.
+- CI run `41009608515` targeted this documentation HEAD `9258c2118f744a17591a0dba75a50d3c5f16fa38` and was pending at the last check.
+- No complete CI pass is established. No local Cargo or Android-device test was run.
 - GitHub connector access does not expose the user's local Termux worktree; local cleanliness must be checked on-device.
 
 ## Device / environment

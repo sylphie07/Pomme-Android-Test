@@ -14,22 +14,41 @@ pub enum MenuUpdateResult {
     Quit,
 }
 
-/// Holds a gameplay request until the launch policy's account requirement is
-/// met.
-fn authorize_gameplay(core: &mut AppCore, pending: PendingGameAction) -> bool {
-    if core.menu.account_gated() {
-        if core.deferred_game_action.is_some() {
-            tracing::warn!(
-                "Rejected a gameplay request because another request is already waiting for account authorization"
-            );
-        } else {
-            core.deferred_game_action = Some(pending);
+#[derive(Clone, Copy)]
+enum GameplayMode {
+    Singleplayer,
+    Multiplayer,
+}
+
+/// Identity and permission are deliberately separate: a local profile may
+/// identify a development singleplayer session, but never authorizes a remote
+/// multiplayer session. Release builds require a verified Java account for
+/// both modes.
+fn authorize_gameplay(
+    core: &mut AppCore,
+    pending: PendingGameAction,
+    mode: GameplayMode,
+) -> bool {
+    let allowed = match mode {
+        GameplayMode::Singleplayer => {
+            core.user.allows_singleplayer(cfg!(not(debug_assertions)))
         }
-        core.menu.open_account(&core.input.key_bindings);
-        false
-    } else {
-        true
+        GameplayMode::Multiplayer => core.user.allows_multiplayer(),
+    };
+    if allowed {
+        return true;
     }
+
+    if core.deferred_game_action.is_some() {
+        tracing::warn!(
+            "Rejected a gameplay request because another request is already waiting for account authorization"
+        );
+    } else {
+        core.deferred_game_action = Some(pending);
+    }
+    core.menu.require_account(&core.input.key_bindings);
+    core.menu.open_account(&core.input.key_bindings);
+    false
 }
 
 /// Resumes exactly one gameplay request after a successful account action.
@@ -59,6 +78,7 @@ fn connect_remote(
             username: username.clone(),
             protocol,
         },
+        GameplayMode::Multiplayer,
     ) {
         return MenuUpdateResult::None;
     }
@@ -81,6 +101,7 @@ pub fn open_world(core: &mut AppCore, folder: &str) -> MenuUpdateResult {
         PendingGameAction::PlayWorld {
             folder: folder.to_owned(),
         },
+        GameplayMode::Singleplayer,
     ) {
         return MenuUpdateResult::None;
     }
@@ -126,9 +147,10 @@ pub fn quick_play(core: &mut AppCore, play: QuickPlay) -> MenuUpdateResult {
 }
 
 fn apply_account(core: &mut AppCore, gfx: &mut Gfx, account: Option<pomme_auth::AuthAccount>) {
+    let local_profile = core.user.local_profile.clone();
     core.user = match &account {
-        Some(account) => crate::user::UserData::from_account(account),
-        None => crate::user::UserData::from_args(Some(core.user.username.clone()), None, None),
+        Some(account) => crate::user::UserData::from_account(account, local_profile),
+        None => crate::user::UserData::from_local_profile(local_profile),
     };
     core.menu.set_account(
         core.user.username.clone(),
@@ -148,7 +170,7 @@ pub fn connect_args(core: &AppCore, transport: Transport, username: String) -> C
         transport,
         username,
         uuid: core.user.uuid,
-        access_token: core.user.access_token.clone(),
+        access_token: core.user.authenticated_access_token().map(str::to_owned),
         view_distance: core.view_distance(),
         chat_options: core.menu.chat_options,
         skin_options: core.menu.skin_options(),

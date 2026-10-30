@@ -17,9 +17,10 @@ impl LocalProfile {
     pub fn new(username: impl Into<String>) -> Self {
         let username = username.into();
         let id = uuid::Uuid::new_v4();
-        // Preserve the identity used by the current offline-mode server
-        // until the persistent UUID is wired through in Phase 2.2-D.
-        let player_uuid = UserData::offline_uuid(&username);
+        let mut player_uuid = uuid::Uuid::new_v4();
+        while player_uuid == id {
+            player_uuid = uuid::Uuid::new_v4();
+        }
         Self {
             id,
             username,
@@ -239,16 +240,16 @@ impl LocalProfileStore {
             ));
         }
 
-        let profile = LocalProfile::new(username);
-        if self
+        let mut profile = LocalProfile::new(username);
+        while self
             .profiles
             .iter()
             .any(|existing| existing.player_uuid == profile.player_uuid)
         {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
-                "the new profile would reuse an existing player identity",
-            ));
+            profile.player_uuid = uuid::Uuid::new_v4();
+            while profile.player_uuid == profile.id {
+                profile.player_uuid = uuid::Uuid::new_v4();
+            }
         }
         self.profiles.push(profile.clone());
         if let Err(error) = self.persist() {
@@ -758,13 +759,13 @@ mod tests {
     }
 
     #[test]
-    fn new_profile_starts_with_the_existing_offline_identity() {
+    fn new_profile_gets_an_independent_persistent_identity() {
         let profile = LocalProfile::new("NewPlayer");
-        assert_eq!(
+        assert_ne!(profile.id, profile.player_uuid);
+        assert_ne!(
             profile.player_uuid,
             UserData::offline_uuid("NewPlayer")
         );
-        assert_ne!(profile.id, profile.player_uuid);
     }
 
     #[test]

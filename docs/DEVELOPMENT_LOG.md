@@ -466,3 +466,24 @@ These tests directly cover identity collision and selection-integrity checks alr
 - Source commit: `8362a0b20b5627db1e66e4954f116165ab591b38`.
 - Test execution for the corrected fixture is pending a new CI run. Singleplayer had not yet completed on run #92 at last observation.
 - No production logic, SteelMC, authentication policy, C/D/E implementation, profile UI, Keystore, advancement persistence, merge, publication, or APK change.
+
+
+## 2026-10-30 — Session 013: B1–B4 CI passed; authorize C/D programmer handoff
+
+### CI result
+- PR #11, branch `unofficial-android-menu-access`, HEAD checkpoint `dedebc588065782768665d80b9fc3f6ca3281044`.
+- GitHub Actions run `41012173438` (#94) completed successfully.
+- Successful jobs: `pr-template`, `changes`, `singleplayer`, `lint (ubuntu-latest)`, `test`, `android`, `ios`, `fmt`, `lint (macos-latest)`, `lint (windows-latest)`, and aggregate `ci`.
+- `launcher` and `launcher-frontend` were skipped. No Android device acceptance is claimed.
+- PR #11 remains open and unmerged; `master` remains untouched.
+
+### Authorization and handoff
+- The user explicitly authorized implementation of Phase 2.2-C (trusted identity in SteelMC) and Phase 2.2-D (Pomme plumbing), including necessary SteelMC submodule changes.
+- Created `docs/PHASE_2_2_CD_PROGRAMMER_HANDOFF.md` with mandatory preflight, security/compatibility invariants, implementation order, tests, exclusions, and reporting requirements.
+- Updated the C/D design and continuity documentation to supersede stale statements that C/D were unauthorized or blocked on B1–B4 CI.
+- The live SteelMC gitlink was not independently verified in this documentation session. The programmer must inspect the actual tree entry and pinned commit before editing; do not assume the previously documented pin.
+
+### Scope and boundaries
+- This session changed documentation only.
+- No Pomme or SteelMC source, submodule gitlink, build/workflow files, worlds, profiles, player data, APK, or `master` were changed.
+- No merge, publication, or device test was performed.

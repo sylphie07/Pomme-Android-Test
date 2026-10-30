@@ -30,3 +30,17 @@ For each issue, record:
 - logs or CI links;
 - attempted fixes and outcomes;
 - current status and next diagnostic step.
+
+
+## KI-004 — Persistent player UUID is stored but not yet used by the live game identity
+- Scope: Phase 2.2-B1–B4.
+- Source fact: `LocalProfile.player_uuid` is now persisted and migrated, but `UserData::from_local_profile()` still derives the runtime UUID from the username.
+- Impact: this implementation alone does not yet preserve the player's runtime UUID across a username change in SteelMC.
+- Required follow-up: trusted per-connection identity in SteelMC (Phase 2.2-C) and Pomme integration (Phase 2.2-D), with generic offline Hello UUIDs remaining untrusted.
+- Status: known and intentionally not addressed by B1–B4.
+
+## KI-005 — Phase 2.2-B automated verification pending
+- The new profile-store tests have been written but were not run locally in this session.
+- CI run `41008897990` targeted source HEAD `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` and was pending at the last check.
+- Required: inspect final CI jobs and logs, fix failures, then run Android/device acceptance when a reproducible APK is separately authorized.
+- Status: pending.

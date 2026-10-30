@@ -98,8 +98,7 @@ impl LocalProfileStore {
     }
 
     fn decode_document(json: &str) -> std::io::Result<(Vec<LocalProfile>, uuid::Uuid, bool)> {
-        let raw: serde_json::Value =
-            serde_json::from_str(json).map_err(std::io::Error::other)?;
+        let raw: serde_json::Value = serde_json::from_str(json).map_err(std::io::Error::other)?;
         let has_format_version = raw
             .as_object()
             .is_some_and(|object| object.contains_key("format_version"));
@@ -133,7 +132,11 @@ impl LocalProfileStore {
                 true
             }
             Some(LOCAL_PROFILE_FORMAT_VERSION) => {
-                if document.profiles.iter().any(|profile| profile.player_uuid.is_none()) {
+                if document
+                    .profiles
+                    .iter()
+                    .any(|profile| profile.player_uuid.is_none())
+                {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidData,
                         "versioned local profile is missing player_uuid",
@@ -297,7 +300,7 @@ impl LocalProfileStore {
         if self.path.exists() {
             let backup = Self::backup_path(&self.path);
             let backup_temp = Self::unique_temp_path(&backup);
-            let backup_result = (|| {
+            let backup_result: std::io::Result<()> = (|| {
                 let mut source = std::fs::File::open(&self.path)?;
                 let mut destination = std::fs::OpenOptions::new()
                     .write(true)
@@ -318,7 +321,7 @@ impl LocalProfileStore {
         }
 
         let temporary = Self::unique_temp_path(&self.path);
-        let write_result = (|| {
+        let write_result: std::io::Result<()> = (|| {
             let mut file = std::fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)

@@ -364,3 +364,38 @@ Only repository documentation was changed. No Pomme source, SteelMC source/gitli
 - `master` was not modified.
 - No APK was built or published.
 - Phase 2.2-C/D implementation and automated validation are complete at the recorded code checkpoint. Phase 2.2-E/device and existing-world acceptance remains separate.
+
+
+## 2026-10-30 — Release local-singleplayer login-gate correction
+
+### Current objective
+Correct the Release startup policy so a persisted local profile can enter local singleplayer without a Microsoft sign-in prompt. Remote multiplayer remains gated by a verified, unexpired Microsoft session.
+
+### Repository and branch
+- Repository: `sylphie07/Pomme-Android-Test`.
+- Authorized branch: `unofficial-android-menu-access`.
+- `master` remains out of scope; PR #11 must remain unmerged unless separately authorized.
+- Source change commit: `9d71cff41d0c0c947a519498c0bd4382ba5009af`.
+- Documentation log commit: `26ae596b8afb67c5eec9fa8caee3923e60ef8528`.
+- No APK, merge, release, or device test was performed.
+
+### Defect and applied correction
+- In `pomme-client/src/user.rs::UserData::for_launch()`, the Release branch created `UserData` from the persisted `LocalProfile` but returned `true` for the second tuple value, which marks login as required.
+- Changed that value to `false`. The local profile remains the identity for the integrated offline server.
+- Updated `release_uses_local_identity_without_login_and_keeps_remote_account_gate` to assert that Release does not require login, retains the exact local profile, allows singleplayer, does not manufacture Microsoft authorization, and still denies multiplayer without a verified session.
+
+### Security and compatibility invariants
+- `allows_multiplayer()` remains backed by `is_java_authorized()`; no local/offline profile becomes remote authorization.
+- No Microsoft token, account, or UUID is fabricated or altered.
+- No SteelMC source or submodule pin was changed.
+- No world, profile-store, or player-data file was touched.
+
+### Verification state
+- The source and regression-test edits are applied on the authorized branch and re-fetched from GitHub.
+- Test execution and CI are **pending / not yet observed**; do not describe them as passed.
+- No APK was built and no Android-device behavior is verified yet.
+
+### Next steps
+1. Confirm a CI run is created for the new source commit; if none appears, investigate workflow trigger/branch configuration.
+2. Run the focused Release policy test and applicable CI on the new source commit.
+3. Only after automated checks pass and separate build authorization, generate/install the APK and test local singleplayer while signed out; also confirm remote multiplayer remains blocked without Microsoft authorization.

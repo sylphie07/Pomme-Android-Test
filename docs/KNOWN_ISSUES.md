@@ -95,3 +95,15 @@ For each issue, record:
 - Required approach: non-destructive checks only. Preserve existing worlds, profiles, UUIDs, and player-data files; do not ask the user to delete/reset data.
 - Regression requirement after the world-creation auto-launch fix: ensure the fix does not regress per-world inventory separation, position continuity, or the reported death/respawn behavior.
 - Status: Phase 2.2-E partially validated on the user's device; remaining checks are open.
+
+
+## KI-014 — Hostile mobs not appearing in current Android gameplay test
+- User reports that passive animals (cows, pigs, sheep) appear, but hostile mobs do not.
+- User attributes this to missing Minecraft Rust implementations. This is not currently established as a Pomme menu, world-save, or player-data persistence defect.
+- Status: separate gameplay implementation limitation reported by the user; no source-level diagnosis was performed in this session.
+- Follow-up: investigate in the Minecraft Rust entity/spawning implementation only when that work is in scope. Do not change Pomme persistence or world data based on this observation alone.
+
+## Phase 2.2-E acceptance update
+- Ender Chest behavior is now **user-tested / passed** on the current APK (Session 018).
+- Combined with prior device reports, passed checks are per-world inventory isolation, position continuity on world re-entry, death/item-loss/spawn-respawn behavior, and Ender Chest behavior.
+- Statistics persistence and a complete force-stop/restart save lifecycle remain unconfirmed.

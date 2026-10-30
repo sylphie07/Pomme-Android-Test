@@ -37,3 +37,10 @@
 - Añadida `missing_primary_profile_file_recovers_a_valid_backup` para comprobar la recuperación de una copia válida cuando falta el archivo principal.
 - Commit: `071880da8042c028b9728d4db371150644840c9d`.
 - Estas pruebas están añadidas, pero todavía no ejecutadas.
+
+### Robustez multiplataforma de publicación
+
+- Hallazgo de revisión: `std::fs::rename` no reemplaza un destino existente en Windows, lo que habría hecho fallar escrituras posteriores cuando ya existía `.bak` o el documento principal.
+- Cambio aplicado: helper `publish_file`; POSIX conserva reemplazo por rename; Windows mueve temporalmente el destino previo, publica el nuevo archivo y restaura el anterior si falla el reemplazo. La copia `.bak` continúa siendo el mecanismo de recuperación ante interrupciones.
+- Commit: `66bd785866440142398b3d6ae442421c10040535`.
+- No se ejecutaron pruebas Windows ni Android.

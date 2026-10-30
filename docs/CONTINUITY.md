@@ -19,6 +19,7 @@ Implementation was explicitly authorized by the user on 2026-10-30. Source chang
   - `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` — cleanup of recovery test assertions.
   - `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce` — ensure new profiles retain the runtime offline UUID and migrate experimental format 1 to format 2.
   - `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc` — apply rustfmt layout to the profile-store code/tests.
+  - `c0576191407a1ad53db77c0635c7b0820669e547` — restore the exact validated backup snapshot instead of reopening the backup path.
   - `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce` — preserve runtime UUID compatibility for new profiles and migrate experimental format-1 identities.
 - Latest verified branch HEAD before this continuity refresh: `df0305e3d9d10b1efcbf7f993b792ca40924bbab`. This continuity refresh itself creates a newer documentation-only commit; re-check the branch ref before the next edit.
 - SteelMC gitlink: `e655880a7b1487b2444c70013c14ee86c69d53b3`.
@@ -40,7 +41,7 @@ Implementation was explicitly authorized by the user on 2026-10-30. Source chang
 - Existing invalid primary JSON is no longer replaced with a fresh default profile.
 - A valid `.bak` may recover a corrupt or missing primary. A corrupt primary is retained under a unique `.corrupt-<uuid>` filename.
 - Future format versions return `ErrorKind::Unsupported` and are not downgraded from an older backup.
-- Before replacing the backup, the exact existing primary bytes are validated so a corrupted primary cannot overwrite the known-good backup.
+- Before replacing the backup, the exact existing primary bytes are validated so a corrupted primary cannot overwrite the known-good backup. Backup recovery writes the same validated byte snapshot rather than reopening the file.
 - Added regression tests for corrupt-primary recovery, preservation of the corrupt original, future-version downgrade prevention, and duplicate names, alongside the experimental tests.
 
 ### `pomme-client/src/lib.rs`
@@ -99,6 +100,7 @@ Another investigation chat identified that the experimental implementation gener
 - A UUID collision with another profile is rejected instead of silently generating a different identity.
 - JSON format is now version 2. Experimental format 1 migrates its unused random UUID to the historical offline UUID, preserving profile IDs and the selected profile.
 - Added a regression test for format-1 migration.
+- Backup recovery now writes the exact bytes validated from the backup, avoiding a validation/read race.
 - Formatting cleanup commit: `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc`.
 - CI run `41009337238` for this PR head was pending at the last check.
 

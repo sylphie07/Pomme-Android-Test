@@ -31,6 +31,7 @@ Implemented in source (not yet CI-verified at the time of this note):
 - Invalid profile JSON is not replaced by a default profile.
 - A valid backup can recover a corrupt or missing primary; a corrupt primary is quarantined instead of discarded.
 - Experimental format 1 (which stored random UUIDs not used by the runtime) migrates to format 2 and resets the player UUID to the historical offline UUID, preventing a later C/D transition from orphaning world data.
+- Backup recovery writes the exact byte snapshot that was validated, avoiding a second read of a potentially changed backup file.
 - Future format versions fail closed and are not silently downgraded from an older backup.
 - Duplicate profile IDs, player UUIDs, and case-insensitive names are rejected without silently reassigning identity.
 - The app startup now handles profile-store errors by logging and exiting instead of continuing with replaced defaults.

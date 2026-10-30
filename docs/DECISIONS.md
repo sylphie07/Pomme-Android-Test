@@ -81,3 +81,10 @@
 - Compatibility: profile ID remains independent and random. When C/D eventually supplies `player_uuid` to SteelMC, it must preserve the exact current storage key for every profile created during B1–B4.
 - Experimental compatibility: format-1 documents from the unmerged experiment stored random player UUIDs that the runtime did not consume. Migrate these to the historical offline UUID and write format 2.
 - Status: implemented in source; CI verification pending.
+
+
+## D-014 — Restore only the exact validated backup snapshot
+- Date: 2026-10-30
+- Decision: backup recovery must write the exact bytes that were decoded and validated, not reopen the backup path after validation.
+- Reason: avoid restoring different contents if the backup file changes between validation and copying.
+- Status: implemented in source commit `c0576191407a1ad53db77c0635c7b0820669e547`; CI verification pending.

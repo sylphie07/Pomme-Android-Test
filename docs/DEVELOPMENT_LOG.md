@@ -338,3 +338,31 @@ A parallel investigation chat identified that the experimental B1–B4 implement
 ### Remaining boundary
 - Runtime UUID still comes from username in `UserData::from_local_profile()`; the new field is not yet passed to SteelMC.
 - C/D/E remain separate work. No SteelMC source/pin changes, world-file changes, merge, master modification, or APK publication occurred.
+
+
+## 2026-10-30 — Session 008: Restore validated backup snapshots atomically
+
+### Review finding
+The backup recovery path decoded and validated the backup file, then reopened the path inside `restore_backup()` to copy it. A concurrent file replacement between those operations could cause bytes other than the validated snapshot to be restored.
+
+### Change
+- `restore_backup()` now accepts the already validated byte slice.
+- Both corrupt-primary and missing-primary recovery pass the exact bytes decoded by the caller.
+- The temporary recovery file is written from that byte slice, synced, and then published using the existing atomic/rollback path.
+- No world, profile, or player data was manually edited; this changes only the profile-store recovery implementation.
+
+### File changed
+- `pomme-client/src/user.rs`
+
+### Commit
+- `c0576191407a1ad53db77c0635c7b0820669e547` — `fix(profile): restore the exact validated backup snapshot`.
+
+### Verification
+- GitHub confirmed the source commit on `unofficial-android-menu-access`.
+- SteelMC gitlink remained unchanged at `e655880a7b1487b2444c70013c14ee86c69d53b3`.
+- No local Rust command or Android test was run.
+- CI for this latest source commit has not yet been confirmed; earlier runs for superseded commits were cancelled.
+
+### Remaining
+- Obtain complete CI results for the latest source commit, including fmt, lint, unit tests, Android, and singleplayer.
+- Inspect all job logs before declaring B1–B4 verified.

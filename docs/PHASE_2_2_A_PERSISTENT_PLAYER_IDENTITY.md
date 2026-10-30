@@ -294,3 +294,8 @@ Correction applied in source commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`:
 - Formatting changes were applied in `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc`.
 
 CI run `41009337238` for the PR merge ref with source head `c9e5909bd783555d7d15ef4e25a1ffbe831b59cc` was pending at the last check. No local or Android test was run.
+
+
+### Backup recovery snapshot correction — 2026-10-30
+
+Source commit `c0576191407a1ad53db77c0635c7b0820669e547` changes `restore_backup()` to accept the exact byte slice already validated by the caller. This avoids reopening the backup path after validation and ensures the restored bytes are the bytes that passed schema/integrity checks. CI verification remains pending.

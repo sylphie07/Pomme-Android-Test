@@ -41,18 +41,19 @@ For each issue, record:
 - Required follow-up: trusted per-connection identity in SteelMC (Phase 2.2-C) and Pomme integration (Phase 2.2-D), with generic offline Hello UUIDs remaining untrusted.
 - Status: known and intentionally not addressed by B1–B4.
 
-## KI-005 — Phase 2.2-B automated verification pending
-- The new profile-store tests have been written but were not run locally in this session.
-- CI run `41008897990` targeted source HEAD `0510cdc0735f1904f84c6e4c4aa436eb83bde1dc` and was pending at the last check.
-- Required: inspect final CI jobs and logs, fix failures, then run Android/device acceptance when a reproducible APK is separately authorized.
-- Status: pending.
-
+## KI-005 — Phase 2.2-B1–B4 automated verification pending
+- The profile-store tests have been added but were not run locally in this session.
+- CI runs for superseded source commits were cancelled; no complete successful run has yet been established for the latest source.
+- Latest source commit: `c0576191407a1ad53db77c0635c7b0820669e547`.
+- Required: inspect the latest PR CI run and its fmt, lint, unit-test, Android, and singleplayer jobs. Then perform Android/device acceptance when a reproducible APK is separately authorized.
+- Status: pending; do not treat written tests as passed.
 
 ## KI-006 — New-profile UUID transition compatibility
-- Source fix in commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce`: `LocalProfile::new()` now assigns the historical `offline_uuid(username)`; the document format is version 2; experimental format-1 random UUIDs migrate back to the runtime offline UUID before the field is used by SteelMC.
-- `create_profile()` now rejects a duplicate historical player UUID instead of inventing a new one and splitting existing identity.
-- Regression tests were added for new-profile identity and experimental format-1 migration.
-- Status: addressed in source, pending CI. C/D must continue using the exact stored UUID and test world/player data continuity; do not reinterpret or regenerate it.
+- Previous risk: experimental format 1 stored random `player_uuid` values while the runtime still used `offline_uuid(username)`.
+- Correction: commit `6b78afb8aca27e9a3aad3c5077ee223f0d8967ce` now creates new profiles with the historical offline UUID and migrates experimental format 1 to format 2 using that same UUID.
+- Backup recovery now restores the exact validated byte snapshot in commit `c0576191407a1ad53db77c0635c7b0820669e547`.
+- Runtime still derives UUID from username until C/D. Before wiring `player_uuid` into SteelMC, re-verify this invariant and test inventory, position, Ender Chest, stats, and all UUID-keyed records.
+- Status: compatibility correction applied in source; CI verification pending.
 
 ## KI-007 — Local profile management UI is not integrated
 - `LocalProfileStore` is loaded at startup and its storage API includes `profiles()`, `create_profile()`, and `select_profile()`.

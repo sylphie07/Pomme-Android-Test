@@ -250,7 +250,6 @@ pub fn update_menu(
         }
     }
 
-
     let result = core
         .menu
         .build(sw, sh, &menu_input, &mut core.input.key_bindings, |t, s| {

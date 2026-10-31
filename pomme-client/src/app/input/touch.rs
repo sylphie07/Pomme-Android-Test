@@ -546,7 +546,7 @@ impl TouchControls {
                     *role = Role::Spent;
                 }
             }
-            out.extend(held_keys.into_iter().map(TouchOutput::VirtualKeyRelease));
+            out.extend(held_keys.into_iter().map(TouchOutput::VirtualInputRelease));
             return out;
         }
         for role in self.touches.values_mut() {

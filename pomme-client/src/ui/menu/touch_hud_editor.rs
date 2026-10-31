@@ -459,21 +459,21 @@ impl MainMenu {
             self.touch_hud_dragging = false;
         }
         if remove_custom {
-            if let Some(index) = self.touch_hud_custom_selected.take() {
-                if index < draft.custom_buttons.len() {
-                    draft.custom_buttons.remove(index);
-                }
+            if let Some(index) = self.touch_hud_custom_selected.take()
+                && index < draft.custom_buttons.len()
+            {
+                draft.custom_buttons.remove(index);
             }
             self.touch_hud_dragging = false;
         }
-        if let Some(index) = self.touch_hud_custom_selected {
-            if let Some(button) = draft.custom_buttons.get_mut(index) {
-                if key_previous {
-                    button.input_id = cycle_custom_key(&button.input_id, -1);
-                }
-                if key_next {
-                    button.input_id = cycle_custom_key(&button.input_id, 1);
-                }
+        if let Some(index) = self.touch_hud_custom_selected
+            && let Some(button) = draft.custom_buttons.get_mut(index)
+        {
+            if key_previous {
+                button.input_id = cycle_custom_key(&button.input_id, -1);
+            }
+            if key_next {
+                button.input_id = cycle_custom_key(&button.input_id, 1);
             }
         }
 

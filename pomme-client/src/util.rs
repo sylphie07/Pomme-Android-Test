@@ -158,7 +158,7 @@ pub fn take_skin_import() -> Option<Vec<u8>> {
             }
         };
         let _ = fs::remove_file(&path);
-        return (!bytes.is_empty()).then_some(bytes);
+        (!bytes.is_empty()).then_some(bytes)
     }
     #[cfg(not(target_os = "android"))]
     {

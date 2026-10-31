@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
-use winit::event::{MouseButton, TouchPhase};
+use winit::event::TouchPhase;
 
 use super::InputKey;
 use super::action::Action;
@@ -618,7 +618,7 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use glam::Vec2;
-    use winit::event::TouchPhase;
+    use winit::event::{MouseButton, TouchPhase};
     use winit::keyboard::KeyCode;
 
     use super::{

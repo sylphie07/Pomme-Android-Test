@@ -344,7 +344,10 @@ impl MainMenu {
         elements.push(MenuElement::Text {
             x: stick_x,
             y: stick_y - stick_radius - fs * 0.9,
-            text: format!("SPRINT > {}%", (draft.sprint_threshold * 100.0).round() as u32),
+            text: format!(
+                "SPRINT > {}%",
+                (draft.sprint_threshold * 100.0).round() as u32
+            ),
             scale: fs * 0.62,
             color: COL_DIM,
             centered: true,
@@ -613,7 +616,11 @@ impl MainMenu {
             action_w,
             row_h,
             gs,
-            if self.touch_hud_stick_selected { "Sprint -" } else { "Key -" },
+            if self.touch_hud_stick_selected {
+                "Sprint -"
+            } else {
+                "Key -"
+            },
             self.touch_hud_custom_selected.is_some() || self.touch_hud_stick_selected,
         );
         key_next |= helpers::push_button_f(
@@ -627,7 +634,11 @@ impl MainMenu {
             action_w,
             row_h,
             gs,
-            if self.touch_hud_stick_selected { "Sprint +" } else { "Key +" },
+            if self.touch_hud_stick_selected {
+                "Sprint +"
+            } else {
+                "Key +"
+            },
             self.touch_hud_custom_selected.is_some() || self.touch_hud_stick_selected,
         );
 
@@ -818,22 +829,52 @@ impl MainMenu {
             let tab_y = panel_y + 30.0 * gs;
             let tab_w = (panel_w - modal_gap * 4.0) / 3.0;
             if helpers::push_button_f(
-                &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-                panel_x + modal_gap, tab_y, tab_w, modal_row_h, gs, "Keyboard", true,
+                &mut elements,
+                &mut ctx,
+                &mut any_hovered,
+                input.cursor,
+                input.clicked,
+                panel_x + modal_gap,
+                tab_y,
+                tab_w,
+                modal_row_h,
+                gs,
+                "Keyboard",
+                true,
             ) {
                 self.touch_hud_picker_mouse = false;
                 self.touch_hud_picker_page = 0;
             }
             if helpers::push_button_f(
-                &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-                panel_x + modal_gap * 2.0 + tab_w, tab_y, tab_w, modal_row_h, gs, "Mouse", true,
+                &mut elements,
+                &mut ctx,
+                &mut any_hovered,
+                input.cursor,
+                input.clicked,
+                panel_x + modal_gap * 2.0 + tab_w,
+                tab_y,
+                tab_w,
+                modal_row_h,
+                gs,
+                "Mouse",
+                true,
             ) {
                 self.touch_hud_picker_mouse = true;
                 self.touch_hud_picker_page = 0;
             }
             if helpers::push_button_f(
-                &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-                panel_x + modal_gap * 3.0 + tab_w * 2.0, tab_y, tab_w, modal_row_h, gs, "Close", true,
+                &mut elements,
+                &mut ctx,
+                &mut any_hovered,
+                input.cursor,
+                input.clicked,
+                panel_x + modal_gap * 3.0 + tab_w * 2.0,
+                tab_y,
+                tab_w,
+                modal_row_h,
+                gs,
+                "Close",
+                true,
             ) {
                 self.touch_hud_picker_open = false;
             }
@@ -869,7 +910,7 @@ impl MainMenu {
                     cell_w,
                     cell_h,
                     gs,
-                    &key.display_name().into_owned(),
+                    &key.display_name(),
                     true,
                 ) {
                     if let Some(index) = self.touch_hud_custom_selected
@@ -882,15 +923,37 @@ impl MainMenu {
             }
             let nav_w = (panel_w - modal_gap * 3.0) / 2.0;
             if helpers::push_button_f(
-                &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-                panel_x + modal_gap, nav_y, nav_w, modal_row_h, gs, "Previous", self.touch_hud_picker_page > 0,
-            ) && self.touch_hud_picker_page > 0 {
+                &mut elements,
+                &mut ctx,
+                &mut any_hovered,
+                input.cursor,
+                input.clicked,
+                panel_x + modal_gap,
+                nav_y,
+                nav_w,
+                modal_row_h,
+                gs,
+                "Previous",
+                self.touch_hud_picker_page > 0,
+            ) && self.touch_hud_picker_page > 0
+            {
                 self.touch_hud_picker_page -= 1;
             }
             if helpers::push_button_f(
-                &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-                panel_x + modal_gap * 2.0 + nav_w, nav_y, nav_w, modal_row_h, gs, "Next", self.touch_hud_picker_page + 1 < page_count,
-            ) && self.touch_hud_picker_page + 1 < page_count {
+                &mut elements,
+                &mut ctx,
+                &mut any_hovered,
+                input.cursor,
+                input.clicked,
+                panel_x + modal_gap * 2.0 + nav_w,
+                nav_y,
+                nav_w,
+                modal_row_h,
+                gs,
+                "Next",
+                self.touch_hud_picker_page + 1 < page_count,
+            ) && self.touch_hud_picker_page + 1 < page_count
+            {
                 self.touch_hud_picker_page += 1;
             }
         }

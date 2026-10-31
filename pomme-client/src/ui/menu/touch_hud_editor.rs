@@ -249,11 +249,17 @@ impl MainMenu {
         input: &MenuInput,
         key_bindings: &KeyBindings,
     ) -> MainMenuResult {
+        if input.escape && self.touch_hud_picker_open {
+            self.touch_hud_picker_open = false;
+            return empty_result();
+        }
         if input.escape {
+            self.touch_hud_picker_open = false;
             self.touch_hud_draft = None;
             self.touch_hud_selected = None;
             self.touch_hud_stick_selected = false;
             self.touch_hud_custom_selected = None;
+            self.touch_hud_picker_open = false;
             self.touch_hud_dragging = false;
             self.set_screen(Screen::OptionsControls, key_bindings);
             return empty_result();
@@ -347,7 +353,7 @@ impl MainMenu {
         // A touch press becomes a pointer drag after the platform's gesture
         // threshold. Keep a generous selection radius so that transition does
         // not make a button impossible to grab on a phone.
-        if input.clicked {
+        if input.clicked && !self.touch_hud_picker_open {
             let mut selected_builtin = false;
             let stick_dx = input.cursor.0 - stick_x;
             let stick_dy = input.cursor.1 - stick_y;
@@ -566,7 +572,7 @@ impl MainMenu {
         let action_x = (sw - (action_w * 4.0 + gap * 3.0)) / 2.0;
         let mut add_custom = false;
         let mut remove_custom = false;
-        let mut key_previous = false;
+        let mut choose_key = false;
         let mut key_next = false;
         add_custom |= helpers::push_button_f(
             &mut elements,
@@ -596,7 +602,7 @@ impl MainMenu {
             "Remove",
             self.touch_hud_custom_selected.is_some(),
         );
-        key_previous |= helpers::push_button_f(
+        choose_key |= helpers::push_button_f(
             &mut elements,
             &mut ctx,
             &mut any_hovered,
@@ -653,21 +659,22 @@ impl MainMenu {
             self.touch_hud_dragging = false;
         }
         if self.touch_hud_stick_selected {
-            if key_previous {
+            if choose_key {
                 draft.sprint_threshold = (draft.sprint_threshold - 0.02).max(0.5);
             }
             if key_next {
                 draft.sprint_threshold = (draft.sprint_threshold + 0.02).min(0.98);
             }
+        } else if choose_key && self.touch_hud_custom_selected.is_some() {
+            self.touch_hud_picker_open = true;
+            self.touch_hud_picker_mouse = false;
+            self.touch_hud_picker_page = 0;
+            self.touch_hud_dragging = false;
         } else if let Some(index) = self.touch_hud_custom_selected
             && let Some(button) = draft.custom_buttons.get_mut(index)
+            && key_next
         {
-            if key_previous {
-                button.input_id = cycle_custom_key(&button.input_id, -1);
-            }
-            if key_next {
-                button.input_id = cycle_custom_key(&button.input_id, 1);
-            }
+            button.input_id = cycle_custom_key(&button.input_id, 1);
         }
 
         let action_y = custom_row_y + row_h + 3.0 * gs;
@@ -777,6 +784,117 @@ impl MainMenu {
             self.touch_hud_dragging = false;
         }
 
+        if self.touch_hud_picker_open {
+            let panel_x = sw * 0.04;
+            let panel_y = (sh * 0.08).max(chrome.content_top + 4.0 * gs);
+            let panel_w = sw * 0.92;
+            let panel_h = (chrome.content_bottom - panel_y - 4.0 * gs).max(220.0 * gs);
+            elements.push(MenuElement::Rect {
+                x: 0.0,
+                y: 0.0,
+                w: sw,
+                h: sh,
+                corner_radius: 0.0,
+                color: [0.0, 0.0, 0.0, 0.72],
+            });
+            elements.push(MenuElement::Rect {
+                x: panel_x,
+                y: panel_y,
+                w: panel_w,
+                h: panel_h,
+                corner_radius: 6.0 * gs,
+                color: [0.035, 0.05, 0.075, 0.98],
+            });
+            elements.push(MenuElement::Text {
+                x: panel_x + 8.0 * gs,
+                y: panel_y + 8.0 * gs,
+                text: "Choose a keyboard key or mouse button".into(),
+                scale: fs * 0.9,
+                color: WHITE,
+                centered: false,
+            });
+            let modal_gap = 3.0 * gs;
+            let modal_row_h = (row_h * 0.82).max(22.0 * gs);
+            let tab_y = panel_y + 30.0 * gs;
+            let tab_w = (panel_w - modal_gap * 4.0) / 3.0;
+            if helpers::push_button_f(
+                &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+                panel_x + modal_gap, tab_y, tab_w, modal_row_h, gs, "Keyboard", true,
+            ) {
+                self.touch_hud_picker_mouse = false;
+                self.touch_hud_picker_page = 0;
+            }
+            if helpers::push_button_f(
+                &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+                panel_x + modal_gap * 2.0 + tab_w, tab_y, tab_w, modal_row_h, gs, "Mouse", true,
+            ) {
+                self.touch_hud_picker_mouse = true;
+                self.touch_hud_picker_page = 0;
+            }
+            if helpers::push_button_f(
+                &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+                panel_x + modal_gap * 3.0 + tab_w * 2.0, tab_y, tab_w, modal_row_h, gs, "Close", true,
+            ) {
+                self.touch_hud_picker_open = false;
+            }
+
+            let page_size = 30usize;
+            let inputs: Vec<InputKey> = CUSTOM_INPUT_CHOICES
+                .iter()
+                .copied()
+                .filter(|key| matches!(key, InputKey::Mouse(_)) == self.touch_hud_picker_mouse)
+                .collect();
+            let page_count = inputs.len().div_ceil(page_size).max(1);
+            self.touch_hud_picker_page = self.touch_hud_picker_page.min(page_count - 1);
+            let grid_top = tab_y + modal_row_h + 4.0 * gs;
+            let nav_y = panel_y + panel_h - modal_row_h - 4.0 * gs;
+            let grid_h = (nav_y - grid_top - 3.0 * gs).max(90.0 * gs);
+            let cell_gap = 2.0 * gs;
+            let cell_w = (panel_w - cell_gap * 6.0) / 5.0;
+            let cell_h = ((grid_h - cell_gap * 5.0) / 6.0).max(18.0 * gs);
+            let start = self.touch_hud_picker_page * page_size;
+            for (slot, key) in inputs.iter().skip(start).take(page_size).enumerate() {
+                let column = (slot % 5) as f32;
+                let row = (slot / 5) as f32;
+                let x = panel_x + cell_gap + column * (cell_w + cell_gap);
+                let y = grid_top + row * (cell_h + cell_gap);
+                if helpers::push_button_f(
+                    &mut elements,
+                    &mut ctx,
+                    &mut any_hovered,
+                    input.cursor,
+                    input.clicked,
+                    x,
+                    y,
+                    cell_w,
+                    cell_h,
+                    gs,
+                    &key.display_name(),
+                    true,
+                ) {
+                    if let Some(index) = self.touch_hud_custom_selected
+                        && let Some(button) = draft.custom_buttons.get_mut(index)
+                    {
+                        button.input_id = custom_key_id(*key);
+                    }
+                    self.touch_hud_picker_open = false;
+                }
+            }
+            let nav_w = (panel_w - modal_gap * 3.0) / 2.0;
+            if helpers::push_button_f(
+                &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+                panel_x + modal_gap, nav_y, nav_w, modal_row_h, gs, "Previous", self.touch_hud_picker_page > 0,
+            ) && self.touch_hud_picker_page > 0 {
+                self.touch_hud_picker_page -= 1;
+            }
+            if helpers::push_button_f(
+                &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+                panel_x + modal_gap * 2.0 + nav_w, nav_y, nav_w, modal_row_h, gs, "Next", self.touch_hud_picker_page + 1 < page_count,
+            ) && self.touch_hud_picker_page + 1 < page_count {
+                self.touch_hud_picker_page += 1;
+            }
+        }
+
         let cx = sw / 2.0;
         let footer_w = helpers::FOOTER_PAIR_W * gs;
         let footer_gap = helpers::FOOTER_PAIR_GAP * gs;
@@ -814,6 +932,7 @@ impl MainMenu {
             self.touch_hud_selected = None;
             self.touch_hud_stick_selected = false;
             self.touch_hud_custom_selected = None;
+            self.touch_hud_picker_open = false;
             self.touch_hud_dragging = false;
             self.set_screen(Screen::OptionsControls, key_bindings);
         } else if cancel {

@@ -225,7 +225,8 @@ impl TouchLayout {
             .enumerate()
             .find_map(|(index, button)| {
                 if !button.visible
-                    || p.distance(self.custom_button_centre(index)) > self.custom_button_radius(index)
+                    || p.distance(self.custom_button_centre(index))
+                        > self.custom_button_radius(index)
                 {
                     return None;
                 }

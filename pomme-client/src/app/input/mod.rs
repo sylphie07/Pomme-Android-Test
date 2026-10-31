@@ -1454,19 +1454,19 @@ mod binding_lookup_tests {
         input
             .key_bindings
             .set(Action::Jump, vec![InputKey::Keyboard(KeyCode::KeyR)]);
-        input.apply_touch(vec![TouchOutput::VirtualKeyPress(KeyCode::KeyR)]);
+        input.apply_touch(vec![TouchOutput::VirtualInputPress(InputKey::Keyboard(KeyCode::KeyR))]);
         assert!(input.key_pressed(KeyCode::KeyR));
         assert!(input.performing_action(Action::Jump));
-        input.apply_touch(vec![TouchOutput::VirtualKeyRelease(KeyCode::KeyR)]);
+        input.apply_touch(vec![TouchOutput::VirtualInputRelease(InputKey::Keyboard(KeyCode::KeyR))]);
         assert!(!input.key_pressed(KeyCode::KeyR));
         assert!(!input.performing_action(Action::Jump));
 
         input
             .key_bindings
             .set(Action::DropItem, vec![InputKey::Keyboard(KeyCode::KeyQ)]);
-        input.apply_touch(vec![TouchOutput::VirtualKeyPress(KeyCode::KeyQ)]);
+        input.apply_touch(vec![TouchOutput::VirtualInputPress(InputKey::Keyboard(KeyCode::KeyQ))]);
         assert!(input.consume_click(Action::DropItem));
-        input.apply_touch(vec![TouchOutput::VirtualKeyRelease(KeyCode::KeyQ)]);
+        input.apply_touch(vec![TouchOutput::VirtualInputRelease(InputKey::Keyboard(KeyCode::KeyQ))]);
         assert!(!input.consume_click(Action::DropItem));
     }
 

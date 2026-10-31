@@ -3,7 +3,7 @@
 
 use glam::Vec2;
 
-use crate::app::input::touch::{STICK_RADIUS, TouchButton, TouchControls, TouchLayout};
+use crate::app::input::{InputKey, touch::{STICK_RADIUS, TouchButton, TouchControls, TouchLayout}};
 use crate::renderer::pipelines::menu_overlay::MenuElement;
 use crate::ui::common::{FONT_SIZE, WHITE};
 
@@ -21,6 +21,25 @@ pub fn build_touch_controls(
     push_circle(elements, base, radius, BASE);
     let deflection = touch.stick().map_or(Vec2::ZERO, |v| Vec2::new(v.x, -v.y));
     push_circle(elements, base + deflection * radius, radius * 0.45, KNOB);
+
+    for (index, button) in layout.hud.custom_buttons.iter().enumerate() {
+        if !button.visible {
+            continue;
+        }
+        let centre = layout.custom_button_centre(index);
+        push_circle(elements, centre, layout.custom_button_radius(index), BASE);
+        let label = InputKey::from_input_id(&button.input_id)
+            .map(|key| key.display_name().into_owned())
+            .unwrap_or_else(|_| "?".to_owned());
+        elements.push(MenuElement::Text {
+            x: centre.x,
+            y: centre.y - FONT_SIZE * gs / 2.0,
+            text: label,
+            scale: FONT_SIZE * gs,
+            color: WHITE,
+            centered: true,
+        });
+    }
 
     for button in TouchButton::ALL {
         if !layout.hud.is_visible(button) {

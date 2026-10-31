@@ -1535,11 +1535,7 @@ impl Renderer {
     /// Applies a validated local PNG skin to the hand, menu preview and
     /// local-player entity renderer. Imported skins default to the classic
     /// model because PNG files do not carry Minecraft's slim-model metadata.
-    pub fn load_local_skin(
-        &mut self,
-        uuid: &uuid::Uuid,
-        bytes: &[u8],
-    ) -> Result<(), String> {
+    pub fn load_local_skin(&mut self, uuid: &uuid::Uuid, bytes: &[u8]) -> Result<(), String> {
         let skin = decode_local_skin(bytes)?;
         self.apply_player_skin(uuid, &skin);
         Ok(())
@@ -2314,24 +2310,23 @@ fn decode_local_skin(bytes: &[u8]) -> Result<SkinData, String> {
         return Err("Selected file is not a PNG image".to_owned());
     }
 
-    let mut reader = image::ImageReader::with_format(
-        std::io::Cursor::new(bytes),
-        image::ImageFormat::Png,
-    );
+    let mut reader =
+        image::ImageReader::with_format(std::io::Cursor::new(bytes), image::ImageFormat::Png);
     let mut limits = image::Limits::default();
     limits.max_image_width = Some(64);
     limits.max_image_height = Some(64);
     limits.max_alloc = Some((64 * 64 * 4 * 4) as u64);
     reader.limits(limits);
-    let image = reader.decode().map_err(|error| format!("Invalid skin PNG: {error}"))?;
+    let image = reader
+        .decode()
+        .map_err(|error| format!("Invalid skin PNG: {error}"))?;
     let (width, height) = (image.width(), image.height());
     if width != 64 || (height != 32 && height != 64) {
         return Err(format!(
             "Unsupported Minecraft skin dimensions: {width}x{height}; expected 64x64 or 64x32"
         ));
     }
-    let (pixels, width, height) =
-        process_legacy_skin(image.to_rgba8().into_raw(), width, height)?;
+    let (pixels, width, height) = process_legacy_skin(image.to_rgba8().into_raw(), width, height)?;
     Ok(SkinData {
         pixels,
         width,
@@ -2773,9 +2768,7 @@ mod tests {
     fn decodes_valid_local_skin_png() {
         let image = image::DynamicImage::ImageRgba8(image::RgbaImage::new(64, 64));
         let mut bytes = std::io::Cursor::new(Vec::new());
-        image
-            .write_to(&mut bytes, image::ImageFormat::Png)
-            .unwrap();
+        image.write_to(&mut bytes, image::ImageFormat::Png).unwrap();
 
         let skin = decode_local_skin(bytes.get_ref()).unwrap();
         assert_eq!((skin.width, skin.height), (64, 64));

@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
-use winit::event::TouchPhase;
+use winit::event::{MouseButton, TouchPhase};
 use winit::keyboard::KeyCode;
 
 use super::InputKey;
@@ -821,7 +821,7 @@ mod tests {
         let centre = layout.custom_button_centre(0);
         assert_eq!(
             controls.on_touch(90, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
-            [TouchOutput::VirtualInputPress(KeyCode::KeyR)]
+            [TouchOutput::VirtualInputPress(InputKey::Keyboard(KeyCode::KeyR))]
         );
         assert_eq!(
             controls.on_touch(90, TouchPhase::Cancelled, centre, GAMEPLAY, &layout, now),
@@ -850,6 +850,27 @@ mod tests {
             controls
                 .on_touch(92, TouchPhase::Ended, centre, MENU, &layout, now)
                 .is_empty()
+        );
+    }
+
+    #[test]
+    fn custom_mouse_button_sends_press_and_release() {
+        let (mut controls, now) = (TouchControls::default(), Instant::now());
+        let mut layout = (*LAYOUT).clone();
+        layout.hud.custom_buttons.push(CustomTouchButton {
+            input_id: "key.mouse.left".into(),
+            position: [0.5, 0.5],
+            scale: 1.0,
+            visible: true,
+        });
+        let centre = layout.custom_button_centre(0);
+        assert_eq!(
+            controls.on_touch(93, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualInputPress(InputKey::Mouse(MouseButton::Left))]
+        );
+        assert_eq!(
+            controls.on_touch(93, TouchPhase::Ended, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualInputRelease(InputKey::Mouse(MouseButton::Left))]
         );
     }
 

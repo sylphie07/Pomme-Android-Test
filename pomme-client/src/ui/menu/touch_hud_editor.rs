@@ -842,7 +842,7 @@ impl MainMenu {
             let inputs: Vec<InputKey> = CUSTOM_INPUT_CHOICES
                 .iter()
                 .copied()
-                .filter(|key| matches!(key, InputKey::Mouse(_)) == self.touch_hud_picker_mouse)
+                .filter(|key| matches!(*key, InputKey::Mouse(_)) == self.touch_hud_picker_mouse)
                 .collect();
             let page_count = inputs.len().div_ceil(page_size).max(1);
             self.touch_hud_picker_page = self.touch_hud_picker_page.min(page_count - 1);
@@ -851,7 +851,7 @@ impl MainMenu {
             let grid_h = (nav_y - grid_top - 3.0 * gs).max(90.0 * gs);
             let cell_gap = 2.0 * gs;
             let cell_w = (panel_w - cell_gap * 6.0) / 5.0;
-            let cell_h = ((grid_h - cell_gap * 5.0) / 6.0).max(18.0 * gs);
+            let cell_h = ((grid_h - cell_gap * 5.0) / 6.0).max(12.0 * gs);
             let start = self.touch_hud_picker_page * page_size;
             for (slot, key) in inputs.iter().skip(start).take(page_size).enumerate() {
                 let column = (slot % 5) as f32;

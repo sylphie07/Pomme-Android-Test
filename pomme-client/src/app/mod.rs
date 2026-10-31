@@ -1025,7 +1025,7 @@ impl ApplicationHandler for App {
                         width,
                         height,
                         gs: self.core.menu.gui_scale(width, height),
-                        hud: self.core.menu.touch_hud,
+                        hud: self.core.menu.touch_hud.clone(),
                     };
                     self.core.input.on_touch(
                         &touch,

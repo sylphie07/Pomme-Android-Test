@@ -9,7 +9,6 @@ use std::time::{Duration, Instant};
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 use winit::event::{MouseButton, TouchPhase};
-use winit::keyboard::KeyCode;
 
 use super::InputKey;
 use super::action::Action;

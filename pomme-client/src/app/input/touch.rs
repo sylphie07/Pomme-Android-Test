@@ -111,7 +111,8 @@ impl TouchHudLayout {
                 || !matches!(
                     InputKey::from_input_id(&button.input_id),
                     Ok(InputKey::Keyboard(_))
-                ) {
+                )
+            {
                 return false;
             }
             for coordinate in &mut button.position {
@@ -789,7 +790,6 @@ mod tests {
                 .is_empty()
         );
     }
-
 
     #[test]
     fn shared_custom_key_releases_only_after_the_last_finger_lifts() {

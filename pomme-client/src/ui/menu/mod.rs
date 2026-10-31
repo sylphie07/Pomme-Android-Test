@@ -1115,11 +1115,6 @@ impl MainMenu {
         std::mem::take(&mut self.options_saved)
     }
 
-    pub fn set_touch_hud(&mut self, layout: crate::app::input::touch::TouchHudLayout) {
-        self.touch_hud = layout.sanitized();
-        self.settings_dirty = true;
-    }
-
     pub fn flush_settings(&mut self, key_bindings: &KeyBindings) {
         if self.settings_dirty {
             self.save_settings(key_bindings);

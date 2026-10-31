@@ -452,7 +452,9 @@ mod tests {
     use glam::Vec2;
     use winit::event::TouchPhase;
 
-    use super::{Action, TouchButton, TouchContext, TouchControls, TouchHudLayout, TouchLayout, TouchOutput};
+    use super::{
+        Action, TouchButton, TouchContext, TouchControls, TouchHudLayout, TouchLayout, TouchOutput,
+    };
 
     const MENU: TouchContext = TouchContext {
         gameplay: false,

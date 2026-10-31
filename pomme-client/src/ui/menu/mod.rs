@@ -34,6 +34,8 @@ use crate::ui::text_edit::{SystemClipboard, TextFieldState, TextInputEvent};
 struct Settings {
     #[serde(default)]
     key_bindings: KeyBindings,
+    #[serde(default)]
+    touch_hud: crate::app::input::touch::TouchHudLayout,
     gui_scale: u32,
     render_distance: u32,
     #[serde(default = "default_chunk_detail")]
@@ -210,6 +212,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             key_bindings: KeyBindings::default(),
+            touch_hud: crate::app::input::touch::TouchHudLayout::default(),
             gui_scale: 0,
             render_distance: 12,
             chunk_detail: 8,
@@ -711,6 +714,7 @@ pub struct MainMenu {
     credits_keys: u8,
     last_click_index: Option<usize>,
     pub gui_scale_setting: u32,
+    pub touch_hud: crate::app::input::touch::TouchHudLayout,
     pub render_distance: u32,
     /// Radius of full-detail meshing (LOD 0), in chunks; coarser LODs start
     /// beyond it. Pomme-custom: vanilla has no LOD, this buys its look back
@@ -877,6 +881,7 @@ impl MainMenu {
             credits_keys: 0,
             last_click_index: None,
             gui_scale_setting: settings.gui_scale,
+            touch_hud: settings.touch_hud.sanitized(),
             render_distance: settings.render_distance,
             chunk_detail: settings.chunk_detail,
             simulation_distance: settings.simulation_distance,
@@ -1110,6 +1115,11 @@ impl MainMenu {
         std::mem::take(&mut self.options_saved)
     }
 
+    pub fn set_touch_hud(&mut self, layout: crate::app::input::touch::TouchHudLayout) {
+        self.touch_hud = layout.sanitized();
+        self.settings_dirty = true;
+    }
+
     pub fn flush_settings(&mut self, key_bindings: &KeyBindings) {
         if self.settings_dirty {
             self.save_settings(key_bindings);
@@ -1122,6 +1132,7 @@ impl MainMenu {
             &self.settings_dir,
             &Settings {
                 key_bindings: key_bindings.clone(),
+                touch_hud: self.touch_hud.sanitized(),
                 gui_scale: self.gui_scale_setting,
                 render_distance: self
                     .bench_render_distance

@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use glam::Vec2;
+use serde::{Deserialize, Serialize};
 use winit::event::TouchPhase;
 
 use super::action::Action;
@@ -36,11 +37,44 @@ pub struct TouchContext {
     pub scrollable: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TouchHudLayout {
+    #[serde(default = "default_touch_positions")]
+    pub positions: [[f32; 2]; 4],
+    #[serde(default = "default_touch_scales")]
+    pub scales: [f32; 4],
+    #[serde(default = "default_touch_visibility")]
+    pub visible: [bool; 4],
+}
+fn default_touch_positions() -> [[f32; 2]; 4] { [[0.96, 0.92], [0.96, 0.07], [0.89, 0.07], [0.96, 0.07]] }
+fn default_touch_scales() -> [f32; 4] { [1.0; 4] }
+fn default_touch_visibility() -> [bool; 4] { [true; 4] }
+impl Default for TouchHudLayout {
+    fn default() -> Self { Self { positions: default_touch_positions(), scales: default_touch_scales(), visible: default_touch_visibility() } }
+}
+impl TouchHudLayout {
+    pub fn sanitized(mut self) -> Self {
+        for position in &mut self.positions { for coordinate in position {
+            *coordinate = if coordinate.is_finite() { coordinate.clamp(0.04, 0.96) } else { 0.5 };
+        }}
+        for scale in &mut self.scales { *scale = if scale.is_finite() { scale.clamp(0.6, 1.8) } else { 1.0 }; }
+        self
+    }
+    fn index(button: TouchButton) -> usize {
+        match button { TouchButton::Jump => 0, TouchButton::Chat => 1, TouchButton::Inventory => 2, TouchButton::Pause => 3 }
+    }
+    pub fn position(&self, button: TouchButton) -> Vec2 {
+        let [x, y] = self.positions[Self::index(button)]; Vec2::new(x, y)
+    }
+    pub fn scale(&self, button: TouchButton) -> f32 { self.scales[Self::index(button)] }
+    pub fn is_visible(&self, button: TouchButton) -> bool { self.visible[Self::index(button)] }
+}
 #[derive(Clone, Copy)]
 pub struct TouchLayout {
     pub width: f32,
     pub height: f32,
     pub gs: f32,
+    pub hud: TouchHudLayout,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,15 +109,11 @@ impl TouchButton {
 }
 
 impl TouchLayout {
-    /// A button's centre; all share [`BUTTON_RADIUS`].
     pub fn button_centre(&self, button: TouchButton) -> Vec2 {
-        let inset = 2.0 * BUTTON_RADIUS * self.gs;
-        match button {
-            TouchButton::Jump => Vec2::new(self.width - inset, self.height - 1.5 * inset),
-            TouchButton::Chat => Vec2::new(self.width - 4.0 * inset, inset),
-            TouchButton::Inventory => Vec2::new(self.width - 2.5 * inset, inset),
-            TouchButton::Pause => Vec2::new(self.width - inset, inset),
-        }
+        let p = self.hud.position(button); Vec2::new(p.x * self.width, p.y * self.height)
+    }
+    pub fn button_radius(&self, button: TouchButton) -> f32 {
+        BUTTON_RADIUS * self.gs * self.hud.scale(button)
     }
 
     /// Where the stick rests until a press places it.
@@ -93,9 +123,9 @@ impl TouchLayout {
     }
 
     fn button_at(&self, p: Vec2) -> Option<TouchButton> {
-        TouchButton::ALL
-            .into_iter()
-            .find(|&b| p.distance(self.button_centre(b)) <= BUTTON_RADIUS * self.gs)
+        TouchButton::ALL.into_iter().find(|&b| {
+            self.hud.is_visible(b) && p.distance(self.button_centre(b)) <= self.button_radius(b)
+        })
     }
 
     fn hotbar_slot_at(&self, p: Vec2) -> Option<u8> {

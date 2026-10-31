@@ -4,7 +4,7 @@
 use glam::Vec2;
 
 use crate::app::input::touch::{
-    BUTTON_RADIUS, STICK_RADIUS, TouchButton, TouchControls, TouchLayout,
+    STICK_RADIUS, TouchButton, TouchControls, TouchLayout,
 };
 use crate::renderer::pipelines::menu_overlay::MenuElement;
 use crate::ui::common::{FONT_SIZE, WHITE};
@@ -25,8 +25,9 @@ pub fn build_touch_controls(
     push_circle(elements, base + deflection * radius, radius * 0.45, KNOB);
 
     for button in TouchButton::ALL {
+        if !layout.hud.is_visible(button) { continue; }
         let centre = layout.button_centre(button);
-        push_circle(elements, centre, BUTTON_RADIUS * gs, BASE);
+        push_circle(elements, centre, layout.button_radius(button), BASE);
         elements.push(MenuElement::Text {
             x: centre.x,
             y: centre.y - FONT_SIZE * gs / 2.0,

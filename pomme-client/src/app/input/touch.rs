@@ -46,28 +46,62 @@ pub struct TouchHudLayout {
     #[serde(default = "default_touch_visibility")]
     pub visible: [bool; 4],
 }
-fn default_touch_positions() -> [[f32; 2]; 4] { [[0.96, 0.92], [0.78, 0.07], [0.88, 0.07], [0.96, 0.07]] }
-fn default_touch_scales() -> [f32; 4] { [1.0; 4] }
-fn default_touch_visibility() -> [bool; 4] { [true; 4] }
+fn default_touch_positions() -> [[f32; 2]; 4] {
+    [[0.96, 0.92], [0.78, 0.07], [0.88, 0.07], [0.96, 0.07]]
+}
+fn default_touch_scales() -> [f32; 4] {
+    [1.0; 4]
+}
+fn default_touch_visibility() -> [bool; 4] {
+    [true; 4]
+}
 impl Default for TouchHudLayout {
-    fn default() -> Self { Self { positions: default_touch_positions(), scales: default_touch_scales(), visible: default_touch_visibility() } }
+    fn default() -> Self {
+        Self {
+            positions: default_touch_positions(),
+            scales: default_touch_scales(),
+            visible: default_touch_visibility(),
+        }
+    }
 }
 impl TouchHudLayout {
     pub fn sanitized(mut self) -> Self {
-        for position in &mut self.positions { for coordinate in position {
-            *coordinate = if coordinate.is_finite() { coordinate.clamp(0.04, 0.96) } else { 0.5 };
-        }}
-        for scale in &mut self.scales { *scale = if scale.is_finite() { scale.clamp(0.6, 1.8) } else { 1.0 }; }
+        for position in &mut self.positions {
+            for coordinate in position {
+                *coordinate = if coordinate.is_finite() {
+                    coordinate.clamp(0.04, 0.96)
+                } else {
+                    0.5
+                };
+            }
+        }
+        for scale in &mut self.scales {
+            *scale = if scale.is_finite() {
+                scale.clamp(0.6, 1.8)
+            } else {
+                1.0
+            };
+        }
         self
     }
     fn index(button: TouchButton) -> usize {
-        match button { TouchButton::Jump => 0, TouchButton::Chat => 1, TouchButton::Inventory => 2, TouchButton::Pause => 3 }
+        match button {
+            TouchButton::Jump => 0,
+            TouchButton::Chat => 1,
+            TouchButton::Inventory => 2,
+            TouchButton::Pause => 3,
+        }
     }
     pub fn position(&self, button: TouchButton) -> Vec2 {
-        let [x, y] = self.positions[Self::index(button)]; Vec2::new(x, y)
+        let [x, y] = self.positions[Self::index(button)];
+        Vec2::new(x, y)
     }
-    pub fn scale(&self, button: TouchButton) -> f32 { self.scales[Self::index(button)] }
-    pub fn is_visible(&self, button: TouchButton) -> bool { self.visible[Self::index(button)] }
+    pub fn scale(&self, button: TouchButton) -> f32 {
+        self.scales[Self::index(button)]
+    }
+    pub fn is_visible(&self, button: TouchButton) -> bool {
+        self.visible[Self::index(button)]
+    }
 }
 #[derive(Clone, Copy)]
 pub struct TouchLayout {
@@ -110,7 +144,8 @@ impl TouchButton {
 
 impl TouchLayout {
     pub fn button_centre(&self, button: TouchButton) -> Vec2 {
-        let p = self.hud.position(button); Vec2::new(p.x * self.width, p.y * self.height)
+        let p = self.hud.position(button);
+        Vec2::new(p.x * self.width, p.y * self.height)
     }
     pub fn button_radius(&self, button: TouchButton) -> f32 {
         BUTTON_RADIUS * self.gs * self.hud.scale(button)

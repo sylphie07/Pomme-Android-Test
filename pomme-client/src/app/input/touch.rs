@@ -538,14 +538,24 @@ impl TouchControls {
     pub fn tick(&mut self, now: Instant, gameplay: bool) -> Vec<TouchOutput> {
         let mut out = Vec::new();
         if !gameplay {
-            let mut held_keys = HashSet::new();
+            let mut held_inputs = HashSet::new();
             for role in self.touches.values_mut() {
-                if let Role::CustomKey { key } = role {
-                    held_keys.insert(*key);
-                    *role = Role::Spent;
+                match role {
+                    Role::CustomKey { key } => {
+                        held_inputs.insert(*key);
+                        *role = Role::Spent;
+                    }
+                    Role::Look { destroying: true, .. } => {
+                        out.push(TouchOutput::DestroyCancel);
+                        *role = Role::Spent;
+                    }
+                    Role::Stick { .. } | Role::Jump | Role::Look { .. } => {
+                        *role = Role::Spent;
+                    }
+                    _ => {}
                 }
             }
-            out.extend(held_keys.into_iter().map(TouchOutput::VirtualInputRelease));
+            out.extend(held_inputs.into_iter().map(TouchOutput::VirtualInputRelease));
             return out;
         }
         for role in self.touches.values_mut() {
@@ -766,6 +776,22 @@ mod tests {
         .sanitized();
         assert_eq!(layout.stick_scale, 1.8);
         assert_eq!(layout.sprint_threshold, 0.82);
+    }
+
+    #[test]
+    fn sprint_is_released_when_gameplay_loses_touch_focus() {
+        let (mut controls, now) = (TouchControls::default(), Instant::now());
+        touch(&mut controls, 95, TouchPhase::Started, STICK, now);
+        touch(
+            &mut controls,
+            95,
+            TouchPhase::Moved,
+            STICK + Vec2::new(0.0, -50.0),
+            now,
+        );
+        assert!(controls.sprint_held());
+        assert!(controls.tick(ms(now, 16), false).is_empty());
+        assert!(!controls.sprint_held());
     }
 
     #[test]

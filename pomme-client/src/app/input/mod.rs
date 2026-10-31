@@ -1440,11 +1440,12 @@ mod binding_lookup_tests {
         assert_eq!(input.hotbar_key_just_pressed(), Some(2));
     }
 
-
     #[test]
     fn custom_touch_keyboard_events_reuse_key_bindings_and_release_held_actions() {
         let mut input = InputState::released();
-        input.key_bindings.set(Action::Jump, vec![InputKey::Keyboard(KeyCode::KeyR)]);
+        input
+            .key_bindings
+            .set(Action::Jump, vec![InputKey::Keyboard(KeyCode::KeyR)]);
         input.apply_touch(vec![TouchOutput::VirtualKeyPress(KeyCode::KeyR)]);
         assert!(input.key_pressed(KeyCode::KeyR));
         assert!(input.performing_action(Action::Jump));
@@ -1452,7 +1453,9 @@ mod binding_lookup_tests {
         assert!(!input.key_pressed(KeyCode::KeyR));
         assert!(!input.performing_action(Action::Jump));
 
-        input.key_bindings.set(Action::DropItem, vec![InputKey::Keyboard(KeyCode::KeyQ)]);
+        input
+            .key_bindings
+            .set(Action::DropItem, vec![InputKey::Keyboard(KeyCode::KeyQ)]);
         input.apply_touch(vec![TouchOutput::VirtualKeyPress(KeyCode::KeyQ)]);
         assert!(input.consume_click(Action::DropItem));
         input.apply_touch(vec![TouchOutput::VirtualKeyRelease(KeyCode::KeyQ)]);

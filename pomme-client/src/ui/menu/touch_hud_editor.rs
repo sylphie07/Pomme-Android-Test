@@ -318,6 +318,14 @@ impl MainMenu {
             corner_radius: stick_radius,
             color: [0.8, 0.85, 0.9, 0.13],
         });
+        elements.push(MenuElement::Rect {
+            x: stick_x - stick_radius * 0.72,
+            y: stick_y - stick_radius * draft.sprint_threshold,
+            w: stick_radius * 1.44,
+            h: 2.0 * gs,
+            corner_radius: gs,
+            color: [0.96, 0.72, 0.18, 0.78],
+        });
         elements.push(MenuElement::Text {
             x: stick_x,
             y: stick_y - fs / 2.0,

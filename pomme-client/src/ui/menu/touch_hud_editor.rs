@@ -208,7 +208,7 @@ const CUSTOM_INPUT_CHOICES: &[InputKey] = &[
     InputKey::Mouse(MouseButton::Middle),
     InputKey::Mouse(MouseButton::Back),
     InputKey::Mouse(MouseButton::Forward),
-]
+];
 
 fn custom_key_id(key: InputKey) -> String {
     key.input_id()

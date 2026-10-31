@@ -47,6 +47,12 @@ pub struct TouchHudLayout {
     pub scales: [f32; 4],
     #[serde(default = "default_touch_visibility")]
     pub visible: [bool; 4],
+    /// Scale of the movement joystick, independent from the GUI scale.
+    #[serde(default = "default_stick_scale")]
+    pub stick_scale: f32,
+    /// Forward joystick deflection required to engage sprint (0.5..0.98).
+    #[serde(default = "default_sprint_threshold")]
+    pub sprint_threshold: f32,
     /// User-created buttons that synthesize keyboard input through KeyBindings.
     #[serde(default)]
     pub custom_buttons: Vec<CustomTouchButton>,
@@ -77,12 +83,20 @@ fn default_touch_scales() -> [f32; 4] {
 fn default_touch_visibility() -> [bool; 4] {
     [true; 4]
 }
+fn default_stick_scale() -> f32 {
+    1.0
+}
+fn default_sprint_threshold() -> f32 {
+    0.82
+}
 impl Default for TouchHudLayout {
     fn default() -> Self {
         Self {
             positions: default_touch_positions(),
             scales: default_touch_scales(),
             visible: default_touch_visibility(),
+            stick_scale: default_stick_scale(),
+            sprint_threshold: default_sprint_threshold(),
             custom_buttons: Vec::new(),
         }
     }
@@ -105,6 +119,16 @@ impl TouchHudLayout {
                 1.0
             };
         }
+        self.stick_scale = if self.stick_scale.is_finite() {
+            self.stick_scale.clamp(0.6, 1.8)
+        } else {
+            1.0
+        };
+        self.sprint_threshold = if self.sprint_threshold.is_finite() {
+            self.sprint_threshold.clamp(0.5, 0.98)
+        } else {
+            0.82
+        };
         self.custom_buttons.truncate(MAX_CUSTOM_TOUCH_BUTTONS);
         self.custom_buttons.retain_mut(|button| {
             if button.input_id.len() > 128
@@ -199,8 +223,12 @@ impl TouchLayout {
     }
 
     /// Where the stick rests until a press places it.
+    pub fn stick_radius(&self) -> f32 {
+        STICK_RADIUS * self.gs * self.hud.stick_scale
+    }
+
     pub fn stick_home(&self) -> Vec2 {
-        let inset = 1.6 * STICK_RADIUS * self.gs;
+        let inset = 1.6 * self.stick_radius();
         Vec2::new(inset, self.height - inset)
     }
 
@@ -300,6 +328,17 @@ pub struct TouchControls {
     touches: HashMap<u64, Role>,
     /// Any touch has arrived, so the overlay shows; only phones feed them.
     seen: bool,
+    sprint_threshold: f32,
+}
+
+impl Default for TouchControls {
+    fn default() -> Self {
+        Self {
+            touches: HashMap::new(),
+            seen: false,
+            sprint_threshold: default_sprint_threshold(),
+        }
+    }
 }
 
 impl TouchControls {
@@ -320,6 +359,7 @@ impl TouchControls {
         now: Instant,
     ) -> Vec<TouchOutput> {
         self.seen = true;
+        self.sprint_threshold = layout.hud.sprint_threshold;
         match phase {
             TouchPhase::Started => self.start(id, p, context, layout, now),
             TouchPhase::Moved => self.drag(id, p, layout),
@@ -372,7 +412,7 @@ impl TouchControls {
                 Role::Stick {
                     origin: p,
                     current: p,
-                    radius: STICK_RADIUS * layout.gs,
+                    radius: layout.stick_radius(),
                 },
                 Vec::new(),
             )
@@ -554,6 +594,13 @@ impl TouchControls {
     pub fn jump_held(&self) -> bool {
         self.touches.values().any(|role| matches!(role, Role::Jump))
     }
+
+    /// Sprint is derived from the live forward stick deflection, so every
+    /// release/cancel/focus-loss path naturally returns it to false.
+    pub fn sprint_held(&self) -> bool {
+        self.stick()
+            .is_some_and(|deflection| deflection.y >= self.sprint_threshold)
+    }
 }
 
 #[cfg(test)]
@@ -590,6 +637,8 @@ mod tests {
             positions: [[0.96, 0.92], [0.78, 0.07], [0.88, 0.07], [0.96, 0.07]],
             scales: [1.0; 4],
             visible: [true; 4],
+            stick_scale: 1.0,
+            sprint_threshold: 0.82,
             custom_buttons: Vec::new(),
         },
     });

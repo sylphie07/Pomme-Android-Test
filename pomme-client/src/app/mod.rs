@@ -557,10 +557,8 @@ impl ApplicationHandler for App {
                 if let Ok(metadata) = std::fs::metadata(&local_skin_path)
                     && metadata.len() <= 4 * 1024 * 1024
                     && let Ok(bytes) = std::fs::read(&local_skin_path)
-                    && let Err(error) = renderer.load_local_skin(
-                        &self.core.user.local_profile.player_uuid,
-                        &bytes,
-                    )
+                    && let Err(error) =
+                        renderer.load_local_skin(&self.core.user.local_profile.player_uuid, &bytes)
                 {
                     tracing::warn!("Could not load saved local player skin: {error}");
                 }

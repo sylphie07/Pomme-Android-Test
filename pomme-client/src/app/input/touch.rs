@@ -3,7 +3,7 @@
 //! buttons for jump, inventory and pause. Outside gameplay a touch is the
 //! mouse pointer, so every screen works unchanged.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use glam::Vec2;
@@ -107,10 +107,11 @@ impl TouchHudLayout {
         }
         self.custom_buttons.truncate(MAX_CUSTOM_TOUCH_BUTTONS);
         self.custom_buttons.retain_mut(|button| {
-            if !matches!(
-                InputKey::from_input_id(&button.input_id),
-                Ok(InputKey::Keyboard(_))
-            ) {
+            if button.input_id.len() > 128
+                || !matches!(
+                    InputKey::from_input_id(&button.input_id),
+                    Ok(InputKey::Keyboard(_))
+                ) {
                 return false;
             }
             for coordinate in &mut button.position {
@@ -350,9 +351,17 @@ impl TouchControls {
                 None => (Role::Jump, Vec::new()),
             }
         } else if let Some(key) = layout.custom_button_at(p) {
+            let already_held = self
+                .touches
+                .values()
+                .any(|role| matches!(role, Role::CustomKey { key: held } if *held == key));
             (
                 Role::CustomKey { key },
-                vec![TouchOutput::VirtualKeyPress(key)],
+                if already_held {
+                    Vec::new()
+                } else {
+                    vec![TouchOutput::VirtualKeyPress(key)]
+                },
             )
         } else if let Some(slot) = layout.hotbar_slot_at(p) {
             (Role::Spent, vec![TouchOutput::Hotbar(slot)])
@@ -443,6 +452,14 @@ impl TouchControls {
     /// A look touch lifted after a screen opened stays out of that screen.
     fn end(&mut self, id: u64, now: Instant, lifted: bool, gameplay: bool) -> Vec<TouchOutput> {
         match self.touches.remove(&id) {
+            Some(Role::CustomKey { key })
+                if self
+                    .touches
+                    .values()
+                    .any(|role| matches!(role, Role::CustomKey { key: held } if *held == key)) =>
+            {
+                Vec::new()
+            }
             Some(Role::CustomKey { key }) => vec![TouchOutput::VirtualKeyRelease(key)],
             Some(Role::Look {
                 destroying: true, ..
@@ -481,13 +498,14 @@ impl TouchControls {
     pub fn tick(&mut self, now: Instant, gameplay: bool) -> Vec<TouchOutput> {
         let mut out = Vec::new();
         if !gameplay {
+            let mut held_keys = HashSet::new();
             for role in self.touches.values_mut() {
                 if let Role::CustomKey { key } = role {
-                    let key = *key;
+                    held_keys.insert(*key);
                     *role = Role::Spent;
-                    out.push(TouchOutput::VirtualKeyRelease(key));
                 }
             }
+            out.extend(held_keys.into_iter().map(TouchOutput::VirtualKeyRelease));
             return out;
         }
         for role in self.touches.values_mut() {
@@ -750,6 +768,11 @@ mod tests {
             controls.on_touch(91, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
             [TouchOutput::VirtualKeyPress(KeyCode::KeyR)]
         );
+        assert!(
+            controls
+                .on_touch(92, TouchPhase::Started, centre, GAMEPLAY, &layout, now)
+                .is_empty()
+        );
         assert_eq!(
             controls.tick(ms(now, 16), false),
             [TouchOutput::VirtualKeyRelease(KeyCode::KeyR)]
@@ -758,6 +781,43 @@ mod tests {
             controls
                 .on_touch(91, TouchPhase::Ended, centre, MENU, &layout, now)
                 .is_empty()
+        );
+        assert!(
+            controls
+                .on_touch(92, TouchPhase::Ended, centre, MENU, &layout, now)
+                .is_empty()
+        );
+    }
+
+
+    #[test]
+    fn shared_custom_key_releases_only_after_the_last_finger_lifts() {
+        let (mut controls, now) = (TouchControls::default(), Instant::now());
+        let mut layout = (*LAYOUT).clone();
+        layout.hud.custom_buttons.push(CustomTouchButton {
+            input_id: "key.keyboard.r".into(),
+            position: [0.5, 0.5],
+            scale: 1.0,
+            visible: true,
+        });
+        let centre = layout.custom_button_centre(0);
+        assert_eq!(
+            controls.on_touch(1, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualKeyPress(KeyCode::KeyR)]
+        );
+        assert!(
+            controls
+                .on_touch(2, TouchPhase::Started, centre, GAMEPLAY, &layout, now)
+                .is_empty()
+        );
+        assert!(
+            controls
+                .on_touch(1, TouchPhase::Ended, centre, GAMEPLAY, &layout, now)
+                .is_empty()
+        );
+        assert_eq!(
+            controls.on_touch(2, TouchPhase::Ended, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualKeyRelease(KeyCode::KeyR)]
         );
     }
 

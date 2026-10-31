@@ -355,7 +355,11 @@ pub fn update_menu(
             core.deferred_game_action = None;
         }
         MenuAction::ImportSkin => {
+            #[cfg(target_os = "android")]
             crate::util::request_skin_import();
+            // Preserve the pre-existing desktop Dressing Room behavior.
+            #[cfg(not(target_os = "android"))]
+            core.menu.open_account(&core.input.key_bindings);
         }
         MenuAction::Quit => {
             return MenuUpdateResult::Quit;

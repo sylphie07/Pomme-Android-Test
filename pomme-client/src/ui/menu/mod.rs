@@ -357,6 +357,8 @@ const STRIP_COUNT: usize = 14;
 
 pub enum MenuAction {
     None,
+    /// Open Android's system picker to import a local player skin.
+    ImportSkin,
     Connect {
         server: String,
         username: String,

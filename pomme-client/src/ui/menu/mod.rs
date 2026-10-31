@@ -5,6 +5,7 @@ mod friends_screen;
 pub(crate) mod helpers;
 mod main_screen;
 mod options;
+mod touch_hud_editor;
 mod servers;
 mod splash;
 mod title_screen;
@@ -537,6 +538,7 @@ enum Screen {
     OptionsSkinCustomization,
     OptionsMusicSounds,
     OptionsControls,
+    OptionsTouchControls,
     OptionsMouse,
     OptionsKeybinds,
     OptionsLanguage,
@@ -561,6 +563,7 @@ impl Screen {
             Self::OptionsSkinCustomization => Self::OptionsSkinCustomization,
             Self::OptionsMusicSounds => Self::OptionsMusicSounds,
             Self::OptionsControls => Self::OptionsControls,
+            Self::OptionsTouchControls => Self::OptionsTouchControls,
             Self::OptionsMouse => Self::OptionsMouse,
             Self::OptionsKeybinds => Self::OptionsKeybinds,
             Self::OptionsLanguage => Self::OptionsLanguage,
@@ -715,6 +718,11 @@ pub struct MainMenu {
     last_click_index: Option<usize>,
     pub gui_scale_setting: u32,
     pub touch_hud: crate::app::input::touch::TouchHudLayout,
+    /// Uncommitted layout while the touch HUD editor is open.
+    touch_hud_draft: Option<crate::app::input::touch::TouchHudLayout>,
+    touch_hud_selected: Option<crate::app::input::touch::TouchButton>,
+    touch_hud_dragging: bool,
+    touch_hud_drag_offset: (f32, f32),
     pub render_distance: u32,
     /// Radius of full-detail meshing (LOD 0), in chunks; coarser LODs start
     /// beyond it. Pomme-custom: vanilla has no LOD, this buys its look back
@@ -882,6 +890,10 @@ impl MainMenu {
             last_click_index: None,
             gui_scale_setting: settings.gui_scale,
             touch_hud: settings.touch_hud.sanitized(),
+            touch_hud_draft: None,
+            touch_hud_selected: None,
+            touch_hud_dragging: false,
+            touch_hud_drag_offset: (0.0, 0.0),
             render_distance: settings.render_distance,
             chunk_detail: settings.chunk_detail,
             simulation_distance: settings.simulation_distance,
@@ -1242,6 +1254,7 @@ impl MainMenu {
                 | Screen::OptionsSkinCustomization
                 | Screen::OptionsMusicSounds
                 | Screen::OptionsControls
+                | Screen::OptionsTouchControls
                 | Screen::OptionsMouse
                 | Screen::OptionsKeybinds
                 | Screen::OptionsLanguage
@@ -1520,6 +1533,9 @@ impl MainMenu {
             }
             Screen::OptionsControls => {
                 self.build_options_controls(screen_w, screen_h, input, &text_width_fn, key_bindings)
+            }
+            Screen::OptionsTouchControls => {
+                self.build_touch_hud_editor(screen_w, screen_h, input, key_bindings)
             }
             Screen::OptionsMouse => {
                 self.build_options_mouse(screen_w, screen_h, input, &text_width_fn, key_bindings)

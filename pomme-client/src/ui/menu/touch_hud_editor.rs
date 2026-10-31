@@ -14,8 +14,8 @@ const CUSTOM_KEY_CHOICES: &[KeyCode] = &[
     KeyCode::KeyS, KeyCode::KeyT, KeyCode::KeyU, KeyCode::KeyV, KeyCode::KeyW, KeyCode::KeyX,
     KeyCode::KeyY, KeyCode::KeyZ, KeyCode::Digit0, KeyCode::Digit1, KeyCode::Digit2,
     KeyCode::Digit3, KeyCode::Digit4, KeyCode::Digit5, KeyCode::Digit6, KeyCode::Digit7,
-    KeyCode::Digit8, KeyCode::Digit9, KeyCode::Space, KeyCode::ShiftLeft, KeyCode::ControlLeft,
-    KeyCode::AltLeft, KeyCode::Tab, KeyCode::Enter, KeyCode::Slash, KeyCode::Comma,
+    KeyCode::Digit8, KeyCode::Digit9, KeyCode::Space, KeyCode::Tab, KeyCode::Enter, KeyCode::Slash,
+    KeyCode::Comma,
     KeyCode::Period, KeyCode::Backspace, KeyCode::ArrowUp, KeyCode::ArrowDown,
     KeyCode::ArrowLeft, KeyCode::ArrowRight,
 ];
@@ -325,6 +325,7 @@ impl MainMenu {
                 true,
             ) {
                 self.touch_hud_selected = Some(button);
+                self.touch_hud_custom_selected = None;
                 self.touch_hud_dragging = false;
             }
             if active {
@@ -512,5 +513,22 @@ impl MainMenu {
             cursor_pointer: any_hovered,
             clicked_button: ctx.fired,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn custom_key_choices_cycle_in_both_directions() {
+        assert_eq!(
+            InputKey::from_input_id(&cycle_custom_key("key.keyboard.r", 1)).unwrap(),
+            InputKey::Keyboard(KeyCode::KeyS)
+        );
+        assert_eq!(
+            InputKey::from_input_id(&cycle_custom_key("key.keyboard.r", -1)).unwrap(),
+            InputKey::Keyboard(KeyCode::KeyQ)
+        );
     }
 }

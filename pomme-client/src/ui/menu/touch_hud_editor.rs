@@ -1,23 +1,60 @@
+use winit::keyboard::KeyCode;
+
 use super::*;
 use crate::app::input::InputKey;
 use crate::app::input::touch::{
     BUTTON_RADIUS, CustomTouchButton, MAX_CUSTOM_TOUCH_BUTTONS, STICK_RADIUS, TouchButton,
     TouchHudLayout,
 };
-use winit::keyboard::KeyCode;
-
 
 const CUSTOM_KEY_CHOICES: &[KeyCode] = &[
-    KeyCode::KeyA, KeyCode::KeyB, KeyCode::KeyC, KeyCode::KeyD, KeyCode::KeyE, KeyCode::KeyF,
-    KeyCode::KeyG, KeyCode::KeyH, KeyCode::KeyI, KeyCode::KeyJ, KeyCode::KeyK, KeyCode::KeyL,
-    KeyCode::KeyM, KeyCode::KeyN, KeyCode::KeyO, KeyCode::KeyP, KeyCode::KeyQ, KeyCode::KeyR,
-    KeyCode::KeyS, KeyCode::KeyT, KeyCode::KeyU, KeyCode::KeyV, KeyCode::KeyW, KeyCode::KeyX,
-    KeyCode::KeyY, KeyCode::KeyZ, KeyCode::Digit0, KeyCode::Digit1, KeyCode::Digit2,
-    KeyCode::Digit3, KeyCode::Digit4, KeyCode::Digit5, KeyCode::Digit6, KeyCode::Digit7,
-    KeyCode::Digit8, KeyCode::Digit9, KeyCode::Space, KeyCode::Tab, KeyCode::Enter, KeyCode::Slash,
+    KeyCode::KeyA,
+    KeyCode::KeyB,
+    KeyCode::KeyC,
+    KeyCode::KeyD,
+    KeyCode::KeyE,
+    KeyCode::KeyF,
+    KeyCode::KeyG,
+    KeyCode::KeyH,
+    KeyCode::KeyI,
+    KeyCode::KeyJ,
+    KeyCode::KeyK,
+    KeyCode::KeyL,
+    KeyCode::KeyM,
+    KeyCode::KeyN,
+    KeyCode::KeyO,
+    KeyCode::KeyP,
+    KeyCode::KeyQ,
+    KeyCode::KeyR,
+    KeyCode::KeyS,
+    KeyCode::KeyT,
+    KeyCode::KeyU,
+    KeyCode::KeyV,
+    KeyCode::KeyW,
+    KeyCode::KeyX,
+    KeyCode::KeyY,
+    KeyCode::KeyZ,
+    KeyCode::Digit0,
+    KeyCode::Digit1,
+    KeyCode::Digit2,
+    KeyCode::Digit3,
+    KeyCode::Digit4,
+    KeyCode::Digit5,
+    KeyCode::Digit6,
+    KeyCode::Digit7,
+    KeyCode::Digit8,
+    KeyCode::Digit9,
+    KeyCode::Space,
+    KeyCode::Tab,
+    KeyCode::Enter,
+    KeyCode::Slash,
     KeyCode::Comma,
-    KeyCode::Period, KeyCode::Backspace, KeyCode::ArrowUp, KeyCode::ArrowDown,
-    KeyCode::ArrowLeft, KeyCode::ArrowRight,
+    KeyCode::Period,
+    KeyCode::Backspace,
+    KeyCode::ArrowUp,
+    KeyCode::ArrowDown,
+    KeyCode::ArrowLeft,
+    KeyCode::ArrowRight,
 ];
 
 fn custom_key_id(key: KeyCode) -> String {
@@ -255,7 +292,6 @@ impl MainMenu {
             }
         }
 
-
         for (index, button) in draft.custom_buttons.iter().enumerate() {
             let [nx, ny] = button.position;
             let centre_x = preview_x + nx * preview_w;
@@ -340,7 +376,6 @@ impl MainMenu {
             }
         }
 
-
         let custom_row_y = row_y + row_h + 3.0 * gs;
         let action_w = (sw.min(420.0 * gs) - 3.0 * gap) / 4.0;
         let action_x = (sw - (action_w * 4.0 + gap * 3.0)) / 2.0;
@@ -349,22 +384,59 @@ impl MainMenu {
         let mut key_previous = false;
         let mut key_next = false;
         add_custom |= helpers::push_button_f(
-            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-            action_x, custom_row_y, action_w, row_h, gs, "Add", draft.custom_buttons.len() < MAX_CUSTOM_TOUCH_BUTTONS,
+            &mut elements,
+            &mut ctx,
+            &mut any_hovered,
+            input.cursor,
+            input.clicked,
+            action_x,
+            custom_row_y,
+            action_w,
+            row_h,
+            gs,
+            "Add",
+            draft.custom_buttons.len() < MAX_CUSTOM_TOUCH_BUTTONS,
         );
         remove_custom |= helpers::push_button_f(
-            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-            action_x + action_w + gap, custom_row_y, action_w, row_h, gs, "Remove",
+            &mut elements,
+            &mut ctx,
+            &mut any_hovered,
+            input.cursor,
+            input.clicked,
+            action_x + action_w + gap,
+            custom_row_y,
+            action_w,
+            row_h,
+            gs,
+            "Remove",
             self.touch_hud_custom_selected.is_some(),
         );
         key_previous |= helpers::push_button_f(
-            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-            action_x + (action_w + gap) * 2.0, custom_row_y, action_w, row_h, gs, "Key -",
+            &mut elements,
+            &mut ctx,
+            &mut any_hovered,
+            input.cursor,
+            input.clicked,
+            action_x + (action_w + gap) * 2.0,
+            custom_row_y,
+            action_w,
+            row_h,
+            gs,
+            "Key -",
             self.touch_hud_custom_selected.is_some(),
         );
         key_next |= helpers::push_button_f(
-            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-            action_x + (action_w + gap) * 3.0, custom_row_y, action_w, row_h, gs, "Key +",
+            &mut elements,
+            &mut ctx,
+            &mut any_hovered,
+            input.cursor,
+            input.clicked,
+            action_x + (action_w + gap) * 3.0,
+            custom_row_y,
+            action_w,
+            row_h,
+            gs,
+            "Key +",
             self.touch_hud_custom_selected.is_some(),
         );
 
@@ -375,7 +447,10 @@ impl MainMenu {
             let row = (index / 4) as f32;
             draft.custom_buttons.push(CustomTouchButton {
                 input_id: custom_key_id(key),
-                position: [(0.34 + column * 0.09).min(0.70), (0.32 + row * 0.10).min(0.72)],
+                position: [
+                    (0.34 + column * 0.09).min(0.70),
+                    (0.32 + row * 0.10).min(0.72),
+                ],
                 scale: 1.0,
                 visible: true,
             });
@@ -413,20 +488,60 @@ impl MainMenu {
         let mut toggle_visibility = false;
         let mut reset = false;
         size_down |= helpers::push_button_f(
-            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-            action_x, action_y, action_w, row_h, gs, "Size -", has_selection,
+            &mut elements,
+            &mut ctx,
+            &mut any_hovered,
+            input.cursor,
+            input.clicked,
+            action_x,
+            action_y,
+            action_w,
+            row_h,
+            gs,
+            "Size -",
+            has_selection,
         );
         size_up |= helpers::push_button_f(
-            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-            action_x + action_w + gap, action_y, action_w, row_h, gs, "Size +", has_selection,
+            &mut elements,
+            &mut ctx,
+            &mut any_hovered,
+            input.cursor,
+            input.clicked,
+            action_x + action_w + gap,
+            action_y,
+            action_w,
+            row_h,
+            gs,
+            "Size +",
+            has_selection,
         );
         toggle_visibility |= helpers::push_button_f(
-            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-            action_x + (action_w + gap) * 2.0, action_y, action_w, row_h, gs, "Show / Hide", has_selection,
+            &mut elements,
+            &mut ctx,
+            &mut any_hovered,
+            input.cursor,
+            input.clicked,
+            action_x + (action_w + gap) * 2.0,
+            action_y,
+            action_w,
+            row_h,
+            gs,
+            "Show / Hide",
+            has_selection,
         );
         reset |= helpers::push_button_f(
-            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
-            action_x + (action_w + gap) * 3.0, action_y, action_w, row_h, gs, "Reset", true,
+            &mut elements,
+            &mut ctx,
+            &mut any_hovered,
+            input.cursor,
+            input.clicked,
+            action_x + (action_w + gap) * 3.0,
+            action_y,
+            action_w,
+            row_h,
+            gs,
+            "Reset",
+            true,
         );
 
         if let Some(index) = selected_index {

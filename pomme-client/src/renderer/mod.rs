@@ -2306,7 +2306,7 @@ pub(crate) struct SkinData {
 /// Decodes a user-selected Minecraft skin PNG with strict input bounds.
 fn decode_local_skin(bytes: &[u8]) -> Result<SkinData, String> {
     const MAX_BYTES: usize = 4 * 1024 * 1024;
-    const PNG_SIGNATURE: &[u8; 8] = b"\\x89PNG\\r\\n\\x1a\\n";
+    const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
     if bytes.len() > MAX_BYTES {
         return Err("Skin PNG exceeds the 4 MiB limit".to_owned());
     }
@@ -2767,6 +2767,26 @@ mod tests {
 
     fn get_px(img: &[u8], x: u32, y: u32) -> [u8; 4] {
         img[skin_px(x, y)..skin_px(x, y) + 4].try_into().unwrap()
+    }
+
+    #[test]
+    fn decodes_valid_local_skin_png() {
+        let image = image::DynamicImage::ImageRgba8(image::RgbaImage::new(64, 64));
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        image
+            .write_to(&mut bytes, image::ImageFormat::Png)
+            .unwrap();
+
+        let skin = decode_local_skin(bytes.get_ref()).unwrap();
+        assert_eq!((skin.width, skin.height), (64, 64));
+        assert!(!skin.slim);
+        assert_eq!(skin.pixels.len(), 64 * 64 * 4);
+    }
+
+    #[test]
+    fn rejects_non_png_and_oversized_local_skin_inputs() {
+        assert!(decode_local_skin(b"not a png").is_err());
+        assert!(decode_local_skin(&vec![0; 4 * 1024 * 1024 + 1]).is_err());
     }
 
     #[test]

@@ -538,11 +538,13 @@ impl TouchControls {
     pub fn tick(&mut self, now: Instant, gameplay: bool) -> Vec<TouchOutput> {
         let mut out = Vec::new();
         if !gameplay {
-            let mut held_inputs = HashSet::new();
+            let mut held_inputs = Vec::new();
             for role in self.touches.values_mut() {
                 match role {
                     Role::CustomKey { key } => {
-                        held_inputs.insert(*key);
+                        if !held_inputs.contains(key) {
+                            held_inputs.push(*key);
+                        }
                         *role = Role::Spent;
                     }
                     Role::Look { destroying: true, .. } => {

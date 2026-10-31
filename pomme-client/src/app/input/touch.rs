@@ -3,7 +3,7 @@
 //! buttons for jump, inventory and pause. Outside gameplay a touch is the
 //! mouse pointer, so every screen works unchanged.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use glam::Vec2;

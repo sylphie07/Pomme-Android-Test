@@ -1,3 +1,4 @@
+use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
 
 use super::*;
@@ -7,74 +8,76 @@ use crate::app::input::touch::{
     TouchHudLayout,
 };
 
-const CUSTOM_KEY_CHOICES: &[KeyCode] = &[
+const CUSTOM_INPUT_CHOICES: &[InputKey] = &[
+    InputKey::Keyboard(KeyCode::KeyA),
     KeyCode::KeyA,
-    KeyCode::KeyB,
-    KeyCode::KeyC,
-    KeyCode::KeyD,
-    KeyCode::KeyE,
-    KeyCode::KeyF,
-    KeyCode::KeyG,
-    KeyCode::KeyH,
-    KeyCode::KeyI,
-    KeyCode::KeyJ,
-    KeyCode::KeyK,
-    KeyCode::KeyL,
-    KeyCode::KeyM,
-    KeyCode::KeyN,
-    KeyCode::KeyO,
-    KeyCode::KeyP,
-    KeyCode::KeyQ,
-    KeyCode::KeyR,
-    KeyCode::KeyS,
-    KeyCode::KeyT,
-    KeyCode::KeyU,
-    KeyCode::KeyV,
-    KeyCode::KeyW,
-    KeyCode::KeyX,
-    KeyCode::KeyY,
-    KeyCode::KeyZ,
-    KeyCode::Digit0,
-    KeyCode::Digit1,
-    KeyCode::Digit2,
-    KeyCode::Digit3,
-    KeyCode::Digit4,
-    KeyCode::Digit5,
-    KeyCode::Digit6,
-    KeyCode::Digit7,
-    KeyCode::Digit8,
-    KeyCode::Digit9,
-    KeyCode::Space,
-    KeyCode::Tab,
-    KeyCode::Enter,
-    KeyCode::Slash,
-    KeyCode::Comma,
-    KeyCode::Period,
-    KeyCode::Backspace,
-    KeyCode::ArrowUp,
-    KeyCode::ArrowDown,
-    KeyCode::ArrowLeft,
-    KeyCode::ArrowRight,
+    InputKey::Keyboard(KeyCode::KeyB),
+    InputKey::Keyboard(KeyCode::KeyC),
+    InputKey::Keyboard(KeyCode::KeyD),
+    InputKey::Keyboard(KeyCode::KeyE),
+    InputKey::Keyboard(KeyCode::KeyF),
+    InputKey::Keyboard(KeyCode::KeyG),
+    InputKey::Keyboard(KeyCode::KeyH),
+    InputKey::Keyboard(KeyCode::KeyI),
+    InputKey::Keyboard(KeyCode::KeyJ),
+    InputKey::Keyboard(KeyCode::KeyK),
+    InputKey::Keyboard(KeyCode::KeyL),
+    InputKey::Keyboard(KeyCode::KeyM),
+    InputKey::Keyboard(KeyCode::KeyN),
+    InputKey::Keyboard(KeyCode::KeyO),
+    InputKey::Keyboard(KeyCode::KeyP),
+    InputKey::Keyboard(KeyCode::KeyQ),
+    InputKey::Keyboard(KeyCode::KeyR),
+    InputKey::Keyboard(KeyCode::KeyS),
+    InputKey::Keyboard(KeyCode::KeyT),
+    InputKey::Keyboard(KeyCode::KeyU),
+    InputKey::Keyboard(KeyCode::KeyV),
+    InputKey::Keyboard(KeyCode::KeyW),
+    InputKey::Keyboard(KeyCode::KeyX),
+    InputKey::Keyboard(KeyCode::KeyY),
+    InputKey::Keyboard(KeyCode::KeyZ),
+    InputKey::Keyboard(KeyCode::Digit0),
+    InputKey::Keyboard(KeyCode::Digit1),
+    InputKey::Keyboard(KeyCode::Digit2),
+    InputKey::Keyboard(KeyCode::Digit3),
+    InputKey::Keyboard(KeyCode::Digit4),
+    InputKey::Keyboard(KeyCode::Digit5),
+    InputKey::Keyboard(KeyCode::Digit6),
+    InputKey::Keyboard(KeyCode::Digit7),
+    InputKey::Keyboard(KeyCode::Digit8),
+    InputKey::Keyboard(KeyCode::Digit9),
+    InputKey::Keyboard(KeyCode::Space),
+    InputKey::Keyboard(KeyCode::Tab),
+    InputKey::Keyboard(KeyCode::Enter),
+    InputKey::Keyboard(KeyCode::Slash),
+    InputKey::Keyboard(KeyCode::Comma),
+    InputKey::Keyboard(KeyCode::Period),
+    InputKey::Keyboard(KeyCode::Backspace),
+    InputKey::Keyboard(KeyCode::ArrowUp),
+    InputKey::Keyboard(KeyCode::ArrowDown),
+    InputKey::Keyboard(KeyCode::ArrowLeft),
+    InputKey::Keyboard(KeyCode::ArrowRight),
+    InputKey::Mouse(MouseButton::Left),
+    InputKey::Mouse(MouseButton::Right),
+    InputKey::Mouse(MouseButton::Middle),
+    InputKey::Mouse(MouseButton::Back),
+    InputKey::Mouse(MouseButton::Forward),
 ];
 
-fn custom_key_id(key: KeyCode) -> String {
-    InputKey::Keyboard(key)
-        .input_id()
+fn custom_key_id(key: InputKey) -> String {
+    key.input_id()
         .expect("custom key choices must have a stable input ID")
         .into_owned()
 }
 
 fn cycle_custom_key(input_id: &str, direction: i32) -> String {
-    let current = match InputKey::from_input_id(input_id) {
-        Ok(InputKey::Keyboard(key)) => key,
-        _ => KeyCode::KeyR,
-    };
-    let current_index = CUSTOM_KEY_CHOICES
+    let current = InputKey::from_input_id(input_id).unwrap_or(InputKey::Keyboard(KeyCode::KeyR));
+    let current_index = CUSTOM_INPUT_CHOICES
         .iter()
         .position(|&key| key == current)
         .unwrap_or(0) as i32;
-    let next = (current_index + direction).rem_euclid(CUSTOM_KEY_CHOICES.len() as i32) as usize;
-    custom_key_id(CUSTOM_KEY_CHOICES[next])
+    let next = (current_index + direction).rem_euclid(CUSTOM_INPUT_CHOICES.len() as i32) as usize;
+    custom_key_id(CUSTOM_INPUT_CHOICES[next])
 }
 
 fn custom_key_label(input_id: &str) -> String {
@@ -470,7 +473,7 @@ impl MainMenu {
 
         if add_custom && draft.custom_buttons.len() < MAX_CUSTOM_TOUCH_BUTTONS {
             let index = draft.custom_buttons.len();
-            let key = CUSTOM_KEY_CHOICES[index % CUSTOM_KEY_CHOICES.len()];
+            let key = CUSTOM_INPUT_CHOICES[index % CUSTOM_INPUT_CHOICES.len()];
             let column = (index % 4) as f32;
             let row = (index / 4) as f32;
             draft.custom_buttons.push(CustomTouchButton {

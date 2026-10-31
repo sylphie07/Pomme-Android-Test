@@ -323,7 +323,6 @@ enum Role {
     Spent,
 }
 
-#[derive(Default)]
 pub struct TouchControls {
     touches: HashMap<u64, Role>,
     /// Any touch has arrived, so the overlay shows; only phones feed them.
@@ -713,6 +712,20 @@ mod tests {
         );
         assert!(c.tick(ms(t, 400), true).is_empty());
         assert!(touch(&mut c, 1, TouchPhase::Ended, moved, ms(t, 100)).is_empty());
+    }
+
+    #[test]
+    fn forward_stick_deflection_engages_sprint_only_above_the_saved_threshold() {
+        let (mut c, t) = (TouchControls::default(), Instant::now());
+        touch(&mut c, 9, TouchPhase::Started, STICK, t);
+        touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, -24.0), t);
+        assert!(!c.sprint_held());
+        touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, -26.0), t);
+        assert!(c.sprint_held());
+        touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, 20.0), t);
+        assert!(!c.sprint_held());
+        touch(&mut c, 9, TouchPhase::Ended, STICK, t);
+        assert!(!c.sprint_held());
     }
 
     #[test]

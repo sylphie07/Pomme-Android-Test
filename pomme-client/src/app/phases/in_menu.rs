@@ -232,6 +232,24 @@ pub fn update_menu(
     }
 
     let menu_input = core.build_menu_input(dt);
+    if let Some(bytes) = crate::util::take_skin_import() {
+        let uuid = core.user.local_profile.player_uuid;
+        match gfx.renderer.load_local_skin(&uuid, &bytes) {
+            Ok(()) => {
+                let skin_dir = core.data_dirs.game_dir.join("skins");
+                let skin_path = skin_dir.join("local.png");
+                if let Err(error) = std::fs::create_dir_all(&skin_dir) {
+                    tracing::warn!("Could not create local skin directory: {error}");
+                } else if let Err(error) = crate::util::write_atomic(&skin_path, &bytes) {
+                    tracing::warn!("Skin was applied but could not be saved: {error}");
+                } else {
+                    tracing::info!("Imported local player skin");
+                }
+            }
+            Err(error) => tracing::warn!("Rejected imported player skin: {error}"),
+        }
+    }
+
 
     let result = core
         .menu

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- No Java code: NativeActivity loads libpomme_android.so (`just android-build`). -->
+<!-- PommeActivity hides system bars; NativeActivity loads libpomme_android.so. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-feature
         android:name="android.hardware.vulkan.version"
@@ -8,11 +8,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:icon="@drawable/pomme_launcher"
+        android:roundIcon="@drawable/pomme_launcher"
         android:label="Pomme"
-        android:hasCode="false"
+        android:hasCode="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
         <activity
-            android:name="android.app.NativeActivity"
+            android:name=".PommeActivity"
             android:exported="true"
             android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden|keyboard|navigation|uiMode|fontScale|locale|layoutDirection">

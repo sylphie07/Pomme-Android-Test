@@ -174,6 +174,18 @@ pub enum QuickPlay {
     Singleplayer(String),
 }
 
+/// A gameplay request held until the launch policy's account check succeeds.
+pub enum PendingGameAction {
+    Connect {
+        server: String,
+        username: String,
+        protocol: Option<i32>,
+    },
+    PlayWorld {
+        folder: String,
+    },
+}
+
 /// Connects with `connect_args`; `world` is the integrated server for a
 /// singleplayer launch.
 fn start_connecting(
@@ -298,7 +310,7 @@ impl App {
             // The quick play failed to open or connect, or is held for a
             // sign-in that has nothing to restore.
             (ChunkBenchLaunch::Waiting(_), AppPhase::InMenu { .. })
-                if self.core.deferred_quick_play.is_none()
+                if self.core.deferred_game_action.is_none()
                     || self.core.menu.no_account_to_restore() =>
             {
                 ChunkBenchLaunch::Ended(1)
@@ -367,9 +379,9 @@ impl App {
         self.install = install::Install::new(&self.core, true);
     }
 
-    /// No launcher passed an account; see `MainMenu::require_account`.
-    /// Holds the menu, and any quick play, until an account is signed in,
-    /// restoring the stored one in the background meanwhile.
+    /// Enforces the release gameplay account policy while leaving the menu
+    /// accessible. A saved account is restored asynchronously in the
+    /// background.
     pub fn require_account(&mut self) {
         self.core
             .menu
@@ -539,6 +551,18 @@ impl ApplicationHandler for App {
                     self.core.menu.set_player_face(Some(&uuid));
                 }
 
+                // A user-imported skin is local-only and overrides the
+                // account lookup for this device after a successful import.
+                let local_skin_path = self.core.data_dirs.game_dir.join("skins/local.png");
+                if let Ok(metadata) = std::fs::metadata(&local_skin_path)
+                    && metadata.len() <= 4 * 1024 * 1024
+                    && let Ok(bytes) = std::fs::read(&local_skin_path)
+                    && let Err(error) =
+                        renderer.load_local_skin(&self.core.user.local_profile.player_uuid, &bytes)
+                {
+                    tracing::warn!("Could not load saved local player skin: {error}");
+                }
+
                 self.core.apply_cursor_grab(&window, None);
 
                 let gfx = Gfx {
@@ -549,10 +573,6 @@ impl ApplicationHandler for App {
                 };
                 let panorama = Panorama::new();
                 let launch = match quick_play {
-                    Some(play) if self.core.menu.account_gated() => {
-                        self.core.deferred_quick_play = Some(play);
-                        MenuUpdateResult::None
-                    }
                     Some(play) => in_menu::quick_play(&mut self.core, play),
                     None => MenuUpdateResult::None,
                 };
@@ -1003,6 +1023,13 @@ impl ApplicationHandler for App {
             // Desktop touchscreens already drive the mouse through the OS.
             WindowEvent::Touch(touch) if cfg!(mobile) => {
                 let gameplay = self.world_has_pointer();
+                // Only scrollable screens claim vertical drags. Inventory and
+                // crafting screens must preserve pointer drags for item stacks.
+                let scrollable = match self.phase.get() {
+                    AppPhase::InMenu { .. } | AppPhase::Connecting { .. } => true,
+                    AppPhase::InGame { game, .. } => game.options_from_game || game.dialog_open(),
+                    _ => false,
+                };
                 if let Some(gfx) = self.phase.gfx_mut() {
                     let width = gfx.renderer.screen_width() as f32;
                     let height = gfx.renderer.screen_height() as f32;
@@ -1010,8 +1037,16 @@ impl ApplicationHandler for App {
                         width,
                         height,
                         gs: self.core.menu.gui_scale(width, height),
+                        hud: self.core.menu.touch_hud.clone(),
                     };
-                    self.core.input.on_touch(&touch, gameplay, &layout);
+                    self.core.input.on_touch(
+                        &touch,
+                        input::touch::TouchContext {
+                            gameplay,
+                            scrollable,
+                        },
+                        &layout,
+                    );
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {

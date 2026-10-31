@@ -2963,6 +2963,7 @@ pub fn update_game(
                 width: sw,
                 height: sh,
                 gs,
+                hud: core.menu.touch_hud.clone(),
             };
             crate::ui::touch_controls::build_touch_controls(
                 &mut elements,

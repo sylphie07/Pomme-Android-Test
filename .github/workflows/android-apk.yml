@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [master, unofficial-android-menu-access]
     paths:
       - "pomme-android/**"
       - "pomme-client/**"

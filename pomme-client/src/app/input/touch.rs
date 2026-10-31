@@ -7,8 +7,10 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use glam::Vec2;
+use serde::{Deserialize, Serialize};
 use winit::event::TouchPhase;
 
+use super::InputKey;
 use super::action::Action;
 
 /// A press lifted within this, having stayed still, is a use.
@@ -24,13 +26,159 @@ const LOOK_SCALE: f32 = 2.5;
 /// The share of the screen width, from the left, where a press is the stick.
 const STICK_ZONE: f32 = 0.4;
 pub const BUTTON_RADIUS: f32 = 14.0;
+/// Vertical movement needed before a menu touch becomes a scroll gesture.
+const MENU_SCROLL_SLOP: f32 = 8.0;
+/// Convert finger pixels to the menu's wheel-like scroll units.
+const MENU_SCROLL_PIXELS_PER_UNIT: f32 = 20.0;
 
 /// Where the controls sit on a `width` x `height` screen at GUI scale `gs`.
 #[derive(Clone, Copy)]
+pub struct TouchContext {
+    pub gameplay: bool,
+    pub scrollable: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TouchHudLayout {
+    #[serde(default = "default_touch_positions")]
+    pub positions: [[f32; 2]; 4],
+    #[serde(default = "default_touch_scales")]
+    pub scales: [f32; 4],
+    #[serde(default = "default_touch_visibility")]
+    pub visible: [bool; 4],
+    /// Scale of the movement joystick, independent from the GUI scale.
+    #[serde(default = "default_stick_scale")]
+    pub stick_scale: f32,
+    /// Forward joystick deflection required to engage sprint (0.5..0.98).
+    #[serde(default = "default_sprint_threshold")]
+    pub sprint_threshold: f32,
+    /// User-created buttons that synthesize keyboard input through KeyBindings.
+    #[serde(default)]
+    pub custom_buttons: Vec<CustomTouchButton>,
+}
+
+/// A configurable touch button that simulates one supported keyboard key.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CustomTouchButton {
+    pub input_id: String,
+    pub position: [f32; 2],
+    pub scale: f32,
+    #[serde(default = "default_custom_button_visible")]
+    pub visible: bool,
+}
+
+fn default_custom_button_visible() -> bool {
+    true
+}
+
+pub const MAX_CUSTOM_TOUCH_BUTTONS: usize = 12;
+
+fn default_touch_positions() -> [[f32; 2]; 4] {
+    [[0.96, 0.92], [0.78, 0.07], [0.88, 0.07], [0.96, 0.07]]
+}
+fn default_touch_scales() -> [f32; 4] {
+    [1.0; 4]
+}
+fn default_touch_visibility() -> [bool; 4] {
+    [true; 4]
+}
+fn default_stick_scale() -> f32 {
+    1.0
+}
+fn default_sprint_threshold() -> f32 {
+    0.82
+}
+impl Default for TouchHudLayout {
+    fn default() -> Self {
+        Self {
+            positions: default_touch_positions(),
+            scales: default_touch_scales(),
+            visible: default_touch_visibility(),
+            stick_scale: default_stick_scale(),
+            sprint_threshold: default_sprint_threshold(),
+            custom_buttons: Vec::new(),
+        }
+    }
+}
+impl TouchHudLayout {
+    pub fn sanitized(mut self) -> Self {
+        for position in &mut self.positions {
+            for coordinate in position {
+                *coordinate = if coordinate.is_finite() {
+                    coordinate.clamp(0.015, 0.985)
+                } else {
+                    0.5
+                };
+            }
+        }
+        for scale in &mut self.scales {
+            *scale = if scale.is_finite() {
+                scale.clamp(0.6, 1.8)
+            } else {
+                1.0
+            };
+        }
+        self.stick_scale = if self.stick_scale.is_finite() {
+            self.stick_scale.clamp(0.6, 1.8)
+        } else {
+            1.0
+        };
+        self.sprint_threshold = if self.sprint_threshold.is_finite() {
+            self.sprint_threshold.clamp(0.5, 0.98)
+        } else {
+            0.82
+        };
+        self.custom_buttons.truncate(MAX_CUSTOM_TOUCH_BUTTONS);
+        self.custom_buttons.retain_mut(|button| {
+            if button.input_id.len() > 128
+                || !matches!(
+                    InputKey::from_input_id(&button.input_id),
+                    Ok(InputKey::Keyboard(_) | InputKey::Mouse(_))
+                )
+            {
+                return false;
+            }
+            for coordinate in &mut button.position {
+                *coordinate = if coordinate.is_finite() {
+                    coordinate.clamp(0.015, 0.985)
+                } else {
+                    0.5
+                };
+            }
+            button.scale = if button.scale.is_finite() {
+                button.scale.clamp(0.6, 1.8)
+            } else {
+                1.0
+            };
+            true
+        });
+        self
+    }
+    fn index(button: TouchButton) -> usize {
+        match button {
+            TouchButton::Jump => 0,
+            TouchButton::Chat => 1,
+            TouchButton::Inventory => 2,
+            TouchButton::Pause => 3,
+        }
+    }
+    pub fn position(&self, button: TouchButton) -> Vec2 {
+        let [x, y] = self.positions[Self::index(button)];
+        Vec2::new(x, y)
+    }
+    pub fn scale(&self, button: TouchButton) -> f32 {
+        self.scales[Self::index(button)]
+    }
+    pub fn is_visible(&self, button: TouchButton) -> bool {
+        self.visible[Self::index(button)]
+    }
+}
+#[derive(Clone)]
 pub struct TouchLayout {
     pub width: f32,
     pub height: f32,
     pub gs: f32,
+    pub hud: TouchHudLayout,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,27 +213,56 @@ impl TouchButton {
 }
 
 impl TouchLayout {
-    /// A button's centre; all share [`BUTTON_RADIUS`].
     pub fn button_centre(&self, button: TouchButton) -> Vec2 {
-        let inset = 2.0 * BUTTON_RADIUS * self.gs;
-        match button {
-            TouchButton::Jump => Vec2::new(self.width - inset, self.height - 1.5 * inset),
-            TouchButton::Chat => Vec2::new(self.width - 4.0 * inset, inset),
-            TouchButton::Inventory => Vec2::new(self.width - 2.5 * inset, inset),
-            TouchButton::Pause => Vec2::new(self.width - inset, inset),
-        }
+        let p = self.hud.position(button);
+        Vec2::new(p.x * self.width, p.y * self.height)
+    }
+    pub fn button_radius(&self, button: TouchButton) -> f32 {
+        BUTTON_RADIUS * self.gs * self.hud.scale(button)
     }
 
     /// Where the stick rests until a press places it.
+    pub fn stick_radius(&self) -> f32 {
+        STICK_RADIUS * self.gs * self.hud.stick_scale
+    }
+
     pub fn stick_home(&self) -> Vec2 {
-        let inset = 1.6 * STICK_RADIUS * self.gs;
+        let inset = 1.6 * self.stick_radius();
         Vec2::new(inset, self.height - inset)
     }
 
     fn button_at(&self, p: Vec2) -> Option<TouchButton> {
-        TouchButton::ALL
-            .into_iter()
-            .find(|&b| p.distance(self.button_centre(b)) <= BUTTON_RADIUS * self.gs)
+        TouchButton::ALL.into_iter().find(|&b| {
+            self.hud.is_visible(b) && p.distance(self.button_centre(b)) <= self.button_radius(b)
+        })
+    }
+
+    pub fn custom_button_centre(&self, index: usize) -> Vec2 {
+        let [x, y] = self.hud.custom_buttons[index].position;
+        Vec2::new(x * self.width, y * self.height)
+    }
+
+    pub fn custom_button_radius(&self, index: usize) -> f32 {
+        BUTTON_RADIUS * self.gs * self.hud.custom_buttons[index].scale
+    }
+
+    fn custom_button_at(&self, p: Vec2) -> Option<InputKey> {
+        self.hud
+            .custom_buttons
+            .iter()
+            .enumerate()
+            .find_map(|(index, button)| {
+                if !button.visible
+                    || p.distance(self.custom_button_centre(index))
+                        > self.custom_button_radius(index)
+                {
+                    return None;
+                }
+                match InputKey::from_input_id(&button.input_id) {
+                    Ok(input @ (InputKey::Keyboard(_) | InputKey::Mouse(_))) => Some(input),
+                    _ => None,
+                }
+            })
     }
 
     fn hotbar_slot_at(&self, p: Vec2) -> Option<u8> {
@@ -105,8 +282,13 @@ pub enum TouchOutput {
     Use,
     /// A tap of an action's key.
     Tap(Action),
+    /// A custom HUD button's simulated keyboard or mouse press/release.
+    VirtualInputPress(InputKey),
+    VirtualInputRelease(InputKey),
     Hotbar(u8),
     PointerMove(Vec2),
+    /// Vertical menu scroll in wheel-like units.
+    Scroll(f32),
     PointerDown,
     PointerUp,
 }
@@ -126,16 +308,35 @@ enum Role {
         destroying: bool,
     },
     Jump,
-    Pointer,
+    CustomKey {
+        key: InputKey,
+    },
+    Pointer {
+        start: Vec2,
+        last: Vec2,
+        pressed: bool,
+        scrolling: bool,
+        scrollable: bool,
+    },
     /// A tap already handled on press; ignored until it lifts.
     Spent,
 }
 
-#[derive(Default)]
 pub struct TouchControls {
     touches: HashMap<u64, Role>,
     /// Any touch has arrived, so the overlay shows; only phones feed them.
     seen: bool,
+    sprint_threshold: f32,
+}
+
+impl Default for TouchControls {
+    fn default() -> Self {
+        Self {
+            touches: HashMap::new(),
+            seen: false,
+            sprint_threshold: default_sprint_threshold(),
+        }
+    }
 }
 
 impl TouchControls {
@@ -151,16 +352,17 @@ impl TouchControls {
         id: u64,
         phase: TouchPhase,
         p: Vec2,
-        gameplay: bool,
+        context: TouchContext,
         layout: &TouchLayout,
         now: Instant,
     ) -> Vec<TouchOutput> {
         self.seen = true;
+        self.sprint_threshold = layout.hud.sprint_threshold;
         match phase {
-            TouchPhase::Started => self.start(id, p, gameplay, layout, now),
+            TouchPhase::Started => self.start(id, p, context, layout, now),
             TouchPhase::Moved => self.drag(id, p, layout),
-            TouchPhase::Ended => self.end(id, now, true, gameplay),
-            TouchPhase::Cancelled => self.end(id, now, false, gameplay),
+            TouchPhase::Ended => self.end(id, now, true, context.gameplay),
+            TouchPhase::Cancelled => self.end(id, now, false, context.gameplay),
         }
     }
 
@@ -168,20 +370,39 @@ impl TouchControls {
         &mut self,
         id: u64,
         p: Vec2,
-        gameplay: bool,
+        context: TouchContext,
         layout: &TouchLayout,
         now: Instant,
     ) -> Vec<TouchOutput> {
-        let (role, out) = if !gameplay {
+        let (role, out) = if !context.gameplay {
             (
-                Role::Pointer,
-                vec![TouchOutput::PointerMove(p), TouchOutput::PointerDown],
+                Role::Pointer {
+                    start: p,
+                    last: p,
+                    pressed: false,
+                    scrolling: false,
+                    scrollable: context.scrollable,
+                },
+                vec![TouchOutput::PointerMove(p)],
             )
         } else if let Some(button) = layout.button_at(p) {
             match button.tapped_action() {
                 Some(action) => (Role::Spent, vec![TouchOutput::Tap(action)]),
                 None => (Role::Jump, Vec::new()),
             }
+        } else if let Some(key) = layout.custom_button_at(p) {
+            let already_held = self
+                .touches
+                .values()
+                .any(|role| matches!(role, Role::CustomKey { key: held } if *held == key));
+            (
+                Role::CustomKey { key },
+                if already_held {
+                    Vec::new()
+                } else {
+                    vec![TouchOutput::VirtualInputPress(key)]
+                },
+            )
         } else if let Some(slot) = layout.hotbar_slot_at(p) {
             (Role::Spent, vec![TouchOutput::Hotbar(slot)])
         } else if p.x < layout.width * STICK_ZONE {
@@ -189,7 +410,7 @@ impl TouchControls {
                 Role::Stick {
                     origin: p,
                     current: p,
-                    radius: STICK_RADIUS * layout.gs,
+                    radius: layout.stick_radius(),
                 },
                 Vec::new(),
             )
@@ -225,7 +446,45 @@ impl TouchControls {
                 }
                 vec![TouchOutput::Look(delta)]
             }
-            Some(Role::Pointer) => vec![TouchOutput::PointerMove(p)],
+            Some(Role::Pointer {
+                start,
+                last,
+                pressed,
+                scrolling,
+                scrollable,
+            }) => {
+                let delta = p - *last;
+                let total = p - *start;
+                *last = p;
+                if *scrolling {
+                    vec![
+                        TouchOutput::PointerMove(p),
+                        TouchOutput::Scroll(delta.y / (MENU_SCROLL_PIXELS_PER_UNIT * layout.gs)),
+                    ]
+                } else if *pressed {
+                    // A recognized drag owns the pointer until touch release.
+                    vec![TouchOutput::PointerMove(p)]
+                } else if *scrollable
+                    && total.y.abs() > MENU_SCROLL_SLOP * layout.gs
+                    && total.y.abs() > total.x.abs() * 1.25
+                {
+                    *scrolling = true;
+                    vec![
+                        TouchOutput::PointerMove(p),
+                        TouchOutput::Scroll(total.y / (MENU_SCROLL_PIXELS_PER_UNIT * layout.gs)),
+                    ]
+                } else if total.length() > MENU_SCROLL_SLOP * layout.gs
+                    && (!*scrollable
+                        || total.x.abs() > MENU_SCROLL_SLOP * layout.gs
+                            && total.x.abs() > total.y.abs() * 1.25)
+                {
+                    // Inventory/crafting screens retain vertical item drags.
+                    *pressed = true;
+                    vec![TouchOutput::PointerDown, TouchOutput::PointerMove(p)]
+                } else {
+                    Vec::new()
+                }
+            }
             _ => Vec::new(),
         }
     }
@@ -233,6 +492,15 @@ impl TouchControls {
     /// A look touch lifted after a screen opened stays out of that screen.
     fn end(&mut self, id: u64, now: Instant, lifted: bool, gameplay: bool) -> Vec<TouchOutput> {
         match self.touches.remove(&id) {
+            Some(Role::CustomKey { key })
+                if self
+                    .touches
+                    .values()
+                    .any(|role| matches!(role, Role::CustomKey { key: held } if *held == key)) =>
+            {
+                Vec::new()
+            }
+            Some(Role::CustomKey { key }) => vec![TouchOutput::VirtualInputRelease(key)],
             Some(Role::Look {
                 destroying: true, ..
             }) => vec![if gameplay {
@@ -245,7 +513,22 @@ impl TouchControls {
             {
                 vec![TouchOutput::Use]
             }
-            Some(Role::Pointer) => vec![TouchOutput::PointerUp],
+            Some(Role::Pointer {
+                pressed: true,
+                scrolling: false,
+                ..
+            }) => vec![TouchOutput::PointerUp],
+            Some(Role::Pointer {
+                pressed: false,
+                scrolling: false,
+                last,
+                ..
+            }) if lifted => vec![
+                TouchOutput::PointerMove(last),
+                TouchOutput::PointerDown,
+                TouchOutput::PointerUp,
+            ],
+            Some(Role::Pointer { .. }) => Vec::new(),
             _ => Vec::new(),
         }
     }
@@ -255,6 +538,32 @@ impl TouchControls {
     pub fn tick(&mut self, now: Instant, gameplay: bool) -> Vec<TouchOutput> {
         let mut out = Vec::new();
         if !gameplay {
+            let mut held_inputs = Vec::new();
+            for role in self.touches.values_mut() {
+                match role {
+                    Role::CustomKey { key } => {
+                        if !held_inputs.contains(key) {
+                            held_inputs.push(*key);
+                        }
+                        *role = Role::Spent;
+                    }
+                    Role::Look {
+                        destroying: true, ..
+                    } => {
+                        out.push(TouchOutput::DestroyCancel);
+                        *role = Role::Spent;
+                    }
+                    Role::Stick { .. } | Role::Jump | Role::Look { .. } => {
+                        *role = Role::Spent;
+                    }
+                    _ => {}
+                }
+            }
+            out.extend(
+                held_inputs
+                    .into_iter()
+                    .map(TouchOutput::VirtualInputRelease),
+            );
             return out;
         }
         for role in self.touches.values_mut() {
@@ -301,6 +610,13 @@ impl TouchControls {
     pub fn jump_held(&self) -> bool {
         self.touches.values().any(|role| matches!(role, Role::Jump))
     }
+
+    /// Sprint is derived from the live forward stick deflection, so every
+    /// release/cancel/focus-loss path naturally returns it to false.
+    pub fn sprint_held(&self) -> bool {
+        self.stick()
+            .is_some_and(|deflection| deflection.y >= self.sprint_threshold)
+    }
 }
 
 #[cfg(test)]
@@ -308,15 +624,40 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use glam::Vec2;
-    use winit::event::TouchPhase;
+    use winit::event::{MouseButton, TouchPhase};
+    use winit::keyboard::KeyCode;
 
-    use super::{Action, TouchButton, TouchControls, TouchLayout, TouchOutput};
+    use super::{
+        Action, CustomTouchButton, InputKey, TouchButton, TouchContext, TouchControls,
+        TouchHudLayout, TouchLayout, TouchOutput,
+    };
 
-    const LAYOUT: TouchLayout = TouchLayout {
+    const MENU: TouchContext = TouchContext {
+        gameplay: false,
+        scrollable: true,
+    };
+    const INVENTORY: TouchContext = TouchContext {
+        gameplay: false,
+        scrollable: false,
+    };
+    const GAMEPLAY: TouchContext = TouchContext {
+        gameplay: true,
+        scrollable: false,
+    };
+
+    static LAYOUT: std::sync::LazyLock<TouchLayout> = std::sync::LazyLock::new(|| TouchLayout {
         width: 1600.0,
         height: 900.0,
         gs: 2.0,
-    };
+        hud: TouchHudLayout {
+            positions: [[0.96, 0.92], [0.78, 0.07], [0.88, 0.07], [0.96, 0.07]],
+            scales: [1.0; 4],
+            visible: [true; 4],
+            stick_scale: 1.0,
+            sprint_threshold: 0.82,
+            custom_buttons: Vec::new(),
+        },
+    });
     /// Right of the stick zone, above the hotbar, away from the buttons.
     const LOOK: Vec2 = Vec2::new(1000.0, 400.0);
     const STICK: Vec2 = Vec2::new(200.0, 600.0);
@@ -332,7 +673,7 @@ mod tests {
         p: Vec2,
         at: Instant,
     ) -> Vec<TouchOutput> {
-        c.on_touch(id, phase, p, true, &LAYOUT, at)
+        c.on_touch(id, phase, p, GAMEPLAY, &LAYOUT, at)
     }
 
     #[test]
@@ -353,14 +694,14 @@ mod tests {
         touch(&mut c, 1, TouchPhase::Started, LOOK, t);
         assert!(c.tick(ms(t, 300), false).is_empty());
         assert!(
-            c.on_touch(1, TouchPhase::Ended, LOOK, false, &LAYOUT, ms(t, 350))
+            c.on_touch(1, TouchPhase::Ended, LOOK, INVENTORY, &LAYOUT, ms(t, 350))
                 .is_empty()
         );
 
         touch(&mut c, 2, TouchPhase::Started, LOOK, t);
         assert_eq!(c.tick(ms(t, 300), true), [TouchOutput::DestroyStart]);
         assert_eq!(
-            c.on_touch(2, TouchPhase::Ended, LOOK, false, &LAYOUT, ms(t, 400)),
+            c.on_touch(2, TouchPhase::Ended, LOOK, INVENTORY, &LAYOUT, ms(t, 400)),
             [TouchOutput::DestroyCancel]
         );
     }
@@ -388,6 +729,95 @@ mod tests {
         );
         assert!(c.tick(ms(t, 400), true).is_empty());
         assert!(touch(&mut c, 1, TouchPhase::Ended, moved, ms(t, 100)).is_empty());
+    }
+
+    #[test]
+    fn forward_stick_deflection_engages_sprint_only_above_the_saved_threshold() {
+        let (mut c, t) = (TouchControls::default(), Instant::now());
+        touch(&mut c, 9, TouchPhase::Started, STICK, t);
+        touch(
+            &mut c,
+            9,
+            TouchPhase::Moved,
+            STICK + Vec2::new(0.0, -48.0),
+            t,
+        );
+        assert!(!c.sprint_held());
+        touch(
+            &mut c,
+            9,
+            TouchPhase::Moved,
+            STICK + Vec2::new(0.0, -50.0),
+            t,
+        );
+        assert!(c.sprint_held());
+        touch(
+            &mut c,
+            9,
+            TouchPhase::Moved,
+            STICK + Vec2::new(0.0, 20.0),
+            t,
+        );
+        assert!(!c.sprint_held());
+        touch(&mut c, 9, TouchPhase::Ended, STICK, t);
+        assert!(!c.sprint_held());
+    }
+
+    #[test]
+    fn sprint_threshold_uses_the_saved_layout_setting() {
+        let (mut controls, now) = (TouchControls::default(), Instant::now());
+        let mut layout = (*LAYOUT).clone();
+        layout.hud.sprint_threshold = 0.6;
+        let start = layout.stick_home();
+        controls.on_touch(94, TouchPhase::Started, start, GAMEPLAY, &layout, now);
+        controls.on_touch(
+            94,
+            TouchPhase::Moved,
+            start + Vec2::new(0.0, -36.0),
+            GAMEPLAY,
+            &layout,
+            now,
+        );
+        assert!(controls.sprint_held());
+        controls.on_touch(94, TouchPhase::Ended, start, GAMEPLAY, &layout, now);
+        assert!(!controls.sprint_held());
+    }
+
+    #[test]
+    fn joystick_scale_and_sprint_threshold_are_sanitized() {
+        let layout = TouchHudLayout {
+            stick_scale: f32::NAN,
+            sprint_threshold: 2.0,
+            ..TouchHudLayout::default()
+        }
+        .sanitized();
+        assert_eq!(layout.stick_scale, 1.0);
+        assert_eq!(layout.sprint_threshold, 0.98);
+
+        let layout = TouchHudLayout {
+            stick_scale: 9.0,
+            sprint_threshold: f32::NAN,
+            ..TouchHudLayout::default()
+        }
+        .sanitized();
+        assert_eq!(layout.stick_scale, 1.8);
+        assert_eq!(layout.sprint_threshold, 0.82);
+    }
+
+    #[test]
+    fn sprint_is_released_when_gameplay_loses_touch_focus() {
+        let (mut controls, now) = (TouchControls::default(), Instant::now());
+        touch(&mut controls, 95, TouchPhase::Started, STICK, now);
+        touch(
+            &mut controls,
+            95,
+            TouchPhase::Moved,
+            STICK + Vec2::new(0.0, -50.0),
+            now,
+        );
+        assert!(controls.sprint_held());
+        assert!(controls.tick(ms(now, 16), false).is_empty());
+        assert!(!controls.sprint_held());
     }
 
     #[test]
@@ -471,15 +901,217 @@ mod tests {
     }
 
     #[test]
+    fn custom_keyboard_button_sends_press_and_releases_on_cancel_or_gameplay_loss() {
+        let (mut controls, now) = (TouchControls::default(), Instant::now());
+        let mut layout = (*LAYOUT).clone();
+        layout.hud.custom_buttons.push(CustomTouchButton {
+            input_id: "key.keyboard.r".into(),
+            position: [0.5, 0.5],
+            scale: 1.0,
+            visible: true,
+        });
+        let centre = layout.custom_button_centre(0);
+        assert_eq!(
+            controls.on_touch(90, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualInputPress(InputKey::Keyboard(
+                KeyCode::KeyR
+            ))]
+        );
+        assert_eq!(
+            controls.on_touch(90, TouchPhase::Cancelled, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualInputRelease(InputKey::Keyboard(
+                KeyCode::KeyR
+            ))]
+        );
+
+        assert_eq!(
+            controls.on_touch(91, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualInputPress(InputKey::Keyboard(
+                KeyCode::KeyR
+            ))]
+        );
+        assert!(
+            controls
+                .on_touch(92, TouchPhase::Started, centre, GAMEPLAY, &layout, now)
+                .is_empty()
+        );
+        assert_eq!(
+            controls.tick(ms(now, 16), false),
+            [TouchOutput::VirtualInputRelease(InputKey::Keyboard(
+                KeyCode::KeyR
+            ))]
+        );
+        assert!(
+            controls
+                .on_touch(91, TouchPhase::Ended, centre, MENU, &layout, now)
+                .is_empty()
+        );
+        assert!(
+            controls
+                .on_touch(92, TouchPhase::Ended, centre, MENU, &layout, now)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn custom_mouse_button_sends_press_and_release() {
+        let (mut controls, now) = (TouchControls::default(), Instant::now());
+        let mut layout = (*LAYOUT).clone();
+        layout.hud.custom_buttons.push(CustomTouchButton {
+            input_id: "key.mouse.left".into(),
+            position: [0.5, 0.5],
+            scale: 1.0,
+            visible: true,
+        });
+        let centre = layout.custom_button_centre(0);
+        assert_eq!(
+            controls.on_touch(93, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualInputPress(InputKey::Mouse(
+                MouseButton::Left
+            ))]
+        );
+        assert_eq!(
+            controls.on_touch(93, TouchPhase::Ended, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualInputRelease(InputKey::Mouse(
+                MouseButton::Left
+            ))]
+        );
+    }
+
+    #[test]
+    fn shared_custom_key_releases_only_after_the_last_finger_lifts() {
+        let (mut controls, now) = (TouchControls::default(), Instant::now());
+        let mut layout = (*LAYOUT).clone();
+        layout.hud.custom_buttons.push(CustomTouchButton {
+            input_id: "key.keyboard.r".into(),
+            position: [0.5, 0.5],
+            scale: 1.0,
+            visible: true,
+        });
+        let centre = layout.custom_button_centre(0);
+        assert_eq!(
+            controls.on_touch(1, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualInputPress(InputKey::Keyboard(
+                KeyCode::KeyR
+            ))]
+        );
+        assert!(
+            controls
+                .on_touch(2, TouchPhase::Started, centre, GAMEPLAY, &layout, now)
+                .is_empty()
+        );
+        assert!(
+            controls
+                .on_touch(1, TouchPhase::Ended, centre, GAMEPLAY, &layout, now)
+                .is_empty()
+        );
+        assert_eq!(
+            controls.on_touch(2, TouchPhase::Ended, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualInputRelease(InputKey::Keyboard(
+                KeyCode::KeyR
+            ))]
+        );
+    }
+
+    #[test]
     fn outside_gameplay_a_touch_is_the_pointer() {
         let (mut c, t) = (TouchControls::default(), Instant::now());
         let p = Vec2::new(300.0, 200.0);
         assert_eq!(
-            c.on_touch(1, TouchPhase::Started, p, false, &LAYOUT, t),
-            [TouchOutput::PointerMove(p), TouchOutput::PointerDown]
+            c.on_touch(1, TouchPhase::Started, p, INVENTORY, &LAYOUT, t),
+            [TouchOutput::PointerMove(p)]
         );
         assert_eq!(
-            c.on_touch(1, TouchPhase::Ended, p, false, &LAYOUT, t),
+            c.on_touch(1, TouchPhase::Ended, p, INVENTORY, &LAYOUT, t),
+            [
+                TouchOutput::PointerMove(p),
+                TouchOutput::PointerDown,
+                TouchOutput::PointerUp,
+            ]
+        );
+    }
+
+    #[test]
+    fn vertical_menu_drag_becomes_scroll_and_releases_the_pointer() {
+        let (mut c, t) = (TouchControls::default(), Instant::now());
+        let start = Vec2::new(500.0, 400.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Started, start, MENU, &LAYOUT, t),
+            [TouchOutput::PointerMove(start)]
+        );
+
+        let moved = start + Vec2::new(3.0, -80.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Moved, moved, MENU, &LAYOUT, t),
+            [TouchOutput::PointerMove(moved), TouchOutput::Scroll(-2.0),]
+        );
+
+        let moved_again = moved + Vec2::new(0.0, -40.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Moved, moved_again, MENU, &LAYOUT, t),
+            [
+                TouchOutput::PointerMove(moved_again),
+                TouchOutput::Scroll(-1.0),
+            ]
+        );
+        assert!(
+            c.on_touch(1, TouchPhase::Ended, moved_again, MENU, &LAYOUT, t)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn vertical_inventory_drag_remains_a_pointer_drag() {
+        let (mut c, t) = (TouchControls::default(), Instant::now());
+        let start = Vec2::new(500.0, 400.0);
+        c.on_touch(1, TouchPhase::Started, start, INVENTORY, &LAYOUT, t);
+        let moved = start + Vec2::new(2.0, 50.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Moved, moved, INVENTORY, &LAYOUT, t),
+            [TouchOutput::PointerDown, TouchOutput::PointerMove(moved)]
+        );
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Ended, moved, INVENTORY, &LAYOUT, t),
+            [TouchOutput::PointerUp]
+        );
+    }
+
+    #[test]
+    fn horizontal_drag_keeps_pointer_ownership_after_vertical_motion() {
+        let (mut c, t) = (TouchControls::default(), Instant::now());
+        let start = Vec2::new(500.0, 400.0);
+        c.on_touch(1, TouchPhase::Started, start, MENU, &LAYOUT, t);
+        let horizontal = start + Vec2::new(80.0, 5.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Moved, horizontal, MENU, &LAYOUT, t),
+            [
+                TouchOutput::PointerDown,
+                TouchOutput::PointerMove(horizontal)
+            ]
+        );
+        let vertical = horizontal + Vec2::new(0.0, 80.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Moved, vertical, MENU, &LAYOUT, t),
+            [TouchOutput::PointerMove(vertical)]
+        );
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Ended, vertical, MENU, &LAYOUT, t),
+            [TouchOutput::PointerUp]
+        );
+    }
+
+    #[test]
+    fn horizontal_menu_drag_remains_a_pointer_drag() {
+        let (mut c, t) = (TouchControls::default(), Instant::now());
+        let start = Vec2::new(500.0, 400.0);
+        c.on_touch(1, TouchPhase::Started, start, MENU, &LAYOUT, t);
+        let moved = start + Vec2::new(80.0, 5.0);
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Moved, moved, MENU, &LAYOUT, t),
+            [TouchOutput::PointerDown, TouchOutput::PointerMove(moved)]
+        );
+        assert_eq!(
+            c.on_touch(1, TouchPhase::Ended, moved, MENU, &LAYOUT, t),
             [TouchOutput::PointerUp]
         );
     }

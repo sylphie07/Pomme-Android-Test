@@ -394,6 +394,7 @@ impl MainMenu {
     ) -> MainMenuResult {
         let rows: Vec<OptRow> = vec![
             OptRow::Pair("Mouse Settings...", "Key Binds..."),
+            OptRow::PairLeft("Touch Controls..."),
             OptRow::Pair("Sneak: Hold", "Sprint: Hold"),
             OptRow::Pair("Attack/Destroy: Hold", "Use Item/Place Block: Hold"),
             OptRow::Pair("Auto-Jump: OFF", "Sprint Window: 7"),
@@ -402,6 +403,7 @@ impl MainMenu {
         let nav: &[(&str, Screen)] = &[
             ("Mouse Settings...", Screen::OptionsMouse),
             ("Key Binds...", Screen::OptionsKeybinds),
+            ("Touch Controls...", Screen::OptionsTouchControls),
         ];
         let disabled = &[
             "Sneak:",

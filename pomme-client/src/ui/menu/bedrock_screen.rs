@@ -584,7 +584,10 @@ impl MainMenu {
             dressing,
             dressing_w,
         );
-        let mut open_account = fired;
+        if fired {
+            any_clicked = true;
+            action = MenuAction::ImportSkin;
+        }
 
         // The left column, bottom up: the Profile row, then the featured
         // server's join button and tile.
@@ -623,8 +626,7 @@ impl MainMenu {
                 WHITE,
             ),
         }
-        open_account |= fired;
-        if open_account {
+        if fired {
             any_clicked = true;
             self.open_account(key_bindings);
         }

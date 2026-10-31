@@ -8,6 +8,7 @@ mod options;
 mod servers;
 mod splash;
 mod title_screen;
+mod touch_hud_editor;
 mod worlds;
 
 use std::path::{Path, PathBuf};
@@ -34,6 +35,8 @@ use crate::ui::text_edit::{SystemClipboard, TextFieldState, TextInputEvent};
 struct Settings {
     #[serde(default)]
     key_bindings: KeyBindings,
+    #[serde(default)]
+    touch_hud: crate::app::input::touch::TouchHudLayout,
     gui_scale: u32,
     render_distance: u32,
     #[serde(default = "default_chunk_detail")]
@@ -210,6 +213,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             key_bindings: KeyBindings::default(),
+            touch_hud: crate::app::input::touch::TouchHudLayout::default(),
             gui_scale: 0,
             render_distance: 12,
             chunk_detail: 8,
@@ -353,6 +357,8 @@ const STRIP_COUNT: usize = 14;
 
 pub enum MenuAction {
     None,
+    /// Open Android's system picker to import a local player skin.
+    ImportSkin,
     Connect {
         server: String,
         username: String,
@@ -362,6 +368,8 @@ pub enum MenuAction {
     ChangeTheme(PanoramaTheme),
     /// Signed in (`Some`) or out (`None`) from the account screen.
     Account(Option<pomme_auth::AuthAccount>),
+    /// The user left the account screen without signing in.
+    CancelPending,
     /// Open the singleplayer world in this save folder.
     PlayWorld {
         folder: String,
@@ -532,6 +540,7 @@ enum Screen {
     OptionsSkinCustomization,
     OptionsMusicSounds,
     OptionsControls,
+    OptionsTouchControls,
     OptionsMouse,
     OptionsKeybinds,
     OptionsLanguage,
@@ -556,6 +565,7 @@ impl Screen {
             Self::OptionsSkinCustomization => Self::OptionsSkinCustomization,
             Self::OptionsMusicSounds => Self::OptionsMusicSounds,
             Self::OptionsControls => Self::OptionsControls,
+            Self::OptionsTouchControls => Self::OptionsTouchControls,
             Self::OptionsMouse => Self::OptionsMouse,
             Self::OptionsKeybinds => Self::OptionsKeybinds,
             Self::OptionsLanguage => Self::OptionsLanguage,
@@ -661,6 +671,8 @@ pub struct MainMenu {
     account_store: Arc<dyn pomme_auth::SecretStore>,
     sign_in: Arc<parking_lot::RwLock<account::SignIn>>,
     sign_in_task: Option<tokio::task::JoinHandle<()>>,
+    /// Invalidates results from superseded asynchronous authentication tasks.
+    auth_generation: Arc<std::sync::atomic::AtomicU64>,
     /// No launcher passed an account, so the menu is behind sign-in.
     account_required: bool,
     rt: Arc<tokio::runtime::Runtime>,
@@ -707,6 +719,17 @@ pub struct MainMenu {
     credits_keys: u8,
     last_click_index: Option<usize>,
     pub gui_scale_setting: u32,
+    pub touch_hud: crate::app::input::touch::TouchHudLayout,
+    /// Uncommitted layout while the touch HUD editor is open.
+    touch_hud_draft: Option<crate::app::input::touch::TouchHudLayout>,
+    touch_hud_selected: Option<crate::app::input::touch::TouchButton>,
+    touch_hud_stick_selected: bool,
+    touch_hud_custom_selected: Option<usize>,
+    touch_hud_picker_open: bool,
+    touch_hud_picker_mouse: bool,
+    touch_hud_picker_page: usize,
+    touch_hud_dragging: bool,
+    touch_hud_drag_offset: (f32, f32),
     pub render_distance: u32,
     /// Radius of full-detail meshing (LOD 0), in chunks; coarser LODs start
     /// beyond it. Pomme-custom: vanilla has no LOD, this buys its look back
@@ -846,6 +869,7 @@ impl MainMenu {
             account_store: Arc::from(crate::account::store(game_dir)),
             sign_in: Default::default(),
             sign_in_task: None,
+            auth_generation: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             account_required: false,
             rt,
             links_open: false,
@@ -872,6 +896,16 @@ impl MainMenu {
             credits_keys: 0,
             last_click_index: None,
             gui_scale_setting: settings.gui_scale,
+            touch_hud: settings.touch_hud.sanitized(),
+            touch_hud_draft: None,
+            touch_hud_selected: None,
+            touch_hud_stick_selected: false,
+            touch_hud_custom_selected: None,
+            touch_hud_picker_open: false,
+            touch_hud_picker_mouse: false,
+            touch_hud_picker_page: 0,
+            touch_hud_dragging: false,
+            touch_hud_drag_offset: (0.0, 0.0),
             render_distance: settings.render_distance,
             chunk_detail: settings.chunk_detail,
             simulation_distance: settings.simulation_distance,
@@ -1036,13 +1070,10 @@ impl MainMenu {
         self.account_required && self.access_token.is_none()
     }
 
-    /// Puts the menu behind sign-in: with no account, it opens on the
-    /// account screen and only Sign In or Quit leave it.
-    pub(crate) fn require_account(&mut self, key_bindings: &KeyBindings) {
+    /// Requires a valid signed-in account for gameplay without blocking menu
+    /// navigation.
+    pub(crate) fn require_account(&mut self, _key_bindings: &KeyBindings) {
         self.account_required = true;
-        if self.account_gated() {
-            self.set_screen(Screen::Account, key_bindings);
-        }
     }
 
     /// A form's text field has keyboard focus.
@@ -1120,6 +1151,7 @@ impl MainMenu {
             &self.settings_dir,
             &Settings {
                 key_bindings: key_bindings.clone(),
+                touch_hud: self.touch_hud.clone().sanitized(),
                 gui_scale: self.gui_scale_setting,
                 render_distance: self
                     .bench_render_distance
@@ -1234,6 +1266,7 @@ impl MainMenu {
                 | Screen::OptionsSkinCustomization
                 | Screen::OptionsMusicSounds
                 | Screen::OptionsControls
+                | Screen::OptionsTouchControls
                 | Screen::OptionsMouse
                 | Screen::OptionsKeybinds
                 | Screen::OptionsLanguage
@@ -1512,6 +1545,9 @@ impl MainMenu {
             }
             Screen::OptionsControls => {
                 self.build_options_controls(screen_w, screen_h, input, &text_width_fn, key_bindings)
+            }
+            Screen::OptionsTouchControls => {
+                self.build_touch_hud_editor(screen_w, screen_h, input, key_bindings)
             }
             Screen::OptionsMouse => {
                 self.build_options_mouse(screen_w, screen_h, input, &text_width_fn, key_bindings)

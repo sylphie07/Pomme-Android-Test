@@ -95,6 +95,78 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
 #[cfg(target_os = "android")]
 pub static ANDROID_APP: std::sync::RwLock<Option<crate::AndroidApp>> = std::sync::RwLock::new(None);
 
+#[cfg(target_os = "android")]
+/// Opens Android's document picker for a local Minecraft skin PNG.
+/// The Java activity copies a bounded stream into its private files directory;
+/// Rust consumes the completed file on a later menu update.
+pub fn request_skin_import() {
+    #[cfg(target_os = "android")]
+    {
+        let app = ANDROID_APP.read().ok().and_then(|app| app.clone());
+        let Some(app) = app else {
+            tracing::warn!("Cannot import a skin: Android activity is unavailable");
+            return;
+        };
+        let task_app = app.clone();
+        app.run_on_java_main_thread(Box::new(move || {
+            // SAFETY: AndroidApp owns the process JavaVM for this activity.
+            let vm = unsafe { jni::JavaVM::from_raw(task_app.vm_as_ptr().cast()) };
+            let result = vm.attach_current_thread(|env| -> jni::errors::Result<()> {
+                // SAFETY: AndroidApp retains this activity global reference
+                // until its native activity is destroyed.
+                let activity = unsafe {
+                    jni::objects::JObject::from_raw(env, task_app.activity_as_ptr().cast())
+                };
+                env.call_method(
+                    &activity,
+                    jni::jni_str!("requestSkinImport"),
+                    jni::jni_sig!("()V"),
+                    &[],
+                )?;
+                Ok(())
+            });
+            if let Err(error) = result {
+                tracing::warn!("Could not open Android skin picker: {error}");
+            }
+        }));
+    }
+}
+
+/// Takes the completed picker result, if any. The Java side writes this file
+/// atomically in app-private storage; it is never a content:// URI or a
+/// caller-controlled filesystem path.
+pub fn take_skin_import() -> Option<Vec<u8>> {
+    #[cfg(target_os = "android")]
+    {
+        const MAX_SKIN_BYTES: u64 = 4 * 1024 * 1024;
+        let app = ANDROID_APP.read().ok().and_then(|app| app.clone())?;
+        let path = app.internal_data_path()?.join("pomme-skin-import.pending");
+        let metadata = fs::metadata(&path).ok()?;
+        if metadata.len() == 0 || metadata.len() > MAX_SKIN_BYTES {
+            let _ = fs::remove_file(&path);
+            tracing::warn!("Rejected imported skin file with invalid size");
+            return None;
+        }
+        let bytes = match fs::read(&path) {
+            Ok(bytes) if bytes.len() as u64 <= MAX_SKIN_BYTES => bytes,
+            Ok(_) => {
+                tracing::warn!("Rejected imported skin file over size limit");
+                Vec::new()
+            }
+            Err(error) => {
+                tracing::warn!("Could not read imported skin file: {error}");
+                Vec::new()
+            }
+        };
+        let _ = fs::remove_file(&path);
+        (!bytes.is_empty()).then_some(bytes)
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        None
+    }
+}
+
 pub fn open_url(url: &str) {
     #[cfg(target_os = "android")]
     let opened = open_url_android(url).map_err(|e| e.to_string());

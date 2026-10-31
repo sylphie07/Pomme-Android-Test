@@ -838,6 +838,8 @@ impl RepeatStepper {
 }
 
 pub struct AppCore {
+    /// Holds the local player identity and the independent optional Microsoft
+    /// session.
     pub user: UserData,
     pub presence: Option<DiscordPresence>,
     pub display_mode: DisplayMode,
@@ -860,8 +862,8 @@ pub struct AppCore {
     /// When the window lost OS focus, for pause-on-lost-focus (vanilla
     /// `pauseIfInactive`); `None` while focused.
     pub unfocused_since: Option<Instant>,
-    /// A quick play held back until the required sign-in is done.
-    pub deferred_quick_play: Option<crate::app::QuickPlay>,
+    /// A gameplay request held until the required sign-in is complete.
+    pub deferred_game_action: Option<crate::app::PendingGameAction>,
     /// Vanilla `options.pauseOnLostFocus`.
     pub pause_on_lost_focus: bool,
     /// Vanilla `MouseHandler.mouseGrabbed`.
@@ -1027,7 +1029,7 @@ impl AppCore {
             time_tick_accumulator: 0.0,
             menu_dpad: RepeatStepper::default(),
             unfocused_since: None,
-            deferred_quick_play: None,
+            deferred_game_action: None,
             pause_on_lost_focus: true,
             mouse_grabbed: false,
             os_grab_stale: false,

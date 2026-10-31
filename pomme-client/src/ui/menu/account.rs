@@ -12,27 +12,42 @@ pub(super) enum SignIn {
     #[default]
     Idle,
     Requesting,
+    Restoring,
     Code(pomme_auth::DeviceCode),
     Failed(String),
     Done(pomme_auth::AuthAccount),
 }
 
 impl MainMenu {
-    pub(super) fn open_account(&mut self, key_bindings: &KeyBindings) {
-        self.cancel_sign_in();
+    pub(crate) fn open_account(&mut self, key_bindings: &KeyBindings) {
+        // Keep a background restore alive when the user opens the account screen.
         self.set_screen(Screen::Account, key_bindings);
     }
 
     fn start_sign_in(&mut self) {
+        let generation = self
+            .auth_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+            + 1;
+        if let Some(task) = self.sign_in_task.take() {
+            task.abort();
+        }
         let state = Arc::clone(&self.sign_in);
+        let auth_generation = Arc::clone(&self.auth_generation);
         let store = Arc::clone(&self.account_store);
-        self.run_sign_in(async move {
-            pomme_auth::device_code_sign_in(crate::net::http::client(), &*store, |code| {
-                *state.write() = SignIn::Code(code.clone());
-            })
-            .await
-            .map(Some)
-        });
+        self.run_sign_in(
+            async move {
+                pomme_auth::device_code_sign_in(crate::net::http::client(), &*store, |code| {
+                    let mut state = state.write();
+                    if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
+                        *state = SignIn::Code(code.clone());
+                    }
+                })
+                .await
+                .map(Some)
+            },
+            generation,
+        );
     }
 
     /// Still signed out, with no sign-in under way: the stored account is
@@ -44,22 +59,68 @@ impl MainMenu {
     /// Signs in as the stored account without asking; with none, the
     /// screen offers Sign In.
     pub(crate) fn restore_account(&mut self) {
+        // Do not start a second restore or replace an interactive sign-in/result.
+        if !matches!(*self.sign_in.read(), SignIn::Idle | SignIn::Failed(_)) {
+            return;
+        }
+        let generation = self
+            .auth_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+            + 1;
+        if let Some(task) = self.sign_in_task.take() {
+            task.abort();
+        }
+        let state = Arc::clone(&self.sign_in);
+        let auth_generation = Arc::clone(&self.auth_generation);
         let store = Arc::clone(&self.account_store);
-        self.run_sign_in(async move { Ok(crate::account::restore(&*store).await) });
+        *state.write() = SignIn::Restoring;
+        self.sign_in_task = Some(self.rt.spawn(async move {
+            let restored = crate::account::restore(&*store).await;
+            let mut state = state.write();
+            if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
+                *state = match restored {
+                    Some(account) => SignIn::Done(account),
+                    None => SignIn::Idle,
+                };
+            }
+        }));
+    }
+
+    /// Takes a completed background restore while the user is browsing the
+    /// menu.
+    pub(crate) fn take_restored_account(&mut self) -> Option<pomme_auth::AuthAccount> {
+        if matches!(&self.screen, Screen::Account) {
+            return None;
+        }
+        let mut state = self.sign_in.write();
+        if !matches!(*state, SignIn::Done(_)) {
+            return None;
+        }
+        let SignIn::Done(account) = std::mem::take(&mut *state) else {
+            unreachable!()
+        };
+        self.sign_in_task = None;
+        Some(account)
     }
 
     fn run_sign_in(
         &mut self,
         sign_in: impl Future<Output = Result<Option<pomme_auth::AuthAccount>, String>> + Send + 'static,
+        generation: u64,
     ) {
         let state = Arc::clone(&self.sign_in);
+        let auth_generation = Arc::clone(&self.auth_generation);
         *state.write() = SignIn::Requesting;
         self.sign_in_task = Some(self.rt.spawn(async move {
-            *state.write() = match sign_in.await {
-                Ok(Some(account)) => SignIn::Done(account),
-                Ok(None) => SignIn::Idle,
-                Err(reason) => SignIn::Failed(reason),
-            };
+            let result = sign_in.await;
+            let mut state = state.write();
+            if auth_generation.load(std::sync::atomic::Ordering::Acquire) == generation {
+                *state = match result {
+                    Ok(Some(account)) => SignIn::Done(account),
+                    Ok(None) => SignIn::Idle,
+                    Err(reason) => SignIn::Failed(reason),
+                };
+            }
         }));
     }
 
@@ -75,6 +136,12 @@ impl MainMenu {
     }
 
     fn cancel_sign_in(&mut self) {
+        // A saved-account restore continues if the user leaves this screen.
+        if matches!(*self.sign_in.read(), SignIn::Restoring | SignIn::Done(_)) {
+            return;
+        }
+        self.auth_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         if let Some(task) = self.sign_in_task.take() {
             task.abort();
         }
@@ -89,10 +156,12 @@ impl MainMenu {
         key_bindings: &KeyBindings,
     ) -> MainMenuResult {
         let gated = self.account_gated();
-        let leave = if gated { "Quit" } else { "Back" };
-        if input.escape && !gated {
+        let leave = "Back";
+        if input.escape {
             self.close_account(key_bindings);
-            return empty_result();
+            let mut result = empty_result();
+            result.action = MenuAction::CancelPending;
+            return result;
         }
         if matches!(*self.sign_in.read(), SignIn::Done(_)) {
             let SignIn::Done(account) = std::mem::take(&mut *self.sign_in.write()) else {
@@ -128,6 +197,11 @@ impl MainMenu {
                 (None, SignIn::Requesting) => {
                     (vec!["Contacting Microsoft...".into()], None, ["", "Cancel"])
                 }
+                (None, SignIn::Restoring) => (
+                    vec!["Restoring saved Microsoft account...".into()],
+                    None,
+                    ["", "Back"],
+                ),
                 (None, SignIn::Code(code)) => (
                     vec![format!(
                         "Go to {} and enter this code:",
@@ -219,8 +293,14 @@ impl MainMenu {
                 }
             }
             Some("Sign Out") => action = MenuAction::Account(None),
-            Some("Cancel") => self.cancel_sign_in(),
-            Some("Back") => self.close_account(key_bindings),
+            Some("Cancel") => {
+                self.cancel_sign_in();
+                action = MenuAction::CancelPending;
+            }
+            Some("Back") => {
+                self.close_account(key_bindings);
+                action = MenuAction::CancelPending;
+            }
             Some("Quit") => action = MenuAction::Quit,
             _ => {}
         }
@@ -283,23 +363,27 @@ mod tests {
     }
 
     #[test]
-    fn a_required_account_holds_the_menu_until_sign_in() {
+    fn a_required_account_does_not_block_menu_navigation() {
         let mut key_bindings = KeyBindings::default();
         let mut menu = test_menu("pomme-account-gate-test", &mut key_bindings);
         menu.require_account(&key_bindings);
-        let escape = MenuInput {
-            escape: true,
-            ..Default::default()
-        };
-        menu.build(W, H, &escape, &mut key_bindings, text_width);
-        let gate = menu.build(W, H, &MenuInput::default(), &mut key_bindings, text_width);
-        assert!(texts(&gate).contains(&"Pomme needs a Minecraft account."));
-        assert!(texts(&gate).contains(&"Quit"));
-        assert!(!texts(&gate).contains(&"Back"));
 
-        menu.set_account("Tester".into(), Some("token".into()), &key_bindings);
-        menu.set_screen(Screen::Main, &key_bindings);
-        menu.set_account("Tester".into(), None, &key_bindings);
+        assert!(menu.account_gated());
+        assert!(matches!(menu.screen, Screen::Main));
+
+        // A gameplay account requirement must not force the user into the
+        // account screen or replace the main menu.
+        let main = menu.build(W, H, &MenuInput::default(), &mut key_bindings, text_width);
+        assert!(matches!(menu.screen, Screen::Main));
+        assert!(!texts(&main).contains(&"Pomme needs a Minecraft account."));
+
+        // The account screen remains available, and still explains the
+        // requirement and offers the normal Microsoft sign-in action.
+        menu.open_account(&key_bindings);
+        let account = menu.build(W, H, &MenuInput::default(), &mut key_bindings, text_width);
         assert!(matches!(menu.screen, Screen::Account));
+        assert!(texts(&account).contains(&"Pomme needs a Minecraft account."));
+        assert!(texts(&account).contains(&"Sign In"));
+        assert!(texts(&account).contains(&"Back"));
     }
 }

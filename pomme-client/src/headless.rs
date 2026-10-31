@@ -40,13 +40,23 @@ pub fn user(
     let stored = (args.username.is_none() && matches!(play, QuickPlay::Multiplayer(_)))
         .then(|| rt.block_on(crate::account::restore(&*crate::account::store(game_dir))))
         .flatten();
+    let profiles =
+        crate::user::LocalProfileStore::load_or_create(&game_dir.join("local-profiles.json"))
+            .unwrap_or_else(|error| {
+                tracing::error!("Failed to load local profiles: {error}");
+                std::process::exit(1);
+            });
+    let local_profile = profiles.selected().clone();
     match stored {
-        Some(account) => UserData::from_account(&account),
-        None => UserData::from_args(
-            args.username.clone(),
-            args.uuid.clone(),
-            args.access_token.clone(),
-        ),
+        Some(account) => UserData::from_account(&account, local_profile),
+        None if args.username.is_some() || args.uuid.is_some() || args.access_token.is_some() => {
+            UserData::from_args(
+                args.username.clone(),
+                args.uuid.clone(),
+                args.access_token.clone(),
+            )
+        }
+        None => UserData::from_local_profile(local_profile),
     }
 }
 
@@ -59,7 +69,7 @@ pub fn run(
     dirs: &DataDirs,
     rt: &tokio::runtime::Runtime,
 ) -> i32 {
-    let (transport, mut world) = match open(play, dirs, rd) {
+    let (transport, mut world) = match open(play, dirs, rd, &user) {
         Ok(opened) => opened,
         Err(reason) => {
             tracing::error!("{reason}");
@@ -72,13 +82,27 @@ pub fn run(
     );
     let chat_options = ChatOptions::default();
     let skin_options = SkinOptions::default();
+    let (username, uuid, access_token) = match &transport {
+        Transport::Remote { .. } => {
+            let Some((username, uuid, token)) = user.multiplayer_identity() else {
+                tracing::error!("Headless multiplayer requires a valid Microsoft Java session");
+                return 1;
+            };
+            (username.to_owned(), uuid, Some(token.to_owned()))
+        }
+        Transport::Memory { .. } => (
+            user.local_profile.username.clone(),
+            user.local_profile.player_uuid,
+            None,
+        ),
+    };
     let connection = spawn_connection(
         rt,
         ConnectArgs {
             transport,
-            username: user.username,
-            uuid: user.uuid,
-            access_token: user.access_token,
+            username,
+            uuid,
+            access_token,
             view_distance: rd as u8,
             chat_options,
             skin_options,
@@ -115,7 +139,12 @@ pub fn run(
     code
 }
 
-fn open(play: QuickPlay, dirs: &DataDirs, rd: u32) -> Result<(Transport, Option<World>), String> {
+fn open(
+    play: QuickPlay,
+    dirs: &DataDirs,
+    rd: u32,
+    user: &UserData,
+) -> Result<(Transport, Option<World>), String> {
     match play {
         QuickPlay::Multiplayer(server) => Ok((
             Transport::Remote {
@@ -130,8 +159,13 @@ fn open(play: QuickPlay, dirs: &DataDirs, rd: u32) -> Result<(Transport, Option<
             let summary = worlds
                 .get(&folder)
                 .ok_or_else(|| format!("No world in {}", saves_dir.join(&folder).display()))?;
-            let (world, end) =
-                crate::singleplayer::open(summary, &saves_dir.join(&folder), rd as u8)?;
+            let (world, end) = crate::singleplayer::open(
+                summary,
+                &saves_dir.join(&folder),
+                rd as u8,
+                user.local_profile.username.clone(),
+                user.local_profile.player_uuid,
+            )?;
             Ok((
                 Transport::Memory {
                     end,

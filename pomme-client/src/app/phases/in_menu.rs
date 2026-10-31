@@ -1,6 +1,6 @@
-use crate::app::QuickPlay;
 use crate::app::core::AppCore;
 use crate::app::phases::{Gfx, Panorama};
+use crate::app::{PendingGameAction, QuickPlay};
 use crate::net::connection::{ConnectArgs, Transport};
 use crate::singleplayer::{self, World};
 use crate::ui::menu::{MenuAction, PanoramaTheme};
@@ -14,15 +14,105 @@ pub enum MenuUpdateResult {
     Quit,
 }
 
+#[derive(Clone, Copy)]
+enum GameplayMode {
+    Singleplayer,
+    Multiplayer,
+}
+
+/// Identity and permission are separate: the local profile identifies the
+/// integrated singleplayer player, while a verified Microsoft session is
+/// required only for remote multiplayer.
+fn authorize_gameplay(core: &mut AppCore, pending: PendingGameAction, mode: GameplayMode) -> bool {
+    let allowed = match mode {
+        GameplayMode::Singleplayer => core.user.allows_singleplayer(cfg!(not(debug_assertions))),
+        GameplayMode::Multiplayer => core.user.allows_multiplayer(),
+    };
+    if allowed {
+        return true;
+    }
+
+    if core.deferred_game_action.is_some() {
+        tracing::warn!(
+            "Rejected a gameplay request because another request is already waiting for account authorization"
+        );
+    } else {
+        core.deferred_game_action = Some(pending);
+    }
+    core.menu.require_account(&core.input.key_bindings);
+    core.menu.restore_account();
+    core.menu.open_account(&core.input.key_bindings);
+    false
+}
+
+/// Resumes exactly one gameplay request after a successful account action.
+fn start_pending(core: &mut AppCore, pending: PendingGameAction) -> MenuUpdateResult {
+    match pending {
+        PendingGameAction::Connect {
+            server,
+            username,
+            protocol,
+        } => connect_remote(core, server, username, protocol),
+        PendingGameAction::PlayWorld { folder } => open_world(core, &folder),
+    }
+}
+
+/// Creates a remote connection only after the launch policy authorizes
+/// gameplay.
+fn connect_remote(
+    core: &mut AppCore,
+    server: String,
+    username: String,
+    protocol: Option<i32>,
+) -> MenuUpdateResult {
+    if !authorize_gameplay(
+        core,
+        PendingGameAction::Connect {
+            server: server.clone(),
+            username: username.clone(),
+            protocol,
+        },
+        GameplayMode::Multiplayer,
+    ) {
+        return MenuUpdateResult::None;
+    }
+    core.audio.stop_menu_music();
+    MenuUpdateResult::Connect {
+        connect_args: Box::new(connect_args(
+            core,
+            Transport::Remote { server, protocol },
+            username,
+        )),
+        world: None,
+    }
+}
+
 /// Starts the integrated server for save folder `folder` and connects to it;
 /// on failure the menu shows why.
 pub fn open_world(core: &mut AppCore, folder: &str) -> MenuUpdateResult {
+    if !authorize_gameplay(
+        core,
+        PendingGameAction::PlayWorld {
+            folder: folder.to_owned(),
+        },
+        GameplayMode::Singleplayer,
+    ) {
+        return MenuUpdateResult::None;
+    }
     // Vanilla `quickplay.error.invalid_identifier`.
     let opened = core
         .menu
         .world_to_launch(folder)
         .ok_or_else(|| "Could not find a world with the provided identifier".to_owned())
-        .and_then(|(summary, dir)| singleplayer::open(&summary, &dir, core.view_distance()));
+        .and_then(|(summary, dir)| {
+            singleplayer::open(
+                &summary,
+                &dir,
+                core.view_distance(),
+                core.user.local_profile.username.clone(),
+                core.user.local_profile.player_uuid,
+            )
+        });
     let (world, client_end) = match opened {
         Ok(opened) => opened,
         Err(reason) => {
@@ -33,7 +123,7 @@ pub fn open_world(core: &mut AppCore, folder: &str) -> MenuUpdateResult {
     };
     core.menu.world_played(folder);
     core.audio.stop_menu_music();
-    let username = core.user.username.clone();
+    let username = core.user.local_profile.username.clone();
     MenuUpdateResult::Connect {
         connect_args: Box::new(connect_args(
             core,
@@ -50,29 +140,62 @@ pub fn open_world(core: &mut AppCore, folder: &str) -> MenuUpdateResult {
 /// Starts `--quick-access-multiplayer` or `--quick-access-singleplayer`.
 pub fn quick_play(core: &mut AppCore, play: QuickPlay) -> MenuUpdateResult {
     match play {
-        QuickPlay::Multiplayer(server) => MenuUpdateResult::Connect {
-            // TODO: read the saved server list's protocol for this address to
-            // skip the join-time probe.
-            connect_args: Box::new(connect_args(
-                core,
-                Transport::Remote {
-                    server,
-                    protocol: None,
-                },
-                core.user.username.clone(),
-            )),
-            world: None,
-        },
+        QuickPlay::Multiplayer(server) => {
+            let username = core
+                .user
+                .multiplayer_identity()
+                .map(|(name, _, _)| name.to_owned())
+                .unwrap_or_else(|| core.user.username.clone());
+            connect_remote(core, server, username, None)
+        }
         QuickPlay::Singleplayer(folder) => open_world(core, &folder),
     }
 }
 
+fn apply_account(core: &mut AppCore, gfx: &mut Gfx, account: Option<pomme_auth::AuthAccount>) {
+    let account_uuid = account
+        .as_ref()
+        .and_then(|account| uuid::Uuid::parse_str(&account.uuid).ok());
+    let account_name = account
+        .as_ref()
+        .map(|account| account.username.clone())
+        .unwrap_or_else(|| core.user.username.clone());
+    let access_token = account.as_ref().map(|account| account.access_token.clone());
+
+    // This mutates only the Microsoft session. The selected local profile,
+    // local username and offline UUID remain unchanged.
+    core.user.set_microsoft_account(account);
+
+    core.menu
+        .set_account(account_name, access_token, &core.input.key_bindings);
+    if let Some(uuid) = account_uuid {
+        gfx.renderer.load_player_skin(&uuid, &core.tokio_rt);
+        core.menu.set_player_face(Some(&uuid));
+    } else {
+        core.menu.set_player_face(None);
+    }
+}
+
 pub fn connect_args(core: &AppCore, transport: Transport, username: String) -> ConnectArgs {
+    let (username, uuid, access_token) = match &transport {
+        Transport::Remote { .. } => {
+            let (account_name, account_uuid, token) = core
+                .user
+                .multiplayer_identity()
+                .expect("remote connection requires a valid Microsoft Java session");
+            (
+                account_name.to_owned(),
+                account_uuid,
+                Some(token.to_owned()),
+            )
+        }
+        Transport::Memory { .. } => (username, core.user.local_profile.player_uuid, None),
+    };
     ConnectArgs {
         transport,
         username,
-        uuid: core.user.uuid,
-        access_token: core.user.access_token.clone(),
+        uuid,
+        access_token,
         view_distance: core.view_distance(),
         chat_options: core.menu.chat_options,
         skin_options: core.menu.skin_options(),
@@ -85,6 +208,13 @@ pub fn update_menu(
     gfx: &mut Gfx,
     panorama: &mut Panorama,
 ) -> MenuUpdateResult {
+    if let Some(account) = core.menu.take_restored_account() {
+        apply_account(core, gfx, Some(account));
+        if let Some(pending) = core.deferred_game_action.take() {
+            return start_pending(core, pending);
+        }
+    }
+
     panorama.update(dt);
 
     core.audio.start_menu_music();
@@ -102,6 +232,23 @@ pub fn update_menu(
     }
 
     let menu_input = core.build_menu_input(dt);
+    if let Some(bytes) = crate::util::take_skin_import() {
+        let uuid = core.user.local_profile.player_uuid;
+        match gfx.renderer.load_local_skin(&uuid, &bytes) {
+            Ok(()) => {
+                let skin_dir = core.data_dirs.game_dir.join("skins");
+                let skin_path = skin_dir.join("local.png");
+                if let Err(error) = std::fs::create_dir_all(&skin_dir) {
+                    tracing::warn!("Could not create local skin directory: {error}");
+                } else if let Err(error) = crate::util::write_atomic(&skin_path, &bytes) {
+                    tracing::warn!("Skin was applied but could not be saved: {error}");
+                } else {
+                    tracing::info!("Imported local player skin");
+                }
+            }
+            Err(error) => tracing::warn!("Rejected imported player skin: {error}"),
+        }
+    }
 
     let result = core
         .menu
@@ -179,18 +326,7 @@ pub fn update_menu(
             server,
             username,
             protocol,
-        } => {
-            core.audio.stop_menu_music();
-
-            return MenuUpdateResult::Connect {
-                connect_args: Box::new(connect_args(
-                    core,
-                    Transport::Remote { server, protocol },
-                    username,
-                )),
-                world: None,
-            };
-        }
+        } => return connect_remote(core, server, username, protocol),
         MenuAction::PlayWorld { folder } => return open_world(core, &folder),
         MenuAction::ChangeTheme(theme) => {
             gfx.renderer
@@ -203,30 +339,26 @@ pub fn update_menu(
         }
         MenuAction::Account(account) => {
             if account.is_none() {
-                core.menu.forget_account(&core.user.uuid);
-            }
-            core.user = match &account {
-                Some(account) => crate::user::UserData::from_account(account),
-                None => {
-                    crate::user::UserData::from_args(Some(core.user.username.clone()), None, None)
+                if let Some(account_uuid) = core.user.microsoft_profile_uuid() {
+                    core.menu.forget_account(&account_uuid);
                 }
-            };
-            core.menu.set_account(
-                core.user.username.clone(),
-                core.user.access_token.clone(),
-                &core.input.key_bindings,
-            );
-            if core.user.has_profile {
-                gfx.renderer
-                    .load_player_skin(&core.user.uuid, &core.tokio_rt);
+                core.deferred_game_action = None;
             }
-            core.menu
-                .set_player_face(core.user.has_profile.then_some(&core.user.uuid));
-            if account.is_some()
-                && let Some(play) = core.deferred_quick_play.take()
-            {
-                return quick_play(core, play);
+            let signed_in = account.is_some();
+            apply_account(core, gfx, account);
+            if signed_in && let Some(pending) = core.deferred_game_action.take() {
+                return start_pending(core, pending);
             }
+        }
+        MenuAction::CancelPending => {
+            core.deferred_game_action = None;
+        }
+        MenuAction::ImportSkin => {
+            #[cfg(target_os = "android")]
+            crate::util::request_skin_import();
+            // Preserve the pre-existing desktop Dressing Room behavior.
+            #[cfg(not(target_os = "android"))]
+            core.menu.open_account(&core.input.key_bindings);
         }
         MenuAction::Quit => {
             return MenuUpdateResult::Quit;

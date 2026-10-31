@@ -10,7 +10,7 @@ use gilrs::{Button, GamepadId, Gilrs};
 use winit::event::{ElementState, KeyEvent, Modifiers, MouseButton, Touch};
 use winit::keyboard::{Key, KeyCode, NamedKey, PhysicalKey};
 
-use self::touch::{TouchControls, TouchLayout, TouchOutput};
+use self::touch::{TouchContext, TouchControls, TouchLayout, TouchOutput};
 use crate::app::TICK_RATE_MS;
 use crate::app::phases::AppPhase;
 use crate::app::state_slot::StateSlot;
@@ -514,6 +514,7 @@ impl InputState {
         }
         match action {
             Action::Jump => self.action_held(action) || self.touch.jump_held(),
+            Action::Sprint => self.action_held(action) || self.touch.sprint_held(),
             Action::ToggleInventory => {
                 self.action_just_pressed(action) || self.bound_gamepad_button_down(action)
             }
@@ -522,7 +523,6 @@ impl InputState {
             // DropItem and SwapOffhand are click-count driven (`consume_click`);
             // this is their held state only.
             Action::Sneak
-            | Action::Sprint
             | Action::Destroy
             | Action::Use
             | Action::OpenMenu
@@ -1014,13 +1014,13 @@ impl InputState {
     }
 
     /// `gameplay`: the world has the input (no screen, chat or pause menu).
-    pub fn on_touch(&mut self, touch: &Touch, gameplay: bool, layout: &TouchLayout) {
+    pub fn on_touch(&mut self, touch: &Touch, context: TouchContext, layout: &TouchLayout) {
         let p = glam::vec2(touch.location.x as f32, touch.location.y as f32);
         let out = self.touch.on_touch(
             touch.id,
             touch.phase,
             p,
-            gameplay,
+            context,
             layout,
             std::time::Instant::now(),
         );
@@ -1071,8 +1071,23 @@ impl InputState {
                     self.recent_actions.insert(action, true);
                     self.tap_releases.push(action);
                 }
+                TouchOutput::VirtualInputPress(input) => match input {
+                    InputKey::Keyboard(code) => self.on_key(code, ElementState::Pressed, false),
+                    InputKey::Mouse(button) => {
+                        self.on_mouse_button(button, ElementState::Pressed);
+                    }
+                    InputKey::Controller(_) => {}
+                },
+                TouchOutput::VirtualInputRelease(input) => match input {
+                    InputKey::Keyboard(code) => self.on_key(code, ElementState::Released, false),
+                    InputKey::Mouse(button) => {
+                        self.on_mouse_button(button, ElementState::Released);
+                    }
+                    InputKey::Controller(_) => {}
+                },
                 TouchOutput::Hotbar(slot) => self.select_hotbar(slot),
                 TouchOutput::PointerMove(p) => self.on_cursor_moved(p.x, p.y),
+                TouchOutput::Scroll(delta) => self.on_menu_scroll_xy(0.0, delta),
             }
         }
     }
@@ -1431,6 +1446,36 @@ mod binding_lookup_tests {
         assert!(input.take_spectator_slot_presses().is_empty());
         assert_eq!(input.selected_slot(), 0);
         assert_eq!(input.hotbar_key_just_pressed(), Some(2));
+    }
+
+    #[test]
+    fn custom_touch_keyboard_events_reuse_key_bindings_and_release_held_actions() {
+        let mut input = InputState::released();
+        input
+            .key_bindings
+            .set(Action::Jump, vec![InputKey::Keyboard(KeyCode::KeyR)]);
+        input.apply_touch(vec![TouchOutput::VirtualInputPress(InputKey::Keyboard(
+            KeyCode::KeyR,
+        ))]);
+        assert!(input.key_pressed(KeyCode::KeyR));
+        assert!(input.performing_action(Action::Jump));
+        input.apply_touch(vec![TouchOutput::VirtualInputRelease(InputKey::Keyboard(
+            KeyCode::KeyR,
+        ))]);
+        assert!(!input.key_pressed(KeyCode::KeyR));
+        assert!(!input.performing_action(Action::Jump));
+
+        input
+            .key_bindings
+            .set(Action::DropItem, vec![InputKey::Keyboard(KeyCode::KeyQ)]);
+        input.apply_touch(vec![TouchOutput::VirtualInputPress(InputKey::Keyboard(
+            KeyCode::KeyQ,
+        ))]);
+        assert!(input.consume_click(Action::DropItem));
+        input.apply_touch(vec![TouchOutput::VirtualInputRelease(InputKey::Keyboard(
+            KeyCode::KeyQ,
+        ))]);
+        assert!(!input.consume_click(Action::DropItem));
     }
 
     #[test]

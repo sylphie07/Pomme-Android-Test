@@ -1,6 +1,6 @@
 [package]
 name = "pomme-android"
-description = "Android entry point for the Pomme client."
+description = "Unofficial Android build of the Pomme client."
 version = "0.1.0"
 edition = "2024"
 license = "GPL-3.0-or-later"

@@ -1527,23 +1527,34 @@ impl Renderer {
         let uuid_str = uuid.to_string().replace('-', "");
         let skin = rt.block_on(async { fetch_skin_texture(&uuid_str).await });
         match skin {
-            Ok(skin) => {
-                // In-flight frames may still reference the old skin texture,
-                // hand mesh, and preview pipeline about to be destroyed.
-                self.ctx.device.wait_idle();
-                self.hand_pipeline.reload_skin(&self.ctx.device, &skin);
-                self.skin_preview.destroy(&self.ctx.device);
-                self.skin_preview = SkinPreviewPipeline::new(
-                    &self.ctx.device,
-                    self.swapchain.targets(),
-                    self.hand_pipeline.skin_texture(),
-                    self.hand_pipeline.skin_sampler(),
-                    skin.slim,
-                );
-                self.update_player_entity_skin(uuid, &skin);
-            }
+            Ok(skin) => self.apply_player_skin(uuid, &skin),
             Err(e) => tracing::warn!("Failed to load player skin: {e}"),
         }
+    }
+
+    /// Applies a validated local PNG skin to the hand, menu preview and
+    /// local-player entity renderer. Imported skins default to the classic
+    /// model because PNG files do not carry Minecraft's slim-model metadata.
+    pub fn load_local_skin(&mut self, uuid: &uuid::Uuid, bytes: &[u8]) -> Result<(), String> {
+        let skin = decode_local_skin(bytes)?;
+        self.apply_player_skin(uuid, &skin);
+        Ok(())
+    }
+
+    fn apply_player_skin(&mut self, uuid: &uuid::Uuid, skin: &SkinData) {
+        // In-flight frames may still reference the old skin texture, hand
+        // mesh, and preview pipeline about to be destroyed.
+        self.ctx.device.wait_idle();
+        self.hand_pipeline.reload_skin(&self.ctx.device, skin);
+        self.skin_preview.destroy(&self.ctx.device);
+        self.skin_preview = SkinPreviewPipeline::new(
+            &self.ctx.device,
+            self.swapchain.targets(),
+            self.hand_pipeline.skin_texture(),
+            self.hand_pipeline.skin_sampler(),
+            skin.slim,
+        );
+        self.update_player_entity_skin(uuid, skin);
     }
 
     pub fn update_player_entity_skin(&mut self, uuid: &uuid::Uuid, skin: &SkinData) {
@@ -2288,6 +2299,42 @@ pub(crate) struct SkinData {
     pub slim: bool,
 }
 
+/// Decodes a user-selected Minecraft skin PNG with strict input bounds.
+fn decode_local_skin(bytes: &[u8]) -> Result<SkinData, String> {
+    const MAX_BYTES: usize = 4 * 1024 * 1024;
+    const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
+    if bytes.len() > MAX_BYTES {
+        return Err("Skin PNG exceeds the 4 MiB limit".to_owned());
+    }
+    if !bytes.starts_with(PNG_SIGNATURE) {
+        return Err("Selected file is not a PNG image".to_owned());
+    }
+
+    let mut reader =
+        image::ImageReader::with_format(std::io::Cursor::new(bytes), image::ImageFormat::Png);
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(64);
+    limits.max_image_height = Some(64);
+    limits.max_alloc = Some((64 * 64 * 4 * 4) as u64);
+    reader.limits(limits);
+    let image = reader
+        .decode()
+        .map_err(|error| format!("Invalid skin PNG: {error}"))?;
+    let (width, height) = (image.width(), image.height());
+    if width != 64 || (height != 32 && height != 64) {
+        return Err(format!(
+            "Unsupported Minecraft skin dimensions: {width}x{height}; expected 64x64 or 64x32"
+        ));
+    }
+    let (pixels, width, height) = process_legacy_skin(image.to_rgba8().into_raw(), width, height)?;
+    Ok(SkinData {
+        pixels,
+        width,
+        height,
+        slim: false,
+    })
+}
+
 pub(crate) async fn fetch_skin_texture_by_name(name: &str) -> Result<SkinData, String> {
     #[derive(serde::Deserialize)]
     struct NamedProfile {
@@ -2715,6 +2762,24 @@ mod tests {
 
     fn get_px(img: &[u8], x: u32, y: u32) -> [u8; 4] {
         img[skin_px(x, y)..skin_px(x, y) + 4].try_into().unwrap()
+    }
+
+    #[test]
+    fn decodes_valid_local_skin_png() {
+        let image = image::DynamicImage::ImageRgba8(image::RgbaImage::new(64, 64));
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        image.write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+
+        let skin = decode_local_skin(bytes.get_ref()).unwrap();
+        assert_eq!((skin.width, skin.height), (64, 64));
+        assert!(!skin.slim);
+        assert_eq!(skin.pixels.len(), 64 * 64 * 4);
+    }
+
+    #[test]
+    fn rejects_non_png_and_oversized_local_skin_inputs() {
+        assert!(decode_local_skin(b"not a png").is_err());
+        assert!(decode_local_skin(&vec![0; 4 * 1024 * 1024 + 1]).is_err());
     }
 
     #[test]

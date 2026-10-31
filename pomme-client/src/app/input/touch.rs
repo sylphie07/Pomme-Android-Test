@@ -46,7 +46,7 @@ pub struct TouchHudLayout {
     #[serde(default = "default_touch_visibility")]
     pub visible: [bool; 4],
 }
-fn default_touch_positions() -> [[f32; 2]; 4] { [[0.96, 0.92], [0.96, 0.07], [0.89, 0.07], [0.96, 0.07]] }
+fn default_touch_positions() -> [[f32; 2]; 4] { [[0.96, 0.92], [0.78, 0.07], [0.88, 0.07], [0.96, 0.07]] }
 fn default_touch_scales() -> [f32; 4] { [1.0; 4] }
 fn default_touch_visibility() -> [bool; 4] { [true; 4] }
 impl Default for TouchHudLayout {
@@ -417,7 +417,7 @@ mod tests {
     use glam::Vec2;
     use winit::event::TouchPhase;
 
-    use super::{Action, TouchButton, TouchContext, TouchControls, TouchLayout, TouchOutput};
+    use super::{Action, TouchButton, TouchContext, TouchControls, TouchHudLayout, TouchLayout, TouchOutput};
 
     const MENU: TouchContext = TouchContext {
         gameplay: false,
@@ -436,6 +436,11 @@ mod tests {
         width: 1600.0,
         height: 900.0,
         gs: 2.0,
+        hud: TouchHudLayout {
+            positions: [[0.96, 0.92], [0.78, 0.07], [0.88, 0.07], [0.96, 0.07]],
+            scales: [1.0; 4],
+            visible: [true; 4],
+        },
     };
     /// Right of the stick zone, above the hotbar, away from the buttons.
     const LOOK: Vec2 = Vec2::new(1000.0, 400.0);

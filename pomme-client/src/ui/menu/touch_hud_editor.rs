@@ -10,7 +10,6 @@ use crate::app::input::touch::{
 
 const CUSTOM_INPUT_CHOICES: &[InputKey] = &[
     InputKey::Keyboard(KeyCode::KeyA),
-    KeyCode::KeyA,
     InputKey::Keyboard(KeyCode::KeyB),
     InputKey::Keyboard(KeyCode::KeyC),
     InputKey::Keyboard(KeyCode::KeyD),

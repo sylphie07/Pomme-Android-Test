@@ -4,7 +4,7 @@
 use glam::Vec2;
 
 use crate::app::input::InputKey;
-use crate::app::input::touch::{STICK_RADIUS, TouchButton, TouchControls, TouchLayout};
+use crate::app::input::touch::{TouchButton, TouchControls, TouchLayout};
 use crate::renderer::pipelines::menu_overlay::MenuElement;
 use crate::ui::common::{FONT_SIZE, WHITE};
 
@@ -17,7 +17,7 @@ pub fn build_touch_controls(
     touch: &TouchControls,
 ) {
     let gs = layout.gs;
-    let radius = STICK_RADIUS * gs;
+    let radius = layout.stick_radius();
     let base = touch.stick_origin().unwrap_or_else(|| layout.stick_home());
     push_circle(elements, base, radius, BASE);
     let deflection = touch.stick().map_or(Vec2::ZERO, |v| Vec2::new(v.x, -v.y));

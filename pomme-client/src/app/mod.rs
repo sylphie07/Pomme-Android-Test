@@ -551,6 +551,20 @@ impl ApplicationHandler for App {
                     self.core.menu.set_player_face(Some(&uuid));
                 }
 
+                // A user-imported skin is local-only and overrides the
+                // account lookup for this device after a successful import.
+                let local_skin_path = self.core.data_dirs.game_dir.join("skins/local.png");
+                if let Ok(metadata) = std::fs::metadata(&local_skin_path)
+                    && metadata.len() <= 4 * 1024 * 1024
+                    && let Ok(bytes) = std::fs::read(&local_skin_path)
+                    && let Err(error) = renderer.load_local_skin(
+                        &self.core.user.local_profile.player_uuid,
+                        &bytes,
+                    )
+                {
+                    tracing::warn!("Could not load saved local player skin: {error}");
+                }
+
                 self.core.apply_cursor_grab(&window, None);
 
                 let gfx = Gfx {

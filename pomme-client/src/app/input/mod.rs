@@ -514,6 +514,7 @@ impl InputState {
         }
         match action {
             Action::Jump => self.action_held(action) || self.touch.jump_held(),
+            Action::Sprint => self.action_held(action) || self.touch.sprint_held(),
             Action::ToggleInventory => {
                 self.action_just_pressed(action) || self.bound_gamepad_button_down(action)
             }
@@ -522,7 +523,6 @@ impl InputState {
             // DropItem and SwapOffhand are click-count driven (`consume_click`);
             // this is their held state only.
             Action::Sneak
-            | Action::Sprint
             | Action::Destroy
             | Action::Use
             | Action::OpenMenu

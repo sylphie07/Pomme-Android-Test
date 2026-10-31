@@ -336,6 +336,9 @@ pub fn update_menu(
         MenuAction::CancelPending => {
             core.deferred_game_action = None;
         }
+        MenuAction::ImportSkin => {
+            crate::util::request_skin_import();
+        }
         MenuAction::Quit => {
             return MenuUpdateResult::Quit;
         }

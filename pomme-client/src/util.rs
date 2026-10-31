@@ -96,6 +96,7 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
 pub static ANDROID_APP: std::sync::RwLock<Option<crate::AndroidApp>> = std::sync::RwLock::new(None);
 
 /// Opens Android's document picker for a local Minecraft skin PNG.
+#[cfg(target_os = "android")]
 /// The Java activity copies a bounded stream into its private files directory;
 /// Rust consumes the completed file on a later menu update.
 pub fn request_skin_import() {

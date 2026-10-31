@@ -1071,6 +1071,12 @@ impl InputState {
                     self.recent_actions.insert(action, true);
                     self.tap_releases.push(action);
                 }
+                TouchOutput::VirtualKeyPress(code) => {
+                    self.on_key(code, ElementState::Pressed, false);
+                }
+                TouchOutput::VirtualKeyRelease(code) => {
+                    self.on_key(code, ElementState::Released, false);
+                }
                 TouchOutput::Hotbar(slot) => self.select_hotbar(slot),
                 TouchOutput::PointerMove(p) => self.on_cursor_moved(p.x, p.y),
                 TouchOutput::Scroll(delta) => self.on_menu_scroll_xy(0.0, delta),
@@ -1432,6 +1438,25 @@ mod binding_lookup_tests {
         assert!(input.take_spectator_slot_presses().is_empty());
         assert_eq!(input.selected_slot(), 0);
         assert_eq!(input.hotbar_key_just_pressed(), Some(2));
+    }
+
+
+    #[test]
+    fn custom_touch_keyboard_events_reuse_key_bindings_and_release_held_actions() {
+        let mut input = InputState::released();
+        input.key_bindings.set(Action::Jump, vec![InputKey::Keyboard(KeyCode::KeyR)]);
+        input.apply_touch(vec![TouchOutput::VirtualKeyPress(KeyCode::KeyR)]);
+        assert!(input.key_pressed(KeyCode::KeyR));
+        assert!(input.performing_action(Action::Jump));
+        input.apply_touch(vec![TouchOutput::VirtualKeyRelease(KeyCode::KeyR)]);
+        assert!(!input.key_pressed(KeyCode::KeyR));
+        assert!(!input.performing_action(Action::Jump));
+
+        input.key_bindings.set(Action::DropItem, vec![InputKey::Keyboard(KeyCode::KeyQ)]);
+        input.apply_touch(vec![TouchOutput::VirtualKeyPress(KeyCode::KeyQ)]);
+        assert!(input.consume_click(Action::DropItem));
+        input.apply_touch(vec![TouchOutput::VirtualKeyRelease(KeyCode::KeyQ)]);
+        assert!(!input.consume_click(Action::DropItem));
     }
 
     #[test]

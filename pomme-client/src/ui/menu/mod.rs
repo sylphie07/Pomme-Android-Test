@@ -723,6 +723,7 @@ pub struct MainMenu {
     /// Uncommitted layout while the touch HUD editor is open.
     touch_hud_draft: Option<crate::app::input::touch::TouchHudLayout>,
     touch_hud_selected: Option<crate::app::input::touch::TouchButton>,
+    touch_hud_stick_selected: bool,
     touch_hud_custom_selected: Option<usize>,
     touch_hud_dragging: bool,
     touch_hud_drag_offset: (f32, f32),
@@ -895,6 +896,7 @@ impl MainMenu {
             touch_hud: settings.touch_hud.sanitized(),
             touch_hud_draft: None,
             touch_hud_selected: None,
+            touch_hud_stick_selected: false,
             touch_hud_custom_selected: None,
             touch_hud_dragging: false,
             touch_hud_drag_offset: (0.0, 0.0),

@@ -1,5 +1,50 @@
 use super::*;
-use crate::app::input::touch::{BUTTON_RADIUS, STICK_RADIUS, TouchButton, TouchHudLayout};
+use crate::app::input::InputKey;
+use crate::app::input::touch::{
+    BUTTON_RADIUS, CustomTouchButton, MAX_CUSTOM_TOUCH_BUTTONS, STICK_RADIUS, TouchButton,
+    TouchHudLayout,
+};
+use winit::keyboard::KeyCode;
+
+
+const CUSTOM_KEY_CHOICES: &[KeyCode] = &[
+    KeyCode::KeyA, KeyCode::KeyB, KeyCode::KeyC, KeyCode::KeyD, KeyCode::KeyE, KeyCode::KeyF,
+    KeyCode::KeyG, KeyCode::KeyH, KeyCode::KeyI, KeyCode::KeyJ, KeyCode::KeyK, KeyCode::KeyL,
+    KeyCode::KeyM, KeyCode::KeyN, KeyCode::KeyO, KeyCode::KeyP, KeyCode::KeyQ, KeyCode::KeyR,
+    KeyCode::KeyS, KeyCode::KeyT, KeyCode::KeyU, KeyCode::KeyV, KeyCode::KeyW, KeyCode::KeyX,
+    KeyCode::KeyY, KeyCode::KeyZ, KeyCode::Digit0, KeyCode::Digit1, KeyCode::Digit2,
+    KeyCode::Digit3, KeyCode::Digit4, KeyCode::Digit5, KeyCode::Digit6, KeyCode::Digit7,
+    KeyCode::Digit8, KeyCode::Digit9, KeyCode::Space, KeyCode::ShiftLeft, KeyCode::ControlLeft,
+    KeyCode::AltLeft, KeyCode::Tab, KeyCode::Enter, KeyCode::Slash, KeyCode::Comma,
+    KeyCode::Period, KeyCode::Backspace, KeyCode::ArrowUp, KeyCode::ArrowDown,
+    KeyCode::ArrowLeft, KeyCode::ArrowRight,
+];
+
+fn custom_key_id(key: KeyCode) -> String {
+    InputKey::Keyboard(key)
+        .input_id()
+        .expect("custom key choices must have a stable input ID")
+        .into_owned()
+}
+
+fn cycle_custom_key(input_id: &str, direction: i32) -> String {
+    let current = match InputKey::from_input_id(input_id) {
+        Ok(InputKey::Keyboard(key)) => key,
+        _ => KeyCode::KeyR,
+    };
+    let current_index = CUSTOM_KEY_CHOICES
+        .iter()
+        .position(|&key| key == current)
+        .unwrap_or(0) as i32;
+    let next = (current_index + direction).rem_euclid(CUSTOM_KEY_CHOICES.len() as i32) as usize;
+    custom_key_id(CUSTOM_KEY_CHOICES[next])
+}
+
+fn custom_key_label(input_id: &str) -> String {
+    InputKey::from_input_id(input_id)
+        .map(|key| key.display_name().into_owned())
+        .unwrap_or_else(|_| "?".to_owned())
+}
 
 fn button_index(button: TouchButton) -> usize {
     match button {
@@ -21,6 +66,7 @@ impl MainMenu {
         if input.escape {
             self.touch_hud_draft = None;
             self.touch_hud_selected = None;
+            self.touch_hud_custom_selected = None;
             self.touch_hud_dragging = false;
             self.set_screen(Screen::OptionsControls, key_bindings);
             return empty_result();
@@ -36,7 +82,7 @@ impl MainMenu {
         let preview_x = sw * 0.12;
         let preview_y = chrome.content_top + 12.0 * gs;
         let preview_w = sw * 0.76;
-        let controls_h = 76.0 * gs;
+        let controls_h = 100.0 * gs;
         let available_h = (chrome.content_bottom - preview_y - controls_h).max(100.0 * gs);
         let preview_h = (preview_w * sh / sw).min(available_h);
 
@@ -95,6 +141,7 @@ impl MainMenu {
         // threshold. Keep a generous selection radius so that transition does
         // not make a button impossible to grab on a phone.
         if input.clicked {
+            let mut selected_builtin = false;
             for button in TouchButton::ALL {
                 let index = button_index(button);
                 let [nx, ny] = draft.positions[index];
@@ -104,12 +151,33 @@ impl MainMenu {
                 let dy = input.cursor.1 - centre.1;
                 if dx * dx + dy * dy <= (radius * 2.0).powi(2) {
                     self.touch_hud_selected = Some(button);
+                    self.touch_hud_custom_selected = None;
                     self.touch_hud_dragging = input.mouse_held;
                     self.touch_hud_drag_offset = (
                         nx - (input.cursor.0 - preview_x) / preview_w,
                         ny - (input.cursor.1 - preview_y) / preview_h,
                     );
+                    selected_builtin = true;
                     break;
+                }
+            }
+            if !selected_builtin {
+                for (index, button) in draft.custom_buttons.iter().enumerate() {
+                    let [nx, ny] = button.position;
+                    let centre = (preview_x + nx * preview_w, preview_y + ny * preview_h);
+                    let radius = BUTTON_RADIUS * gs * button.scale;
+                    let dx = input.cursor.0 - centre.0;
+                    let dy = input.cursor.1 - centre.1;
+                    if dx * dx + dy * dy <= (radius * 2.0).powi(2) {
+                        self.touch_hud_selected = None;
+                        self.touch_hud_custom_selected = Some(index);
+                        self.touch_hud_dragging = input.mouse_held;
+                        self.touch_hud_drag_offset = (
+                            nx - (input.cursor.0 - preview_x) / preview_w,
+                            ny - (input.cursor.1 - preview_y) / preview_h,
+                        );
+                        break;
+                    }
                 }
             }
         }
@@ -124,6 +192,22 @@ impl MainMenu {
                         .clamp(0.04, 0.96),
                 ];
             } else if !input.mouse_held {
+                self.touch_hud_dragging = false;
+            }
+        } else if let Some(index) = self.touch_hud_custom_selected {
+            if let Some(button) = draft.custom_buttons.get_mut(index) {
+                if self.touch_hud_dragging && input.mouse_held {
+                    button.position = [
+                        ((input.cursor.0 - preview_x) / preview_w + self.touch_hud_drag_offset.0)
+                            .clamp(0.04, 0.96),
+                        ((input.cursor.1 - preview_y) / preview_h + self.touch_hud_drag_offset.1)
+                            .clamp(0.04, 0.96),
+                    ];
+                } else if !input.mouse_held {
+                    self.touch_hud_dragging = false;
+                }
+            } else {
+                self.touch_hud_custom_selected = None;
                 self.touch_hud_dragging = false;
             }
         }
@@ -160,6 +244,48 @@ impl MainMenu {
                 centered: true,
             });
             if !visible {
+                elements.push(MenuElement::Text {
+                    x: centre_x,
+                    y: centre_y + radius + 2.0 * gs,
+                    text: "HIDDEN".into(),
+                    scale: fs * 0.7,
+                    color: COL_DIM,
+                    centered: true,
+                });
+            }
+        }
+
+
+        for (index, button) in draft.custom_buttons.iter().enumerate() {
+            let [nx, ny] = button.position;
+            let centre_x = preview_x + nx * preview_w;
+            let centre_y = preview_y + ny * preview_h;
+            let radius = BUTTON_RADIUS * gs * button.scale;
+            let selected = self.touch_hud_custom_selected == Some(index);
+            let color = if selected {
+                [0.18, 0.72, 0.42, if button.visible { 0.9 } else { 0.38 }]
+            } else if button.visible {
+                [0.12, 0.52, 0.78, 0.78]
+            } else {
+                [0.35, 0.38, 0.42, 0.35]
+            };
+            elements.push(MenuElement::Rect {
+                x: centre_x - radius,
+                y: centre_y - radius,
+                w: radius * 2.0,
+                h: radius * 2.0,
+                corner_radius: radius,
+                color,
+            });
+            elements.push(MenuElement::Text {
+                x: centre_x,
+                y: centre_y - fs / 2.0,
+                text: custom_key_label(&button.input_id),
+                scale: fs,
+                color: WHITE,
+                centered: true,
+            });
+            if !button.visible {
                 elements.push(MenuElement::Text {
                     x: centre_x,
                     y: centre_y + radius + 2.0 * gs,
@@ -213,55 +339,95 @@ impl MainMenu {
             }
         }
 
-        let action_y = row_y + row_h + 3.0 * gs;
-        let action_w = (sw.min(360.0 * gs) - 2.0 * gap) / 3.0;
-        let action_x = (sw - (action_w * 3.0 + gap * 2.0)) / 2.0;
+
+        let custom_row_y = row_y + row_h + 3.0 * gs;
+        let action_w = (sw.min(420.0 * gs) - 3.0 * gap) / 4.0;
+        let action_x = (sw - (action_w * 4.0 + gap * 3.0)) / 2.0;
+        let mut add_custom = false;
+        let mut remove_custom = false;
+        let mut key_previous = false;
+        let mut key_next = false;
+        add_custom |= helpers::push_button_f(
+            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+            action_x, custom_row_y, action_w, row_h, gs, "Add", draft.custom_buttons.len() < MAX_CUSTOM_TOUCH_BUTTONS,
+        );
+        remove_custom |= helpers::push_button_f(
+            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+            action_x + action_w + gap, custom_row_y, action_w, row_h, gs, "Remove",
+            self.touch_hud_custom_selected.is_some(),
+        );
+        key_previous |= helpers::push_button_f(
+            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+            action_x + (action_w + gap) * 2.0, custom_row_y, action_w, row_h, gs, "Key -",
+            self.touch_hud_custom_selected.is_some(),
+        );
+        key_next |= helpers::push_button_f(
+            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+            action_x + (action_w + gap) * 3.0, custom_row_y, action_w, row_h, gs, "Key +",
+            self.touch_hud_custom_selected.is_some(),
+        );
+
+        if add_custom && draft.custom_buttons.len() < MAX_CUSTOM_TOUCH_BUTTONS {
+            let index = draft.custom_buttons.len();
+            let key = CUSTOM_KEY_CHOICES[index % CUSTOM_KEY_CHOICES.len()];
+            let column = (index % 4) as f32;
+            let row = (index / 4) as f32;
+            draft.custom_buttons.push(CustomTouchButton {
+                input_id: custom_key_id(key),
+                position: [(0.34 + column * 0.09).min(0.70), (0.32 + row * 0.10).min(0.72)],
+                scale: 1.0,
+                visible: true,
+            });
+            self.touch_hud_selected = None;
+            self.touch_hud_custom_selected = Some(index);
+            self.touch_hud_dragging = false;
+        }
+        if remove_custom {
+            if let Some(index) = self.touch_hud_custom_selected.take() {
+                if index < draft.custom_buttons.len() {
+                    draft.custom_buttons.remove(index);
+                }
+            }
+            self.touch_hud_dragging = false;
+        }
+        if let Some(index) = self.touch_hud_custom_selected {
+            if let Some(button) = draft.custom_buttons.get_mut(index) {
+                if key_previous {
+                    button.input_id = cycle_custom_key(&button.input_id, -1);
+                }
+                if key_next {
+                    button.input_id = cycle_custom_key(&button.input_id, 1);
+                }
+            }
+        }
+
+        let action_y = custom_row_y + row_h + 3.0 * gs;
         let selected_index = selected.map(button_index);
+        let custom_selected_index = self
+            .touch_hud_custom_selected
+            .filter(|&index| index < draft.custom_buttons.len());
+        let has_selection = selected_index.is_some() || custom_selected_index.is_some();
         let mut size_down = false;
         let mut size_up = false;
         let mut toggle_visibility = false;
+        let mut reset = false;
         size_down |= helpers::push_button_f(
-            &mut elements,
-            &mut ctx,
-            &mut any_hovered,
-            input.cursor,
-            input.clicked,
-            action_x,
-            action_y,
-            action_w,
-            row_h,
-            gs,
-            "Size -",
-            selected_index.is_some(),
+            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+            action_x, action_y, action_w, row_h, gs, "Size -", has_selection,
         );
         size_up |= helpers::push_button_f(
-            &mut elements,
-            &mut ctx,
-            &mut any_hovered,
-            input.cursor,
-            input.clicked,
-            action_x + action_w + gap,
-            action_y,
-            action_w,
-            row_h,
-            gs,
-            "Size +",
-            selected_index.is_some(),
+            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+            action_x + action_w + gap, action_y, action_w, row_h, gs, "Size +", has_selection,
         );
         toggle_visibility |= helpers::push_button_f(
-            &mut elements,
-            &mut ctx,
-            &mut any_hovered,
-            input.cursor,
-            input.clicked,
-            action_x + (action_w + gap) * 2.0,
-            action_y,
-            action_w,
-            row_h,
-            gs,
-            "Show / Hide",
-            selected_index.is_some(),
+            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+            action_x + (action_w + gap) * 2.0, action_y, action_w, row_h, gs, "Show / Hide", has_selection,
         );
+        reset |= helpers::push_button_f(
+            &mut elements, &mut ctx, &mut any_hovered, input.cursor, input.clicked,
+            action_x + (action_w + gap) * 3.0, action_y, action_w, row_h, gs, "Reset", true,
+        );
+
         if let Some(index) = selected_index {
             if size_down {
                 draft.scales[index] = (draft.scales[index] - 0.1).max(0.6);
@@ -272,25 +438,23 @@ impl MainMenu {
             if toggle_visibility {
                 draft.visible[index] = !draft.visible[index];
             }
+        } else if let Some(index) = custom_selected_index {
+            let button = &mut draft.custom_buttons[index];
+            if size_down {
+                button.scale = (button.scale - 0.1).max(0.6);
+            }
+            if size_up {
+                button.scale = (button.scale + 0.1).min(1.8);
+            }
+            if toggle_visibility {
+                button.visible = !button.visible;
+            }
         }
 
-        let reset = helpers::push_button_f(
-            &mut elements,
-            &mut ctx,
-            &mut any_hovered,
-            input.cursor,
-            input.clicked,
-            action_x + action_w + gap,
-            action_y + row_h + 2.0 * gs,
-            action_w,
-            row_h,
-            gs,
-            "Reset",
-            true,
-        );
         if reset {
             draft = TouchHudLayout::default();
             self.touch_hud_selected = None;
+            self.touch_hud_custom_selected = None;
             self.touch_hud_dragging = false;
         }
 
@@ -329,11 +493,13 @@ impl MainMenu {
             self.settings_dirty = true;
             self.touch_hud_draft = None;
             self.touch_hud_selected = None;
+            self.touch_hud_custom_selected = None;
             self.touch_hud_dragging = false;
             self.set_screen(Screen::OptionsControls, key_bindings);
         } else if cancel {
             self.touch_hud_draft = None;
             self.touch_hud_selected = None;
+            self.touch_hud_custom_selected = None;
             self.touch_hud_dragging = false;
             self.set_screen(Screen::OptionsControls, key_bindings);
         } else {

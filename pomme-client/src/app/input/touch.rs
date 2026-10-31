@@ -547,7 +547,9 @@ impl TouchControls {
                         }
                         *role = Role::Spent;
                     }
-                    Role::Look { destroying: true, .. } => {
+                    Role::Look {
+                        destroying: true, ..
+                    } => {
                         out.push(TouchOutput::DestroyCancel);
                         *role = Role::Spent;
                     }
@@ -557,7 +559,11 @@ impl TouchControls {
                     _ => {}
                 }
             }
-            out.extend(held_inputs.into_iter().map(TouchOutput::VirtualInputRelease));
+            out.extend(
+                held_inputs
+                    .into_iter()
+                    .map(TouchOutput::VirtualInputRelease),
+            );
             return out;
         }
         for role in self.touches.values_mut() {
@@ -622,8 +628,8 @@ mod tests {
     use winit::keyboard::KeyCode;
 
     use super::{
-        Action, CustomTouchButton, InputKey, TouchButton, TouchContext, TouchControls, TouchHudLayout,
-        TouchLayout, TouchOutput,
+        Action, CustomTouchButton, InputKey, TouchButton, TouchContext, TouchControls,
+        TouchHudLayout, TouchLayout, TouchOutput,
     };
 
     const MENU: TouchContext = TouchContext {
@@ -729,9 +735,21 @@ mod tests {
     fn forward_stick_deflection_engages_sprint_only_above_the_saved_threshold() {
         let (mut c, t) = (TouchControls::default(), Instant::now());
         touch(&mut c, 9, TouchPhase::Started, STICK, t);
-        touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, -48.0), t);
+        touch(
+            &mut c,
+            9,
+            TouchPhase::Moved,
+            STICK + Vec2::new(0.0, -48.0),
+            t,
+        );
         assert!(!c.sprint_held());
-        touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, -50.0), t);
+        touch(
+            &mut c,
+            9,
+            TouchPhase::Moved,
+            STICK + Vec2::new(0.0, -50.0),
+            t,
+        );
         assert!(c.sprint_held());
         touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, 20.0), t);
         assert!(!c.sprint_held());
@@ -889,11 +907,15 @@ mod tests {
         let centre = layout.custom_button_centre(0);
         assert_eq!(
             controls.on_touch(90, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
-            [TouchOutput::VirtualInputPress(InputKey::Keyboard(KeyCode::KeyR))]
+            [TouchOutput::VirtualInputPress(InputKey::Keyboard(
+                KeyCode::KeyR
+            ))]
         );
         assert_eq!(
             controls.on_touch(90, TouchPhase::Cancelled, centre, GAMEPLAY, &layout, now),
-            [TouchOutput::VirtualInputRelease(InputKey::Keyboard(KeyCode::KeyR))]
+            [TouchOutput::VirtualInputRelease(InputKey::Keyboard(
+                KeyCode::KeyR
+            ))]
         );
 
         assert_eq!(
@@ -934,11 +956,15 @@ mod tests {
         let centre = layout.custom_button_centre(0);
         assert_eq!(
             controls.on_touch(93, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
-            [TouchOutput::VirtualInputPress(InputKey::Mouse(MouseButton::Left))]
+            [TouchOutput::VirtualInputPress(InputKey::Mouse(
+                MouseButton::Left
+            ))]
         );
         assert_eq!(
             controls.on_touch(93, TouchPhase::Ended, centre, GAMEPLAY, &layout, now),
-            [TouchOutput::VirtualInputRelease(InputKey::Mouse(MouseButton::Left))]
+            [TouchOutput::VirtualInputRelease(InputKey::Mouse(
+                MouseButton::Left
+            ))]
         );
     }
 

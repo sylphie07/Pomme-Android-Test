@@ -26,7 +26,7 @@ impl MainMenu {
             return empty_result();
         }
 
-        let mut draft = self.touch_hud_draft.unwrap_or(self.touch_hud);
+        let mut draft = self.touch_hud_draft.clone().unwrap_or_else(|| self.touch_hud.clone());
         let gs = self.gui_scale(sw, sh);
         let mut elements = vec![MenuElement::BlurBackground];
         let chrome = helpers::push_screen_chrome(&mut elements, sw, sh, gs, "Touch Controls");
@@ -334,7 +334,7 @@ impl MainMenu {
             self.touch_hud_dragging = false;
             self.set_screen(Screen::OptionsControls, key_bindings);
         } else {
-            self.touch_hud_draft = Some(draft.sanitized());
+            self.touch_hud_draft = Some(draft.clone().sanitized());
         }
 
         MainMenuResult {

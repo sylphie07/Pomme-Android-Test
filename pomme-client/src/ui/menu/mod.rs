@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use winit::keyboard::KeyCode;
 
 use crate::app::core::DisplayMode;
-use crate::app::input::{Action, InputKey, KeyBindings};
+use crate::app::input::{Action, KeyBindings};
 use crate::audio::SoundCategory;
 use crate::renderer::CloudMode;
 use crate::renderer::pipelines::menu_overlay::{

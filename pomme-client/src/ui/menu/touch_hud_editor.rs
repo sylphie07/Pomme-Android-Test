@@ -103,6 +103,7 @@ impl MainMenu {
         if input.escape {
             self.touch_hud_draft = None;
             self.touch_hud_selected = None;
+            self.touch_hud_stick_selected = false;
             self.touch_hud_custom_selected = None;
             self.touch_hud_dragging = false;
             self.set_screen(Screen::OptionsControls, key_bindings);
@@ -156,7 +157,7 @@ impl MainMenu {
 
         // The movement stick is shown for context but is not editable in this
         // first editor version; it remains anchored by the gameplay layout.
-        let stick_radius = STICK_RADIUS * gs;
+        let stick_radius = STICK_RADIUS * gs * draft.stick_scale;
         let stick_inset = 1.6 * stick_radius;
         let stick_x = preview_x + stick_inset;
         let stick_y = preview_y + preview_h - stick_inset;
@@ -171,8 +172,17 @@ impl MainMenu {
         elements.push(MenuElement::Text {
             x: stick_x,
             y: stick_y - fs / 2.0,
-            text: "MOVE".into(),
+            text: "MOVE / SPRINT".into(),
             scale: fs * 0.8,
+            color: COL_DIM,
+            centered: true,
+        });
+
+        elements.push(MenuElement::Text {
+            x: stick_x,
+            y: stick_y - stick_radius - fs * 0.9,
+            text: format!("SPRINT > {}%", (draft.sprint_threshold * 100.0).round() as u32),
+            scale: fs * 0.62,
             color: COL_DIM,
             centered: true,
         });
@@ -182,7 +192,19 @@ impl MainMenu {
         // not make a button impossible to grab on a phone.
         if input.clicked {
             let mut selected_builtin = false;
+            let stick_dx = input.cursor.0 - stick_x;
+            let stick_dy = input.cursor.1 - stick_y;
+            if stick_dx * stick_dx + stick_dy * stick_dy <= (stick_radius * 2.0).powi(2) {
+                self.touch_hud_selected = None;
+                self.touch_hud_stick_selected = true;
+                self.touch_hud_custom_selected = None;
+                self.touch_hud_dragging = false;
+                selected_builtin = true;
+            }
             for button in TouchButton::ALL {
+                if selected_builtin {
+                    break;
+                }
                 let index = button_index(button);
                 let [nx, ny] = draft.positions[index];
                 let centre = (preview_x + nx * preview_w, preview_y + ny * preview_h);
@@ -191,6 +213,7 @@ impl MainMenu {
                 let dy = input.cursor.1 - centre.1;
                 if dx * dx + dy * dy <= (radius * 2.0).powi(2) {
                     self.touch_hud_selected = Some(button);
+                    self.touch_hud_stick_selected = false;
                     self.touch_hud_custom_selected = None;
                     self.touch_hud_dragging = input.mouse_held;
                     self.touch_hud_drag_offset = (
@@ -210,6 +233,7 @@ impl MainMenu {
                     let dy = input.cursor.1 - centre.1;
                     if dx * dx + dy * dy <= (radius * 2.0).powi(2) {
                         self.touch_hud_selected = None;
+                        self.touch_hud_stick_selected = false;
                         self.touch_hud_custom_selected = Some(index);
                         self.touch_hud_dragging = input.mouse_held;
                         self.touch_hud_drag_offset = (
@@ -364,6 +388,7 @@ impl MainMenu {
                 true,
             ) {
                 self.touch_hud_selected = Some(button);
+                self.touch_hud_stick_selected = false;
                 self.touch_hud_custom_selected = None;
                 self.touch_hud_dragging = false;
             }
@@ -458,6 +483,7 @@ impl MainMenu {
                 visible: true,
             });
             self.touch_hud_selected = None;
+            self.touch_hud_stick_selected = false;
             self.touch_hud_custom_selected = Some(index);
             self.touch_hud_dragging = false;
         }
@@ -485,7 +511,9 @@ impl MainMenu {
         let custom_selected_index = self
             .touch_hud_custom_selected
             .filter(|&index| index < draft.custom_buttons.len());
-        let has_selection = selected_index.is_some() || custom_selected_index.is_some();
+        let has_selection = selected_index.is_some()
+            || custom_selected_index.is_some()
+            || self.touch_hud_stick_selected;
         let mut size_down = false;
         let mut size_up = false;
         let mut toggle_visibility = false;
@@ -547,7 +575,14 @@ impl MainMenu {
             true,
         );
 
-        if let Some(index) = selected_index {
+        if self.touch_hud_stick_selected {
+            if size_down {
+                draft.stick_scale = (draft.stick_scale - 0.1).max(0.6);
+            }
+            if size_up {
+                draft.stick_scale = (draft.stick_scale + 0.1).min(1.8);
+            }
+        } else if let Some(index) = selected_index {
             if size_down {
                 draft.scales[index] = (draft.scales[index] - 0.1).max(0.6);
             }
@@ -573,6 +608,7 @@ impl MainMenu {
         if reset {
             draft = TouchHudLayout::default();
             self.touch_hud_selected = None;
+            self.touch_hud_stick_selected = false;
             self.touch_hud_custom_selected = None;
             self.touch_hud_dragging = false;
         }
@@ -612,6 +648,7 @@ impl MainMenu {
             self.settings_dirty = true;
             self.touch_hud_draft = None;
             self.touch_hud_selected = None;
+            self.touch_hud_stick_selected = false;
             self.touch_hud_custom_selected = None;
             self.touch_hud_dragging = false;
             self.set_screen(Screen::OptionsControls, key_bindings);

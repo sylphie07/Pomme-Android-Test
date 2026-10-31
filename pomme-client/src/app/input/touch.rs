@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use winit::event::TouchPhase;
 use winit::keyboard::KeyCode;
 
-use super::action::Action;
 use super::InputKey;
+use super::action::Action;
 
 /// A press lifted within this, having stayed still, is a use.
 const TAP_TIME: Duration = Duration::from_millis(250);
@@ -62,7 +62,9 @@ pub struct CustomTouchButton {
     pub visible: bool,
 }
 
-fn default_custom_button_visible() -> bool { true }
+fn default_custom_button_visible() -> bool {
+    true
+}
 
 pub const MAX_CUSTOM_TOUCH_BUTTONS: usize = 12;
 
@@ -105,7 +107,10 @@ impl TouchHudLayout {
         }
         self.custom_buttons.truncate(MAX_CUSTOM_TOUCH_BUTTONS);
         self.custom_buttons.retain_mut(|button| {
-            if !matches!(InputKey::from_input_id(&button.input_id), Ok(InputKey::Keyboard(_))) {
+            if !matches!(
+                InputKey::from_input_id(&button.input_id),
+                Ok(InputKey::Keyboard(_))
+            ) {
                 return false;
             }
             for coordinate in &mut button.position {
@@ -213,15 +218,21 @@ impl TouchLayout {
     }
 
     fn custom_button_at(&self, p: Vec2) -> Option<KeyCode> {
-        self.hud.custom_buttons.iter().enumerate().find_map(|(index, button)| {
-            if !button.visible || p.distance(self.custom_button_centre(index)) > self.custom_button_radius(index) {
-                return None;
-            }
-            match InputKey::from_input_id(&button.input_id) {
-                Ok(InputKey::Keyboard(key)) => Some(key),
-                _ => None,
-            }
-        })
+        self.hud
+            .custom_buttons
+            .iter()
+            .enumerate()
+            .find_map(|(index, button)| {
+                if !button.visible
+                    || p.distance(self.custom_button_centre(index)) > self.custom_button_radius(index)
+                {
+                    return None;
+                }
+                match InputKey::from_input_id(&button.input_id) {
+                    Ok(InputKey::Keyboard(key)) => Some(key),
+                    _ => None,
+                }
+            })
     }
 
     fn hotbar_slot_at(&self, p: Vec2) -> Option<u8> {
@@ -267,7 +278,9 @@ enum Role {
         destroying: bool,
     },
     Jump,
-    CustomKey { key: KeyCode },
+    CustomKey {
+        key: KeyCode,
+    },
     Pointer {
         start: Vec2,
         last: Vec2,
@@ -337,7 +350,10 @@ impl TouchControls {
                 None => (Role::Jump, Vec::new()),
             }
         } else if let Some(key) = layout.custom_button_at(p) {
-            (Role::CustomKey { key }, vec![TouchOutput::VirtualKeyPress(key)])
+            (
+                Role::CustomKey { key },
+                vec![TouchOutput::VirtualKeyPress(key)],
+            )
         } else if let Some(slot) = layout.hotbar_slot_at(p) {
             (Role::Spent, vec![TouchOutput::Hotbar(slot)])
         } else if p.x < layout.width * STICK_ZONE {
@@ -526,11 +542,12 @@ mod tests {
 
     use glam::Vec2;
     use winit::event::TouchPhase;
+    use winit::keyboard::KeyCode;
 
     use super::{
-        Action, CustomTouchButton, TouchButton, TouchContext, TouchControls, TouchHudLayout, TouchLayout, TouchOutput,
+        Action, CustomTouchButton, TouchButton, TouchContext, TouchControls, TouchHudLayout,
+        TouchLayout, TouchOutput,
     };
-    use winit::keyboard::KeyCode;
 
     const MENU: TouchContext = TouchContext {
         gameplay: false,
@@ -709,7 +726,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn custom_keyboard_button_sends_press_and_releases_on_cancel_or_gameplay_loss() {
         let (mut controls, now) = (TouchControls::default(), Instant::now());
@@ -738,7 +754,11 @@ mod tests {
             controls.tick(ms(now, 16), false),
             [TouchOutput::VirtualKeyRelease(KeyCode::KeyR)]
         );
-        assert!(controls.on_touch(91, TouchPhase::Ended, centre, MENU, &layout, now).is_empty());
+        assert!(
+            controls
+                .on_touch(91, TouchPhase::Ended, centre, MENU, &layout, now)
+                .is_empty()
+        );
     }
 
     #[test]

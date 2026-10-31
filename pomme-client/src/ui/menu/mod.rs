@@ -1139,7 +1139,7 @@ impl MainMenu {
             &self.settings_dir,
             &Settings {
                 key_bindings: key_bindings.clone(),
-                touch_hud: self.touch_hud.sanitized(),
+                touch_hud: self.touch_hud.clone().sanitized(),
                 gui_scale: self.gui_scale_setting,
                 render_distance: self
                     .bench_render_distance

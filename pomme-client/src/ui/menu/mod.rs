@@ -5,10 +5,10 @@ mod friends_screen;
 pub(crate) mod helpers;
 mod main_screen;
 mod options;
-mod touch_hud_editor;
 mod servers;
 mod splash;
 mod title_screen;
+mod touch_hud_editor;
 mod worlds;
 
 use std::path::{Path, PathBuf};

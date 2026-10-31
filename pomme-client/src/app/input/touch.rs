@@ -106,7 +106,7 @@ impl TouchHudLayout {
         for position in &mut self.positions {
             for coordinate in position {
                 *coordinate = if coordinate.is_finite() {
-                    coordinate.clamp(0.04, 0.96)
+                    coordinate.clamp(0.015, 0.985)
                 } else {
                     0.5
                 };
@@ -141,7 +141,7 @@ impl TouchHudLayout {
             }
             for coordinate in &mut button.position {
                 *coordinate = if coordinate.is_finite() {
-                    coordinate.clamp(0.04, 0.96)
+                    coordinate.clamp(0.015, 0.985)
                 } else {
                     0.5
                 };

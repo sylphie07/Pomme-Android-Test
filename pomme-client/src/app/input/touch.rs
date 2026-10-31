@@ -9,8 +9,10 @@ use std::time::{Duration, Instant};
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 use winit::event::TouchPhase;
+use winit::keyboard::KeyCode;
 
 use super::action::Action;
+use super::InputKey;
 
 /// A press lifted within this, having stayed still, is a use.
 const TAP_TIME: Duration = Duration::from_millis(250);
@@ -37,7 +39,7 @@ pub struct TouchContext {
     pub scrollable: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TouchHudLayout {
     #[serde(default = "default_touch_positions")]
     pub positions: [[f32; 2]; 4],
@@ -45,7 +47,25 @@ pub struct TouchHudLayout {
     pub scales: [f32; 4],
     #[serde(default = "default_touch_visibility")]
     pub visible: [bool; 4],
+    /// User-created buttons that synthesize keyboard input through KeyBindings.
+    #[serde(default)]
+    pub custom_buttons: Vec<CustomTouchButton>,
 }
+
+/// A configurable touch button that simulates one supported keyboard key.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CustomTouchButton {
+    pub input_id: String,
+    pub position: [f32; 2],
+    pub scale: f32,
+    #[serde(default = "default_custom_button_visible")]
+    pub visible: bool,
+}
+
+fn default_custom_button_visible() -> bool { true }
+
+pub const MAX_CUSTOM_TOUCH_BUTTONS: usize = 12;
+
 fn default_touch_positions() -> [[f32; 2]; 4] {
     [[0.96, 0.92], [0.78, 0.07], [0.88, 0.07], [0.96, 0.07]]
 }
@@ -61,6 +81,7 @@ impl Default for TouchHudLayout {
             positions: default_touch_positions(),
             scales: default_touch_scales(),
             visible: default_touch_visibility(),
+            custom_buttons: Vec::new(),
         }
     }
 }
@@ -82,6 +103,25 @@ impl TouchHudLayout {
                 1.0
             };
         }
+        self.custom_buttons.truncate(MAX_CUSTOM_TOUCH_BUTTONS);
+        self.custom_buttons.retain_mut(|button| {
+            if !matches!(InputKey::from_input_id(&button.input_id), Ok(InputKey::Keyboard(_))) {
+                return false;
+            }
+            for coordinate in &mut button.position {
+                *coordinate = if coordinate.is_finite() {
+                    coordinate.clamp(0.04, 0.96)
+                } else {
+                    0.5
+                };
+            }
+            button.scale = if button.scale.is_finite() {
+                button.scale.clamp(0.6, 1.8)
+            } else {
+                1.0
+            };
+            true
+        });
         self
     }
     fn index(button: TouchButton) -> usize {
@@ -103,7 +143,7 @@ impl TouchHudLayout {
         self.visible[Self::index(button)]
     }
 }
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct TouchLayout {
     pub width: f32,
     pub height: f32,
@@ -163,6 +203,27 @@ impl TouchLayout {
         })
     }
 
+    pub fn custom_button_centre(&self, index: usize) -> Vec2 {
+        let [x, y] = self.hud.custom_buttons[index].position;
+        Vec2::new(x * self.width, y * self.height)
+    }
+
+    pub fn custom_button_radius(&self, index: usize) -> f32 {
+        BUTTON_RADIUS * self.gs * self.hud.custom_buttons[index].scale
+    }
+
+    fn custom_button_at(&self, p: Vec2) -> Option<KeyCode> {
+        self.hud.custom_buttons.iter().enumerate().find_map(|(index, button)| {
+            if !button.visible || p.distance(self.custom_button_centre(index)) > self.custom_button_radius(index) {
+                return None;
+            }
+            match InputKey::from_input_id(&button.input_id) {
+                Ok(InputKey::Keyboard(key)) => Some(key),
+                _ => None,
+            }
+        })
+    }
+
     fn hotbar_slot_at(&self, p: Vec2) -> Option<u8> {
         crate::ui::hud::hotbar_slot_at(self.width, self.height, self.gs, (p.x, p.y))
     }
@@ -180,6 +241,9 @@ pub enum TouchOutput {
     Use,
     /// A tap of an action's key.
     Tap(Action),
+    /// A custom HUD button's simulated keyboard press/release.
+    VirtualKeyPress(KeyCode),
+    VirtualKeyRelease(KeyCode),
     Hotbar(u8),
     PointerMove(Vec2),
     /// Vertical menu scroll in wheel-like units.
@@ -203,6 +267,7 @@ enum Role {
         destroying: bool,
     },
     Jump,
+    CustomKey { key: KeyCode },
     Pointer {
         start: Vec2,
         last: Vec2,
@@ -271,6 +336,8 @@ impl TouchControls {
                 Some(action) => (Role::Spent, vec![TouchOutput::Tap(action)]),
                 None => (Role::Jump, Vec::new()),
             }
+        } else if let Some(key) = layout.custom_button_at(p) {
+            (Role::CustomKey { key }, vec![TouchOutput::VirtualKeyPress(key)])
         } else if let Some(slot) = layout.hotbar_slot_at(p) {
             (Role::Spent, vec![TouchOutput::Hotbar(slot)])
         } else if p.x < layout.width * STICK_ZONE {
@@ -360,6 +427,7 @@ impl TouchControls {
     /// A look touch lifted after a screen opened stays out of that screen.
     fn end(&mut self, id: u64, now: Instant, lifted: bool, gameplay: bool) -> Vec<TouchOutput> {
         match self.touches.remove(&id) {
+            Some(Role::CustomKey { key }) => vec![TouchOutput::VirtualKeyRelease(key)],
             Some(Role::Look {
                 destroying: true, ..
             }) => vec![if gameplay {
@@ -397,6 +465,13 @@ impl TouchControls {
     pub fn tick(&mut self, now: Instant, gameplay: bool) -> Vec<TouchOutput> {
         let mut out = Vec::new();
         if !gameplay {
+            for role in self.touches.values_mut() {
+                if let Role::CustomKey { key } = role {
+                    let key = *key;
+                    *role = Role::Spent;
+                    out.push(TouchOutput::VirtualKeyRelease(key));
+                }
+            }
             return out;
         }
         for role in self.touches.values_mut() {
@@ -453,8 +528,9 @@ mod tests {
     use winit::event::TouchPhase;
 
     use super::{
-        Action, TouchButton, TouchContext, TouchControls, TouchHudLayout, TouchLayout, TouchOutput,
+        Action, CustomTouchButton, TouchButton, TouchContext, TouchControls, TouchHudLayout, TouchLayout, TouchOutput,
     };
+    use winit::keyboard::KeyCode;
 
     const MENU: TouchContext = TouchContext {
         gameplay: false,
@@ -469,7 +545,7 @@ mod tests {
         scrollable: false,
     };
 
-    const LAYOUT: TouchLayout = TouchLayout {
+    static LAYOUT: std::sync::LazyLock<TouchLayout> = std::sync::LazyLock::new(|| TouchLayout {
         width: 1600.0,
         height: 900.0,
         gs: 2.0,
@@ -477,8 +553,9 @@ mod tests {
             positions: [[0.96, 0.92], [0.78, 0.07], [0.88, 0.07], [0.96, 0.07]],
             scales: [1.0; 4],
             visible: [true; 4],
+            custom_buttons: Vec::new(),
         },
-    };
+    });
     /// Right of the stick zone, above the hotbar, away from the buttons.
     const LOOK: Vec2 = Vec2::new(1000.0, 400.0);
     const STICK: Vec2 = Vec2::new(200.0, 600.0);
@@ -630,6 +707,38 @@ mod tests {
             touch(&mut c, 3, TouchPhase::Started, first_slot, t),
             [TouchOutput::Hotbar(0)]
         );
+    }
+
+
+    #[test]
+    fn custom_keyboard_button_sends_press_and_releases_on_cancel_or_gameplay_loss() {
+        let (mut controls, now) = (TouchControls::default(), Instant::now());
+        let mut layout = (*LAYOUT).clone();
+        layout.hud.custom_buttons.push(CustomTouchButton {
+            input_id: "key.keyboard.r".into(),
+            position: [0.5, 0.5],
+            scale: 1.0,
+            visible: true,
+        });
+        let centre = layout.custom_button_centre(0);
+        assert_eq!(
+            controls.on_touch(90, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualKeyPress(KeyCode::KeyR)]
+        );
+        assert_eq!(
+            controls.on_touch(90, TouchPhase::Cancelled, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualKeyRelease(KeyCode::KeyR)]
+        );
+
+        assert_eq!(
+            controls.on_touch(91, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
+            [TouchOutput::VirtualKeyPress(KeyCode::KeyR)]
+        );
+        assert_eq!(
+            controls.tick(ms(now, 16), false),
+            [TouchOutput::VirtualKeyRelease(KeyCode::KeyR)]
+        );
+        assert!(controls.on_touch(91, TouchPhase::Ended, centre, MENU, &layout, now).is_empty());
     }
 
     #[test]

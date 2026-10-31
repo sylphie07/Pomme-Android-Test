@@ -134,7 +134,7 @@ impl TouchHudLayout {
             if button.input_id.len() > 128
                 || !matches!(
                     InputKey::from_input_id(&button.input_id),
-                    Ok(InputKey::Keyboard(_))
+                    Ok(InputKey::Keyboard(_) | InputKey::Mouse(_))
                 )
             {
                 return false;
@@ -247,7 +247,7 @@ impl TouchLayout {
         BUTTON_RADIUS * self.gs * self.hud.custom_buttons[index].scale
     }
 
-    fn custom_button_at(&self, p: Vec2) -> Option<KeyCode> {
+    fn custom_button_at(&self, p: Vec2) -> Option<InputKey> {
         self.hud
             .custom_buttons
             .iter()
@@ -260,7 +260,7 @@ impl TouchLayout {
                     return None;
                 }
                 match InputKey::from_input_id(&button.input_id) {
-                    Ok(InputKey::Keyboard(key)) => Some(key),
+                    Ok(input @ (InputKey::Keyboard(_) | InputKey::Mouse(_))) => Some(input),
                     _ => None,
                 }
             })
@@ -283,9 +283,9 @@ pub enum TouchOutput {
     Use,
     /// A tap of an action's key.
     Tap(Action),
-    /// A custom HUD button's simulated keyboard press/release.
-    VirtualKeyPress(KeyCode),
-    VirtualKeyRelease(KeyCode),
+    /// A custom HUD button's simulated keyboard or mouse press/release.
+    VirtualInputPress(InputKey),
+    VirtualInputRelease(InputKey),
     Hotbar(u8),
     PointerMove(Vec2),
     /// Vertical menu scroll in wheel-like units.
@@ -310,7 +310,7 @@ enum Role {
     },
     Jump,
     CustomKey {
-        key: KeyCode,
+        key: InputKey,
     },
     Pointer {
         start: Vec2,
@@ -401,7 +401,7 @@ impl TouchControls {
                 if already_held {
                     Vec::new()
                 } else {
-                    vec![TouchOutput::VirtualKeyPress(key)]
+                    vec![TouchOutput::VirtualInputPress(key)]
                 },
             )
         } else if let Some(slot) = layout.hotbar_slot_at(p) {
@@ -501,7 +501,7 @@ impl TouchControls {
             {
                 Vec::new()
             }
-            Some(Role::CustomKey { key }) => vec![TouchOutput::VirtualKeyRelease(key)],
+            Some(Role::CustomKey { key }) => vec![TouchOutput::VirtualInputRelease(key)],
             Some(Role::Look {
                 destroying: true, ..
             }) => vec![if gameplay {
@@ -821,7 +821,7 @@ mod tests {
         let centre = layout.custom_button_centre(0);
         assert_eq!(
             controls.on_touch(90, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
-            [TouchOutput::VirtualKeyPress(KeyCode::KeyR)]
+            [TouchOutput::VirtualInputPress(KeyCode::KeyR)]
         );
         assert_eq!(
             controls.on_touch(90, TouchPhase::Cancelled, centre, GAMEPLAY, &layout, now),

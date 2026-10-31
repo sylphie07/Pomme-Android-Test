@@ -729,6 +729,47 @@ mod tests {
     }
 
     #[test]
+    fn sprint_threshold_uses_the_saved_layout_setting() {
+        let (mut controls, now) = (TouchControls::default(), Instant::now());
+        let mut layout = (*LAYOUT).clone();
+        layout.hud.sprint_threshold = 0.6;
+        let start = layout.stick_home();
+        controls.on_touch(94, TouchPhase::Started, start, GAMEPLAY, &layout, now);
+        controls.on_touch(
+            94,
+            TouchPhase::Moved,
+            start + Vec2::new(0.0, -36.0),
+            GAMEPLAY,
+            &layout,
+            now,
+        );
+        assert!(controls.sprint_held());
+        controls.on_touch(94, TouchPhase::Ended, start, GAMEPLAY, &layout, now);
+        assert!(!controls.sprint_held());
+    }
+
+    #[test]
+    fn joystick_scale_and_sprint_threshold_are_sanitized() {
+        let layout = TouchHudLayout {
+            stick_scale: f32::NAN,
+            sprint_threshold: 2.0,
+            ..TouchHudLayout::default()
+        }
+        .sanitized();
+        assert_eq!(layout.stick_scale, 1.0);
+        assert_eq!(layout.sprint_threshold, 0.98);
+
+        let layout = TouchHudLayout {
+            stick_scale: 9.0,
+            sprint_threshold: f32::NAN,
+            ..TouchHudLayout::default()
+        }
+        .sanitized();
+        assert_eq!(layout.stick_scale, 1.8);
+        assert_eq!(layout.sprint_threshold, 0.82);
+    }
+
+    #[test]
     fn the_stick_clamps_to_unit_length_with_y_up() {
         let (mut c, t) = (TouchControls::default(), Instant::now());
         touch(&mut c, 2, TouchPhase::Started, STICK, t);

@@ -869,7 +869,7 @@ impl MainMenu {
                     cell_w,
                     cell_h,
                     gs,
-                    &key.display_name(),
+                    &key.display_name().into_owned(),
                     true,
                 ) {
                     if let Some(index) = self.touch_hud_custom_selected
@@ -938,7 +938,9 @@ impl MainMenu {
         } else if cancel {
             self.touch_hud_draft = None;
             self.touch_hud_selected = None;
+            self.touch_hud_stick_selected = false;
             self.touch_hud_custom_selected = None;
+            self.touch_hud_picker_open = false;
             self.touch_hud_dragging = false;
             self.set_screen(Screen::OptionsControls, key_bindings);
         } else {

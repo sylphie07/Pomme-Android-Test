@@ -611,7 +611,7 @@ mod tests {
     use winit::keyboard::KeyCode;
 
     use super::{
-        Action, CustomTouchButton, TouchButton, TouchContext, TouchControls, TouchHudLayout,
+        Action, CustomTouchButton, InputKey, TouchButton, TouchContext, TouchControls, TouchHudLayout,
         TouchLayout, TouchOutput,
     };
 
@@ -718,9 +718,9 @@ mod tests {
     fn forward_stick_deflection_engages_sprint_only_above_the_saved_threshold() {
         let (mut c, t) = (TouchControls::default(), Instant::now());
         touch(&mut c, 9, TouchPhase::Started, STICK, t);
-        touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, -24.0), t);
+        touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, -48.0), t);
         assert!(!c.sprint_held());
-        touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, -26.0), t);
+        touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, -50.0), t);
         assert!(c.sprint_held());
         touch(&mut c, 9, TouchPhase::Moved, STICK + Vec2::new(0.0, 20.0), t);
         assert!(!c.sprint_held());
@@ -825,12 +825,12 @@ mod tests {
         );
         assert_eq!(
             controls.on_touch(90, TouchPhase::Cancelled, centre, GAMEPLAY, &layout, now),
-            [TouchOutput::VirtualKeyRelease(KeyCode::KeyR)]
+            [TouchOutput::VirtualInputRelease(InputKey::Keyboard(KeyCode::KeyR))]
         );
 
         assert_eq!(
             controls.on_touch(91, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
-            [TouchOutput::VirtualKeyPress(KeyCode::KeyR)]
+            [TouchOutput::VirtualInputPress(InputKey::Keyboard(KeyCode::KeyR))]
         );
         assert!(
             controls
@@ -839,7 +839,7 @@ mod tests {
         );
         assert_eq!(
             controls.tick(ms(now, 16), false),
-            [TouchOutput::VirtualKeyRelease(KeyCode::KeyR)]
+            [TouchOutput::VirtualInputRelease(InputKey::Keyboard(KeyCode::KeyR))]
         );
         assert!(
             controls
@@ -866,7 +866,7 @@ mod tests {
         let centre = layout.custom_button_centre(0);
         assert_eq!(
             controls.on_touch(1, TouchPhase::Started, centre, GAMEPLAY, &layout, now),
-            [TouchOutput::VirtualKeyPress(KeyCode::KeyR)]
+            [TouchOutput::VirtualInputPress(InputKey::Keyboard(KeyCode::KeyR))]
         );
         assert!(
             controls
@@ -880,7 +880,7 @@ mod tests {
         );
         assert_eq!(
             controls.on_touch(2, TouchPhase::Ended, centre, GAMEPLAY, &layout, now),
-            [TouchOutput::VirtualKeyRelease(KeyCode::KeyR)]
+            [TouchOutput::VirtualInputRelease(InputKey::Keyboard(KeyCode::KeyR))]
         );
     }
 

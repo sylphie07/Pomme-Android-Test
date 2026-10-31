@@ -116,12 +116,15 @@ impl MainMenu {
         let gs = self.gui_scale(sw, sh);
         let mut elements = vec![MenuElement::BlurBackground];
         let chrome = helpers::push_screen_chrome(&mut elements, sw, sh, gs, "Touch Controls");
-        let preview_x = sw * 0.12;
-        let preview_y = chrome.content_top + 12.0 * gs;
-        let preview_w = sw * 0.76;
+        // Use nearly the full viewport for the editing canvas. The toolbar
+        // remains below it, while normalized coordinates preserve saved layouts
+        // across different device resolutions and aspect ratios.
+        let preview_x = sw * 0.02;
+        let preview_y = chrome.content_top + 4.0 * gs;
+        let preview_w = sw * 0.96;
         let controls_h = 100.0 * gs;
         let available_h = (chrome.content_bottom - preview_y - controls_h).max(100.0 * gs);
-        let preview_h = (preview_w * sh / sw).min(available_h);
+        let preview_h = available_h;
 
         // A framed miniature of the gameplay screen. Coordinates are normalized
         // exactly like the live HUD, so the editor and hit-testing share a model.
@@ -224,9 +227,9 @@ impl MainMenu {
                 let index = button_index(button);
                 draft.positions[index] = [
                     ((input.cursor.0 - preview_x) / preview_w + self.touch_hud_drag_offset.0)
-                        .clamp(0.04, 0.96),
+                        .clamp(0.015, 0.985),
                     ((input.cursor.1 - preview_y) / preview_h + self.touch_hud_drag_offset.1)
-                        .clamp(0.04, 0.96),
+                        .clamp(0.015, 0.985),
                 ];
             } else if !input.mouse_held {
                 self.touch_hud_dragging = false;
@@ -236,9 +239,9 @@ impl MainMenu {
                 if self.touch_hud_dragging && input.mouse_held {
                     button.position = [
                         ((input.cursor.0 - preview_x) / preview_w + self.touch_hud_drag_offset.0)
-                            .clamp(0.04, 0.96),
+                            .clamp(0.015, 0.985),
                         ((input.cursor.1 - preview_y) / preview_h + self.touch_hud_drag_offset.1)
-                            .clamp(0.04, 0.96),
+                            .clamp(0.015, 0.985),
                     ];
                 } else if !input.mouse_held {
                     self.touch_hud_dragging = false;

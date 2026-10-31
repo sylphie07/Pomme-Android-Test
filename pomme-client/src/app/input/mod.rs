@@ -1071,12 +1071,20 @@ impl InputState {
                     self.recent_actions.insert(action, true);
                     self.tap_releases.push(action);
                 }
-                TouchOutput::VirtualKeyPress(code) => {
-                    self.on_key(code, ElementState::Pressed, false);
-                }
-                TouchOutput::VirtualKeyRelease(code) => {
-                    self.on_key(code, ElementState::Released, false);
-                }
+                TouchOutput::VirtualInputPress(input) => match input {
+                    InputKey::Keyboard(code) => self.on_key(code, ElementState::Pressed, false),
+                    InputKey::Mouse(button) => {
+                        self.on_mouse_button(button, ElementState::Pressed);
+                    }
+                    InputKey::Controller(_) => {}
+                },
+                TouchOutput::VirtualInputRelease(input) => match input {
+                    InputKey::Keyboard(code) => self.on_key(code, ElementState::Released, false),
+                    InputKey::Mouse(button) => {
+                        self.on_mouse_button(button, ElementState::Released);
+                    }
+                    InputKey::Controller(_) => {}
+                },
                 TouchOutput::Hotbar(slot) => self.select_hotbar(slot),
                 TouchOutput::PointerMove(p) => self.on_cursor_moved(p.x, p.y),
                 TouchOutput::Scroll(delta) => self.on_menu_scroll_xy(0.0, delta),

@@ -3,7 +3,8 @@
 
 use glam::Vec2;
 
-use crate::app::input::{InputKey, touch::{STICK_RADIUS, TouchButton, TouchControls, TouchLayout}};
+use crate::app::input::InputKey;
+use crate::app::input::touch::{STICK_RADIUS, TouchButton, TouchControls, TouchLayout};
 use crate::renderer::pipelines::menu_overlay::MenuElement;
 use crate::ui::common::{FONT_SIZE, WHITE};
 

@@ -27,7 +27,7 @@ jobs:
       code: ${{ github.event_name != 'pull_request' || steps.code.outputs.code == 'true' }}
       launcher: ${{ github.event_name != 'pull_request' || steps.launcher.outputs.launcher == 'true' }}
     steps:
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         if: github.event_name == 'pull_request'
         id: code
         with:
@@ -38,7 +38,7 @@ jobs:
               - '!**/*.md'
               - '!LICENSE*'
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         if: github.event_name == 'pull_request'
         id: launcher
         with:
